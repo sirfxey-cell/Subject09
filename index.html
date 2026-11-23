@@ -401,13 +401,60 @@ for (let i=0;i<2;i++){
   scene.add(c); scene.add(renderer.xr.getControllerGrip(i));
 }
 $('flatBtn').onclick = () => { initAudio(); $('overlay').hidden = true; enterLobby(); };
+
 const vrBtn = $('vrBtn');
+
 if (navigator.xr && navigator.xr.isSessionSupported){
   navigator.xr.isSessionSupported('immersive-vr').then(ok => {
-    if (!ok) throw 0; vrBtn.disabled = false; vrBtn.textContent = 'Enter VR';
-    vrBtn.onclick = async () => { try { initAudio(); renderer.xr.setReferenceSpaceType('local-floor'); const s = await navigator.xr.requestSession('immersive-vr', {optionalFeatures:['local-floor']}); await renderer.xr.setSession(s); $('overlay').hidden = true; enterLobby(); s.addEventListener('end', () => { $('overlay').hidden = false; state = 'menu'; }); } catch(e){ $('note').textContent = 'Could not start VR here. Open this link directly in your headset’s browser.'; } };
-  }).catch(() => { vrBtn.textContent = 'VR not detected'; });
-} else { vrBtn.textContent = 'VR not detected'; }
+    if (!ok) throw new Error('This browser does not support immersive VR sessions.');
+
+    vrBtn.disabled = false;
+    vrBtn.textContent = 'Enter VR';
+
+    vrBtn.onclick = async () => {
+      try {
+        initAudio();
+
+        renderer.xr.setReferenceSpaceType('local-floor');
+
+        const s = await navigator.xr.requestSession('immersive-vr', {
+          optionalFeatures: ['local-floor']
+        });
+
+        await renderer.xr.setSession(s);
+
+        $('overlay').hidden = true;
+        enterLobby();
+
+        s.addEventListener('end', () => {
+          $('overlay').hidden = false;
+          state = 'menu';
+        });
+
+      } catch(e) {
+        console.error('VR startup error:', e);
+
+        const errorName = e && e.name ? e.name : 'UnknownError';
+        const errorMessage = e && e.message ? e.message : String(e);
+
+        $('note').textContent = 'VR Error: ' + errorName + ': ' + errorMessage;
+        vrBtn.textContent = 'VR Failed - Try Again';
+      }
+    };
+
+  }).catch(e => {
+    console.error('VR detection error:', e);
+    vrBtn.textContent = 'VR not detected';
+
+    const errorName = e && e.name ? e.name : 'UnknownError';
+    const errorMessage = e && e.message ? e.message : String(e);
+
+    $('note').textContent = 'VR Detection Error: ' + errorName + ': ' + errorMessage;
+  });
+
+} else {
+  vrBtn.textContent = 'VR not detected';
+}
 
 /* ---------- Normal-mode monsters ---------- */
 function seen(hw, c){
