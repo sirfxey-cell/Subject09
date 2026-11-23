@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#07060a">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
 <title>Subject 09</title>
 <style>
 :root{--bg:#f7f1f2;--fg:#1b0d12;--muted:#6a4b54;--card:#fff;--accent:#c4182b;--accent-fg:#fff;--line:#e3c9cf;
@@ -39,7 +42,7 @@ small{display:block;margin-top:12px;color:var(--muted);line-height:1.4}
   <div class="row"><button id="vrBtn" disabled>Checking for VR…</button><button id="flatBtn" class="alt">Play on screen</button></div>
   <small id="note">Online play connects the people who have this page open. Screen: drag to look, WASD to walk, L lamp, click the terminal.</small>
 </div></div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="./assets/three.min.js"></script>
 <script>
 (function(){
 const $ = id => document.getElementById(id), V = (x,y,z) => new THREE.Vector3(x||0, y||0, z||0);
@@ -404,43 +407,37 @@ $('flatBtn').onclick = () => { initAudio(); $('overlay').hidden = true; enterLob
 
 const vrBtn = $('vrBtn');
 
+async function startVR(){
+  try {
+    initAudio();
+    renderer.xr.setReferenceSpaceType('local-floor');
+    const s = await navigator.xr.requestSession('immersive-vr', {optionalFeatures:['local-floor']});
+    await renderer.xr.setSession(s);
+    $('overlay').hidden = true;
+    enterLobby();
+    s.addEventListener('end', () => {
+      $('overlay').hidden = false;
+      state = 'menu';
+    }, {once:true});
+  } catch(e) {
+    console.error('VR startup error:', e);
+    const errorName = e && e.name ? e.name : 'UnknownError';
+    const errorMessage = e && e.message ? e.message : String(e);
+    $('note').textContent = 'VR Error: ' + errorName + ': ' + errorMessage;
+    vrBtn.textContent = 'VR Failed - Try Again';
+    $('overlay').hidden = false;
+  }
+}
+
 if (navigator.xr && navigator.xr.isSessionSupported){
   navigator.xr.isSessionSupported('immersive-vr').then(ok => {
     if (!ok) throw new Error('This browser does not support immersive VR sessions.');
 
     vrBtn.disabled = false;
     vrBtn.textContent = 'Enter VR';
-
-    vrBtn.onclick = async () => {
-      try {
-        initAudio();
-
-        renderer.xr.setReferenceSpaceType('local-floor');
-
-        const s = await navigator.xr.requestSession('immersive-vr', {
-          optionalFeatures: ['local-floor']
-        });
-
-        await renderer.xr.setSession(s);
-
-        $('overlay').hidden = true;
-        enterLobby();
-
-        s.addEventListener('end', () => {
-          $('overlay').hidden = false;
-          state = 'menu';
-        });
-
-      } catch(e) {
-        console.error('VR startup error:', e);
-
-        const errorName = e && e.name ? e.name : 'UnknownError';
-        const errorMessage = e && e.message ? e.message : String(e);
-
-        $('note').textContent = 'VR Error: ' + errorName + ': ' + errorMessage;
-        vrBtn.textContent = 'VR Failed - Try Again';
-      }
-    };
+    vrBtn.onclick = startVR;
+    // Meta Quest treats launching an immersive PWA as activation; keep normal browser startup user-triggered.
+    if (window.getDigitalGoodsService !== undefined) startVR();
 
   }).catch(e => {
     console.error('VR detection error:', e);
@@ -511,6 +508,11 @@ renderer.setAnimationLoop(() => {
   lamp.intensity = lampOn ? 2.4 : 0; renderer.render(scene, camera);
 });
 })();
+</script>
+<script>
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js').catch(() => {}), { once: true });
+}
 </script>
 </body>
 </html>
