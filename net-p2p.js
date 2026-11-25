@@ -29,6 +29,12 @@
           if (typeof room[ev] === 'function') room[ev](h); else room[ev] = h;
         }
         var mine = {}, others = new Map(), seen = new Map(), handlers = new Set(), left = false;
+        var oldApi = Array.isArray(act), voice = null, onStream = null, onGone = null;
+        function sendVoice(to) {
+          if (!voice) return;
+          try { if (to) room.addStream(voice, oldApi ? to : { target: to }); else room.addStream(voice); } catch (e) {}
+        }
+        on('onPeerStream', function (stream, x) { if (onStream) onStream(stream, pid(x)); });
 
         function list() {
           var a = [{ peer: T.selfId, isMe: true, presence: mine }];
@@ -49,12 +55,13 @@
           var id = pid(x);
           if (!others.has(id)) others.set(id, {});
           try { Promise.resolve(send(mine, id)).catch(function () {}); } catch (e) {}
+          sendVoice(id);
           fire();
         });
-        on('onPeerLeave', function (x) { var id = pid(x); others.delete(id); seen.delete(id); fire(); });
+        on('onPeerLeave', function (x) { var id = pid(x); others.delete(id); seen.delete(id); if (onGone) onGone(id); fire(); });
         var sweep = setInterval(function () {
           var now = Date.now(), gone = false;
-          seen.forEach(function (t, id) { if (now - t > 20000) { seen.delete(id); others.delete(id); gone = true; } });
+          seen.forEach(function (t, id) { if (now - t > 20000) { seen.delete(id); others.delete(id); if (onGone) onGone(id); gone = true; } });
           if (gone) fire();
           // Keep-alive so idle players are not dropped.
           if (!left) { try { Promise.resolve(send(mine)).catch(function () {}); } catch (e) {} }
@@ -77,6 +84,11 @@
             });
             try { Promise.resolve(send(mine)).catch(function () {}); } catch (e) {}
             return Promise.resolve();
+          },
+          voice: {
+            send: function (stream) { if (voice === stream) return; voice = stream; sendVoice(null); },
+            onStream: function (h) { onStream = h; },
+            onGone: function (h) { onGone = h; }
           },
           onPeers: function (h) { handlers.add(h); return function () { handlers.delete(h); }; },
           leave: function () {
