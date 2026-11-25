@@ -440,7 +440,8 @@ const term = new THREE.Mesh(new THREE.PlaneGeometry(TW, TH), new THREE.MeshBasic
 const ui = {s:'home', txt:'', msg:''};
 function rects(){
   const r = [], B = (x, y, w, h, l, a, o) => r.push(Object.assign({x:x, y:y, w:w, h:h, l:l, a:a}, o || {}));
-  if (ui.s === 'home'){ [['CHANGE DESIGNATION', 'name', 'LOCKS 1 HR'], ['COLOR', 'color', ''], ['PRIVATE CODE', 'code', ''], ['PUBLIC SERVER', 'pub', roomLabel === 'Public Server' ? 'CONNECTED' : ''], ['STICK MOVE', 'stk', stickMove ? 'ON' : 'OFF']].forEach((q, i) => B(36, 196 + i*58, 696, 50, q[0], q[1], {n:'0' + (i + 1), v:q[2], sw:q[1] === 'color'})); }
+  if (ui.s === 'home'){ const rows = [['CHANGE DESIGNATION', 'name', 'LOCKS 1 HR'], ['COLOR', 'color', ''], ['PRIVATE CODE', 'code', ''], ['PUBLIC SERVER', 'pub', roomLabel === 'Public Server' ? 'CONNECTED' : ''], ['STICK MOVE', 'stk', stickMove ? 'ON' : 'OFF']]; if (isOwner) rows.push(['OWNER CONTROLS', 'mod', R ? (R.peers().length - 1) + ' PLAYERS' : 'OFFLINE']); const st = isOwner ? 51 : 58, hh = isOwner ? 45 : 50; rows.forEach((q, i) => B(36, 196 + i*st, 696, hh, q[0], q[1], {n:'0' + (i + 1), v:q[2], sw:q[1] === 'color'})); }
+  else if (ui.s === 'mod'){ modPeers().slice(0, 5).forEach((p, i) => { const y = 120 + i*58, id = p.peer, mu = muted.has(id); B(372, y, 110, 46, 'KICK', 'kick:' + id); B(492, y, 110, 46, 'BAN', 'ban:' + id); B(612, y, 120, 46, mu ? 'UNMUTE' : 'SILENCE', 'mute:' + id, {pri:mu}); }); B(36, 420, 696, 52, 'BACK', 'back', {n:'<'}); }
   else if (ui.s === 'color'){ COLORS.forEach((c, i) => B(36 + (i%4)*176, 132 + (i/4|0)*118, 164, 106, '', 'col' + i, {f:c})); B(36, 404, 696, 50, 'BACK', 'back', {n:'<'}); }
   else {
     ['1234567890', 'QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'].forEach((row, ri) => { const x0 = (768 - (row.length*66 - 6))/2; row.split('').forEach((ch, i) => B(x0 + i*66, 196 + ri*54, 60, 48, ch, 'k')); });
@@ -459,6 +460,12 @@ function drawTerm(){
     g.font = '400 15px ' + FM; g.fillStyle = '#8b9093'; spaced(g, roomLabel.toUpperCase() + '   PRESENT ' + peers + '   UNREGISTERED 1', 36, 168, 2);
     if (ui.msg){ g.textAlign = 'right'; g.fillStyle = '#c4c7c9'; spaced(g, ui.msg.toUpperCase(), 732, 88, 1); g.textAlign = 'left'; }
   } else if (ui.s === 'color'){ g.font = '400 15px ' + FM; g.fillStyle = '#6c7174'; spaced(g, 'SELECT COLOR', 36, 96, 3); }
+  else if (ui.s === 'mod'){
+    g.font = '400 15px ' + FM; g.fillStyle = '#6c7174'; spaced(g, 'OWNER CONTROLS  /  PLAYERS IN THIS ROOM', 36, 88, 3);
+    const list = modPeers(); if (!list.length){ g.fillStyle = '#8b9093'; spaced(g, 'NO OTHER PLAYERS HERE', 36, 150, 2); }
+    list.slice(0, 5).forEach((p, i) => { g.font = '500 24px ' + FS; g.fillStyle = muted.has(p.peer) ? '#7d8286' : '#e4e6e7'; spaced(g, String(p.presence.n || 'Subject').toUpperCase().slice(0, 14), 36, 143 + i*58, 2); });
+    if (ui.msg){ g.font = '400 15px ' + FM; g.fillStyle = '#c4c7c9'; g.textAlign = 'right'; spaced(g, ui.msg.toUpperCase(), 732, 88, 1); g.textAlign = 'left'; }
+  }
   else {
     g.font = '400 15px ' + FM; g.fillStyle = '#6c7174'; spaced(g, ui.s === 'name' ? 'NEW DESIGNATION  3-12 CHARACTERS' : 'PRIVATE CODE  3-8 CHARACTERS', 36, 88, 3);
     g.fillStyle = '#161819'; rrect(g, 36, 106, 696, 64, 4); g.fill(); g.strokeStyle = '#3a3d40'; g.lineWidth = 1.5; g.stroke();
@@ -479,6 +486,44 @@ function drawTerm(){
   });
   g.textAlign = 'left'; tTex.needsUpdate = true;
 }
+/* ---------- Owner access and moderation ---------- */
+const OWNER_HASH = '0e8de4485b0160a2dd913e687f397e4e1cf26fcffea89513f80e42fc2f66d895';
+async function ownerCheck(code){
+  try {
+    const enc = new TextEncoder(), key = await crypto.subtle.importKey('raw', enc.encode(code), 'PBKDF2', false, ['deriveBits']);
+    const bits = await crypto.subtle.deriveBits({name:'PBKDF2', hash:'SHA-256', salt:enc.encode('subject09-owner-v1'), iterations:150000}, key, 256);
+    return Array.from(new Uint8Array(bits)).map(b => b.toString(16).padStart(2, '0')).join('') === OWNER_HASH;
+  } catch(e){ return false; }
+}
+const muted = new Set(), modLog = [], modSeen = new Set();
+let mutedMe = false, kickedUntil = 0, banned = false;
+try { banned = localStorage.getItem('s09Ban') === '1'; } catch(e){}
+const modPeers = () => R ? R.peers().filter(p => !p.isMe && p.presence) : [];
+function modAction(kind, id){
+  const p = modPeers().find(q => q.peer === id), nm = p && p.presence.n || 'player';
+  if (kind === 'mute'){ if (muted.has(id)) muted.delete(id); else muted.add(id); }
+  modLog.push([id, kind === 'mute' ? (muted.has(id) ? 'm' : 'u') : kind === 'kick' ? 'k' : 'b', Date.now()]);
+  while (modLog.length > 24) modLog.shift();
+  ui.msg = (kind === 'kick' ? 'Kicked ' : kind === 'ban' ? 'Banned ' : muted.has(id) ? 'Silenced ' : 'Unsilenced ') + nm;
+  pub({m:modLog.slice()});
+}
+function checkMod(peers){
+  const me = myId();
+  for (const p of peers){
+    const pr = p.presence; if (p.isMe || !pr || pr.o !== 1 || !Array.isArray(pr.m)) continue;
+    for (const e of pr.m){
+      const key = p.peer + ':' + e[2]; if (modSeen.has(key)) continue; modSeen.add(key);
+      if (e[0] === me){
+        if (e[1] === 'm' || e[1] === 'u'){ mutedMe = e[1] === 'm'; say(mutedMe ? 'The owner has silenced you.' : 'The owner has unsilenced you.', 5); }
+        else { if (e[1] === 'b'){ banned = true; try { localStorage.setItem('s09Ban', '1'); } catch(x){} } else kickedUntil = Date.now() + 120000; removeSelf(e[1] === 'b' ? 'You have been banned by the owner.' : 'You were kicked by the owner.'); return; }
+      } else if (e[1] === 'm') muted.add(e[0]); else if (e[1] === 'u') muted.delete(e[0]);
+    }
+  }
+}
+async function removeSelf(msg){
+  try { if (unsub){ unsub(); unsub = null; } if (R){ const r = R; R = null; await r.leave(); } } catch(e){}
+  roomLabel = banned ? 'Banned' : 'Removed'; enterLobby(msg); drawTerm();
+}
 const taken = nm => R && R.peers().some(p => !p.isMe && p.presence && p.presence.n === nm);
 function press(r){
   beep(700, .06, 'square', .05); ui.msg = '';
@@ -486,13 +531,22 @@ function press(r){
   else if (r.a === 'color') ui.s = 'color';
   else if (r.a === 'back') ui.s = 'home';
   else if (r.a === 'stk') stickMove = !stickMove;
+  else if (r.a === 'mod'){ if (isOwner) ui.s = 'mod'; }
+  else if (/^(kick|ban|mute):/.test(r.a)){ if (isOwner) modAction(r.a.split(':')[0], r.a.slice(r.a.indexOf(':') + 1)); }
   else if (r.a === 'pub'){ joinRoom('pub-1', 'Public Server'); ui.msg = 'Joining public server...'; }
   else if (r.a === 'k'){ if (ui.txt.length < (ui.s === 'name' ? 12 : 8)) ui.txt += r.l; }
   else if (r.a === 'del') ui.txt = ui.txt.slice(0, -1);
   else if (r.a.indexOf('col') === 0){ myColor = COLORS[+r.a.slice(3)]; try { localStorage.setItem('s09Color', myColor); } catch(e){} pub(); }
   else if (r.a === 'ok'){
     if (ui.txt.length < 3){ ui.msg = 'Too short.'; }
-    else if (ui.s === 'code'){ joinRoom('p-' + ui.txt.toLowerCase(), 'Private ' + ui.txt); ui.s = 'home'; ui.msg = 'Joining ' + ui.txt + '...'; }
+    else if (ui.s === 'code'){
+      const code = ui.txt; ui.msg = 'Checking...';
+      ownerCheck(code).then(ok => {
+        if (ok){ isOwner = true; try { localStorage.setItem('s09OwnerKey', code); } catch(e){} ui.s = 'home'; ui.msg = 'Owner access granted.'; beep(523, .2, 'sine', .1); beep(784, .3, 'sine', .1, .12); pub(); }
+        else { joinRoom('p-' + code.toLowerCase(), 'Private ' + code); ui.s = 'home'; ui.msg = 'Joining ' + code + '...'; }
+        drawTerm();
+      });
+    }
     else {
       const left = 3600000 - (Date.now() - lastNameAt);
       if (left > 0) ui.msg = 'Name locked. ' + Math.ceil(left/60000) + ' min left.';
@@ -813,11 +867,13 @@ function myId(){ const m = R && R.peers().find(p => p.isMe); return m ? m.peer :
 const zonePeers = () => R ? R.peers().filter(p => !p.isMe && p.presence && p.presence.z === zone) : [];
 function pub(extra){
   if (!R) return; const h = headW(), f = a => [+a.x.toFixed(2), +a.y.toFixed(2), +a.z.toFixed(2)], e = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
-  R.presence(Object.assign({n:myName, c:myColor, z:zone, v:myVote, o:isOwner ? 1 : 0, d:dead ? 1 : 0, r:+(e.y + rig.rotation.y).toFixed(2), p:f(h), a:f(hands[0].has ? hands[0].vis : h), b:f(hands[1].has ? hands[1].vis : h)}, extra || {})).catch(() => {});
+  R.presence(Object.assign({n:myName, c:myColor, z:zone, v:myVote, o:isOwner ? 1 : 0, m:isOwner ? modLog.slice() : null, d:dead ? 1 : 0, r:+(e.y + rig.rotation.y).toFixed(2), p:f(h), a:f(hands[0].has ? hands[0].vis : h), b:f(hands[1].has ? hands[1].vis : h)}, extra || {})).catch(() => {});
 }
 let unsub = null;
 async function joinRoom(name, label){
   if (!roomCap){ roomLabel = 'Offline'; return; }
+  if (banned){ roomLabel = 'Banned'; ui.msg = 'You are banned from online play.'; drawTerm(); return; }
+  if (Date.now() < kickedUntil){ ui.msg = 'Kicked. Try again in ' + Math.ceil((kickedUntil - Date.now())/1000) + 's.'; drawTerm(); return; }
   try { if (unsub){ unsub(); unsub = null; } if (R){ await R.leave(); R = null; } R = await roomCap.join(name); } catch(e){ R = null; roomLabel = 'Offline'; ui.msg = 'Could not join.'; drawTerm(); return; }
   roomLabel = label; unsub = R.onPeers(onPeers); pub(); ui.msg = 'Joined ' + label + '.'; drawTerm();
   setTimeout(() => { if (taken(myName)){ if (nameAuto){ do { myName = 'Subject ' + pad4(Math.random()*10000|0); } while (taken(myName)); pub(); } } }, 2000);
@@ -825,10 +881,11 @@ async function joinRoom(name, label){
 async function initNet(){
   try { roomCap = (window.claude && await window.claude.use('room')) || window.S09Net || null; } catch(e){ roomCap = null; }
   try { const u = window.claude && await window.claude.use('user'); if (u) isOwner = !!(await u.isOwner()); } catch(e){}
-  try { if (/[?&]owner=1/.test(location.search)) localStorage.setItem('s09Owner', '1'); if (localStorage.getItem('s09Owner') === '1') isOwner = true; } catch(e){}
+  try { localStorage.removeItem('s09Owner'); const k = localStorage.getItem('s09OwnerKey'); if (k && await ownerCheck(k)) isOwner = true; } catch(e){}
   if (roomCap) joinRoom('pub-1', 'Public Server'); drawTerm();
 }
 function onPeers(ch){
+  checkMod(ch.peers);
   if (round || dead || state === 'menu') return;
   for (const p of ch.peers){ const g = p.presence && p.presence.g; if (!p.isMe && g && g.id !== lastRid && g.from === zone && Date.now() < g.t0 + 15000){ lastRid = g.id; enterLevel(g.lv, 'round', g); break; } }
 }
