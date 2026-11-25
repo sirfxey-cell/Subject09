@@ -1092,7 +1092,7 @@ function leaveSpectate(){ if (!dead) return; beep(520, .15, 'sine', .1); pulse(0
 
 /* ---------- HUD ---------- */
 const hcv = cv(512, 160), hg = hcv.getContext('2d'), hTex = new THREE.CanvasTexture(hcv);
-const hudM = new THREE.Mesh(new THREE.PlaneGeometry(.8, .25), new THREE.MeshBasicMaterial({map:hTex, transparent:true, depthTest:false, fog:false})); hudM.position.set(0, -.42, -1); hudM.scale.setScalar(.85); hudM.renderOrder = 998; camera.add(hudM);
+const hudM = new THREE.Mesh(new THREE.PlaneGeometry(.8, .25), new THREE.MeshBasicMaterial({map:hTex, transparent:true, depthTest:false, fog:false})); hudM.position.set(0, -.15, -1); hudM.scale.setScalar(1.05); hudM.renderOrder = 998; camera.add(hudM);
 const flash = new THREE.Mesh(new THREE.PlaneGeometry(3, 3), new THREE.MeshBasicMaterial({color:0xdadddf, transparent:true, opacity:0, depthTest:false, fog:false})); flash.position.z = -.3; flash.renderOrder = 999; camera.add(flash);
 /* ---------- Death sting: static burst, DEAD slams onto the screen, fade to black, then the TV room ---------- */
 const deathG = new THREE.Group(); deathG.visible = false; camera.add(deathG);
