@@ -527,7 +527,7 @@ function rects(){
   if (ui.s === 'home'){ const rows = [['CHANGE NAME', 'name', ''], ['COLOR', 'color', ''], ['PRIVATE CODE', 'code', ''], ['PUBLIC SERVER', 'pub', roomLabel === 'Public Server' ? 'CONNECTED' : ''], ['STICK MOVE', 'stk', stickMove ? 'ON' : 'OFF'], ['VOICE CHAT', 'mic', micLabel()], ['SOUND & GRAPHICS', 'snd', 'MUSIC ' + Math.round(SV.m*10) + '  FX ' + Math.round(SV.e*10) + '  VOICE ' + Math.round(SV.v*10)], ['FRIENDS', 'fr', (() => { const ids = new Set(modPeers().map(p => frOf(p.presence))), on = Object.keys(friends).filter(id => ids.has(id)).length, inc = modPeers().filter(p => frState(p.presence) === 'incoming').length; return Object.keys(friends).length + ' FRIENDS  ' + on + ' HERE' + (inc ? '  ' + inc + ' REQUEST' + (inc > 1 ? 'S' : '') : ''); })()], ['MONSTER MODE', 'bm', 'HEAD START ' + BMS.esc + 'S  GORE ' + (BMS.gore ? 'ON' : 'OFF')]]; if (isOwner || amMod()) rows.push([isOwner ? 'OWNER CONTROLS' : 'MOD CONTROLS', 'mod', R ? (R.peers().length - 1) + ' PLAYERS' : 'OFFLINE']); const st = Math.floor(306/rows.length), hh = st - 6; rows.forEach((q, i) => B(36, 196 + i*st, 696, hh, q[0], q[1], {n:'0' + (i + 1), v:q[2], sw:q[1] === 'color'})); }
   else if (ui.s === 'fr') frRects(B);
   else if (ui.s === 'mod' && !isOwner){ modPeers().slice(0, 5).forEach((p, i) => { const y = 120 + i*58, id = p.peer, mu = muted.has(id); if (protectedPr(p.presence)) return; B(412, y, 92, 46, 'KICK', 'kick:' + id); B(512, y, 220, 46, mu ? 'UNMUTE' : 'SILENCE', 'mute:' + id, {pri:mu}); }); B(36, 420, 696, 52, 'BACK', 'back', {n:'<'}); }
-  else if (ui.s === 'mod'){ modPeers().slice(0, 5).forEach((p, i) => { const y = 120 + i*58, id = p.peer, mu = muted.has(id); const md = isModName(p.presence.n); B(300, y, 104, 46, md ? 'UNMOD' : 'MOD', 'mod:' + id, {pri:md}); B(412, y, 92, 46, 'KICK', 'kick:' + id); B(512, y, 92, 46, 'BAN', 'ban:' + id); B(612, y, 120, 46, mu ? 'UNMUTE' : 'SILENCE', 'mute:' + id, {pri:mu}); }); B(36, 420, 696, 52, 'BACK', 'back', {n:'<'}); }
+  else if (ui.s === 'mod'){ modPeers().slice(0, 5).forEach((p, i) => { const y = 120 + i*58, id = p.peer, mu = muted.has(id); const md = isModPr(p.presence); B(300, y, 104, 46, md ? 'UNMOD' : 'MOD', 'mod:' + id, {pri:md}); B(412, y, 92, 46, 'KICK', 'kick:' + id); B(512, y, 92, 46, 'BAN', 'ban:' + id); B(612, y, 120, 46, mu ? 'UNMUTE' : 'SILENCE', 'mute:' + id, {pri:mu}); }); B(36, 420, 696, 52, 'BACK', 'back', {n:'<'}); }
   else if (ui.s === 'snd'){ [['m', 'MUSIC'], ['e', 'EFFECTS'], ['v', 'VOICE']].forEach((q, i) => { const y = 122 + i*92; B(372, y, 80, 64, '-', 'vol-' + q[0]); B(652, y, 80, 64, '+', 'vol+' + q[0]); }); B(36, 376, 696, 38, 'GRAPHICS', 'gfx', {n:'04', v:GQ ? 'HIGH  (QUEST 3 / GOOD PC)' : 'NORMAL'}); B(36, 422, 696, 50, 'BACK', 'back', {n:'<'}); }
   else if (ui.s === 'bm'){ [['g', 'GHOST'], ['i', 'INVISIBLE'], ['w', 'WALL SEE'], ['f', 'FINISHER']].filter(q => q[0] === 'f' || isOwner || amMod()).forEach((q, i) => B(36, 100 + i*62, 330, 52, q[1], 'bk:' + q[0], {n:'0' + (i + 1), v:BMX.bind === q[0] ? '...' : keyName(BMS.keys[q[0]])}));
     [['esc', 'HEAD START', BMS.esc + 'S'], ['cdk', 'COOLDOWNS', BM_CDN[BMS.cdk]], ['ad', 'ABILITY TIME', BMS.ad + 'S'], ['rv', 'ROAR VOLUME', Math.round(BMS.rv*100) + '%'], ['rd', 'ROAR LENGTH', BMS.rd + 'S'], ['gore', 'GORE', BMS.gore ? 'ON' : 'OFF']].concat(isOwner || amMod() ? [['mm', 'MY MONSTER', BMS.mm !== 0 ? 'MOD' : 'DEFAULT']] : []).forEach((q, i) => B(392, 96 + i*46, 340, 40, q[1], 'bs:' + q[0], {n:'0' + (i + 5), v:q[2]})); B(36, 420, 696, 52, 'BACK', 'back', {n:'<'}); }
@@ -597,6 +597,9 @@ const modPeers = () => R ? R.peers().filter(p => !p.isMe && p.presence) : [];
 let ownerMods = [], modNames = new Set(); try { ownerMods = JSON.parse(localStorage.getItem('s09Mods') || '[]') || []; modNames = new Set(JSON.parse(localStorage.getItem('s09ModsSeen') || '[]') || []); } catch(e){}
 try { if (!localStorage.getItem('s09ModsSeed')){ ['MATT', 'PENGUINGT'].forEach(n => { if (ownerMods.indexOf(n) < 0) ownerMods.push(n); modNames.add(n); }); localStorage.setItem('s09Mods', JSON.stringify(ownerMods)); localStorage.setItem('s09ModsSeed', '1'); } } catch(e){}
 const isModName = n => !!n && modNames.has(String(n));
+/* moderators are also remembered by their device id, so they stay moderators under any name */
+let ownerModPids = [], modPids = new Set(); try { ownerModPids = JSON.parse(localStorage.getItem('s09ModPids') || '[]') || []; modPids = new Set(JSON.parse(localStorage.getItem('s09ModPidsSeen') || '[]') || []); } catch(e){}
+const isModPr = pr => !!pr && (isModName(pr.mdn || pr.n) || (typeof pr.id === 'string' && modPids.has(pr.id)));
 /* ======================= FRIENDS: a lasting player id, requests both ways, a friends list on the lobby computer ======================= */
 let myPid = '', frWant = new Set(), friends = {}, frAsked = new Set(), frPage = 0;
 try { myPid = localStorage.getItem('s09Pid') || ''; if (!myPid){ myPid = Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6); localStorage.setItem('s09Pid', myPid); } frWant = new Set(JSON.parse(localStorage.getItem('s09FrW') || '[]') || []); friends = JSON.parse(localStorage.getItem('s09Fr') || '{}') || {}; } catch(e){ myPid = myPid || Math.random().toString(36).slice(2, 12); }
@@ -652,11 +655,13 @@ function frBadge(a, pr){
   if (a.frB){ a.frB.visible = on && a.head.visible && a.tag.s.visible !== false; if (a.frB.visible){ const up = (a.own && a.own.visible) || (a.modB && a.modB.visible) ? .68 : .55; a.frB.position.set(a.head.position.x, a.head.position.y + up, a.head.position.z); } }
 }
 
-const amMod = () => !isOwner && isModName(myName);
+const amMod = () => !isOwner && (isModName(myName) || modPids.has(myPid));
 /* the owner and moderators can't be kicked or silenced by a moderator */
-const protectedPr = pr => !pr || pr.o === 1 || isModName(pr.n);
-function setMods(list){ const was = isModName(myName); modNames = new Set(list.map(String)); try { localStorage.setItem('s09ModsSeen', JSON.stringify([...modNames])); } catch(e){} const now = isModName(myName); if (now !== was && !isOwner) say(now ? 'The owner made you a moderator.' : 'You are no longer a moderator.', 5); drawTerm(); }
-function toggleMod(id){ const p = modPeers().find(q => q.peer === id), nm = p && p.presence.n; if (!nm) return; const i = ownerMods.indexOf(nm); if (i >= 0) ownerMods.splice(i, 1); else ownerMods.push(nm); try { localStorage.setItem('s09Mods', JSON.stringify(ownerMods)); } catch(e){} ui.msg = (i >= 0 ? 'Removed moderator ' : 'Made moderator ') + nm; setMods(ownerMods); pub({md:ownerMods.slice()}); }
+const protectedPr = pr => !pr || pr.o === 1 || isModPr(pr);
+function setMods(list, pids){ const was = amMod(); modNames = new Set(list.map(String)); if (pids) modPids = new Set(pids.map(String)); try { localStorage.setItem('s09ModsSeen', JSON.stringify([...modNames])); localStorage.setItem('s09ModPidsSeen', JSON.stringify([...modPids])); } catch(e){} const now = amMod(); if (now !== was && !isOwner) say(now ? 'The owner made you a moderator.' : 'You are no longer a moderator.', 5); drawTerm(); }
+function toggleMod(id){ const p = modPeers().find(q => q.peer === id), nm = p && p.presence.n, pid = p && p.presence.id; if (!nm) return; const was = isModPr(p.presence);
+  if (was){ ownerMods = ownerMods.filter(x => x !== nm); if (pid) ownerModPids = ownerModPids.filter(x => x !== pid); } else { if (ownerMods.indexOf(nm) < 0) ownerMods.push(nm); if (pid && ownerModPids.indexOf(pid) < 0) ownerModPids.push(pid); }
+  try { localStorage.setItem('s09Mods', JSON.stringify(ownerMods)); localStorage.setItem('s09ModPids', JSON.stringify(ownerModPids)); } catch(e){} ui.msg = (was ? 'Removed moderator ' : 'Made moderator ') + nm; setMods(ownerMods, ownerModPids); pub({md:ownerMods.slice(), mp:ownerModPids.slice()}); }
 function modAction(kind, id){
   const p = modPeers().find(q => q.peer === id), nm = p && p.presence.n || 'player';
   if (kind === 'mute'){ if (muted.has(id)) muted.delete(id); else muted.add(id); }
@@ -669,9 +674,10 @@ function checkMod(peers){
   frCheck(peers);
   const me = myId();
   for (const p of peers){
-    const pr = p.presence; if (!p.isMe && pr && pr.o === 1 && Array.isArray(pr.md) && pr.md.join('\n') !== [...modNames].join('\n')) setMods(pr.md);
+    const pr = p.presence; if (!p.isMe && pr && pr.o === 1 && Array.isArray(pr.md) && pr.md.join('\n') + '|' + (pr.mp || []).join('\n') !== [...modNames].join('\n') + '|' + [...modPids].join('\n')) setMods(pr.md, Array.isArray(pr.mp) ? pr.mp : null);
+    if (isOwner && !p.isMe && pr && typeof pr.id === 'string' && ownerMods.indexOf(pr.n) >= 0 && ownerModPids.indexOf(pr.id) < 0){ ownerModPids.push(pr.id); try { localStorage.setItem('s09ModPids', JSON.stringify(ownerModPids)); } catch(e){} setMods(ownerMods, ownerModPids); pub({mp:ownerModPids.slice()}); }
     if (p.isMe || !pr || !Array.isArray(pr.m)) continue;
-    const own = pr.o === 1, byMod = !own && isModName(pr.n), who = own ? 'the owner' : 'a moderator'; if (!own && !byMod) continue;
+    const own = pr.o === 1, byMod = !own && isModPr(pr), who = own ? 'the owner' : 'a moderator'; if (!own && !byMod) continue;
     for (const e of pr.m){
       const key = p.peer + ':' + e[2]; if (modSeen.has(key)) continue; modSeen.add(key);
       if (byMod){ if (e[1] === 'b') continue; if (e[0] === me ? (isOwner || amMod()) : protectedPr((peers.find(q => q.peer === e[0]) || {}).presence)) continue; }
@@ -724,7 +730,7 @@ function press(r){
     else {
       const flat = ui.txt.toUpperCase().replace(/[^A-Z0-9]/g, '');
       if (!isOwner && /BADGORIL+A/.test(flat)) ui.msg = 'That name belongs to the owner.';
-      else if (!isOwner && myName !== ui.txt && isModName(ui.txt)) ui.msg = 'That name belongs to a moderator.';
+      else if (!isOwner && !amMod() && myName !== ui.txt && (isModName(ui.txt) || ['MATT', 'PENGUINGT', 'PENGUIN'].indexOf(flat) >= 0)) ui.msg = 'That name is only for moderators.';
       else { myName = ui.txt; nameAuto = false; try { localStorage.setItem('s09Name', myName); } catch(e){} ui.s = 'home'; ui.msg = 'Name set.'; pub(); }
     }
   }
@@ -924,7 +930,7 @@ function setAv(a, pr, rev){
     _eA.copy(_sA).addScaledVector(_dA, d/2).addScaledVector(_bA, Math.sqrt(Math.max(0, L*L - d*d/4)));
     m.e.position.copy(_eA); segTo(m.u, _sA, _eA, .085); segTo(m.f, _eA, H, .072); m.h.rotation.y = yaw;
   });
-  const isMod = pr.o !== 1 && isModName(pr.mdn || pr.n); if (isMod && !a.crown){ a.crown = makeCrown(); a.head.add(a.crown); a.modB = new THREE.Sprite(new THREE.SpriteMaterial({map:modTex(), transparent:true, depthTest:false, fog:false})); a.modB.scale.set(.5, .125, 1); a.modB.renderOrder = 5; a.g.add(a.modB); }
+  const isMod = pr.o !== 1 && isModPr(pr); if (isMod && !a.crown){ a.crown = makeCrown(); a.head.add(a.crown); a.modB = new THREE.Sprite(new THREE.SpriteMaterial({map:modTex(), transparent:true, depthTest:false, fog:false})); a.modB.scale.set(.5, .125, 1); a.modB.renderOrder = 5; a.g.add(a.modB); }
   if (a.crown){ a.crown.visible = isMod; a.modB.visible = isMod && a.tag.s.visible !== false && a.head.visible; if (isMod) a.modB.position.set(a.head.position.x, a.head.position.y + .55, a.head.position.z); }
   cosApply(a, pr.cs); frBadge(a, pr);
   a.tag.s.position.set(a.head.position.x, a.head.position.y + .38, a.head.position.z); a.own.visible = pr.o === 1; if (a.own.visible) a.own.position.set(a.head.position.x, a.head.position.y + .55, a.head.position.z); a.beam.visible = rev; if (rev) a.beam.position.set(a.head.position.x, a.head.position.y + 19, a.head.position.z);
@@ -1237,7 +1243,7 @@ function myId(){ const m = R && R.peers().find(p => p.isMe); return m ? m.peer :
 const zonePeers = () => R ? R.peers().filter(p => !p.isMe && p.presence && p.presence.z === zone) : [];
 function pub(extra){
   if (!R) return; const h = headW(), f = a => [+a.x.toFixed(2), +a.y.toFixed(2), +a.z.toFixed(2)], e = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
-  R.presence(bmPub(Object.assign({n:myName, c:myColor, z:zone, v:myVote, o:isOwner ? 1 : 0, m:isOwner || amMod() ? modLog.slice() : null, md:isOwner ? ownerMods.slice() : null, cs:myCosArr(), id:myPid, fq:[...frWant], d:dead ? 1 : 0, t:talking, r:+(e.y + rig.rotation.y).toFixed(2), p:f(h), a:f(hands[HL()].has ? hands[HL()].vis : keys.KeyH ? h.clone().setY(h.y + .4) : h), b:f(hands[1 - HL()].has ? hands[1 - HL()].vis : keys.KeyH ? h.clone().setY(h.y + .4) : h), dp:dpIsHost() ? dpSnap() : null, di:state === 'arena' ? DI : null}, extra || {}))).catch(() => {});
+  R.presence(bmPub(Object.assign({n:myName, c:myColor, z:zone, v:myVote, o:isOwner ? 1 : 0, m:isOwner || amMod() ? modLog.slice() : null, md:isOwner ? ownerMods.slice() : null, mp:isOwner ? ownerModPids.slice() : null, cs:myCosArr(), id:myPid, fq:[...frWant], d:dead ? 1 : 0, t:talking, r:+(e.y + rig.rotation.y).toFixed(2), p:f(h), a:f(hands[HL()].has ? hands[HL()].vis : keys.KeyH ? h.clone().setY(h.y + .4) : h), b:f(hands[1 - HL()].has ? hands[1 - HL()].vis : keys.KeyH ? h.clone().setY(h.y + .4) : h), dp:dpIsHost() ? dpSnap() : null, di:state === 'arena' ? DI : null}, extra || {}))).catch(() => {});
 }
 let unsub = null;
 async function joinRoom(name, label){
@@ -3000,7 +3006,7 @@ function bmPub(o){
 /* what everyone else accepts from the monster: only abilities that fit the rules, never longer than allowed */
 function bmRx(pr){
   const X = BMX.rx, T = bmT(), now = performance.now(), ab = pr && pr.ab;
-  if (ab && !(pr.o === 1 || isModName(pr.n))) return null;
+  if (ab && !(pr.o === 1 || isModPr(pr))) return null;
   if (ab && !X.done.has(ab[1]) && (!X.cur || X.cur.seq !== ab[1])){ const k = ab[0];
     X.done.add(ab[1]); if (!X.cur && 'giw'.indexOf(k) >= 0 && bmEl() >= T.lock - 1.5 && now >= (X.cd[k] || 0) - 2000) X.cur = {k:k, seq:ab[1], t0:now}; }
   if (X.cur && (!ab || ab[1] !== X.cur.seq || now - X.cur.t0 > T.ad*1000 + 350)){ X.cd[X.cur.k] = now + (T.cd[X.cur.k] || 20)*1000; X.cur.endT = now; X.last = X.cur; X.cur = null; }
@@ -3181,7 +3187,7 @@ function bmTick(dt, t, hw){
   /* the monster, as everyone else sees it */
   const mA = monP && avs.get(monP.peer);
   if (mA){
-    const pr = monP.presence; let B = mA.bm; if (!B){ B = mA.bm = {a:mA, c:bmCreature(lvIdx, (pr.o === 1 || isModName(pr.n)) && pr.mm !== 0)}; if (B.c.special && el < T.tf0 + 1) say((pr.n || 'The monster') + ' is a moderator. Their monster is special.', 4); BMX.crs.add(B); }
+    const pr = monP.presence; let B = mA.bm; if (!B){ B = mA.bm = {a:mA, c:bmCreature(lvIdx, (pr.o === 1 || isModPr(pr)) && pr.mm !== 0)}; if (B.c.special && el < T.tf0 + 1) say((pr.n || 'The monster') + ' is a moderator. Their monster is special.', 4); BMX.crs.add(B); }
     const cur = bmRx(pr), p = pr.p || [0, 1, 0], yaw = +pr.r || 0;
     if (!B.base) B.base = {x:p[0], z:p[2], yaw:yaw};
     if (bmK && bmK.c === B.c){ [mA.head, mA.torso].concat(...mA.arms.map(m => [m.u, m.f, m.e, m.h])).forEach(o => { o.visible = false; }); }
@@ -3292,7 +3298,8 @@ const COS = [
   {id:'party', n:'PARTY HAT', s:'hat', p:25}, {id:'tie', n:'TIE', s:'neck', p:20}, {id:'hard', n:'HARD HAT', s:'hat', p:35}, {id:'shades', n:'SUNGLASSES', s:'face', p:40}, {id:'tophat', n:'TOP HAT', s:'hat', p:60},
   {id:'phones', n:'HEADPHONES', s:'hat', p:70}, {id:'horns', n:'DEVIL HORNS', s:'hat', p:90}, {id:'chain', n:'GOLD CHAIN', s:'neck', p:100}, {id:'eyes', n:'RED EYES', s:'face', p:120}, {id:'halo', n:'HALO', s:'hat', p:150}, {id:'penguin', n:'PENGUIN', s:'hand', p:0, only:'PENGUINGT'}, {id:'raccoon', n:'RACCOON', s:'hand', p:0, only:'MATT'}];
 const cosById = id => COS.find(c => c.id === id);
-const hasCos = id => { const c = cosById(id); if (c && c.only) return isOwner || myName === c.only; return isOwner || amMod() || ownedCos.has(id); };
+let exclCos = new Set(); try { exclCos = new Set(JSON.parse(localStorage.getItem('s09Excl') || '[]') || []); } catch(e){}
+const hasCos = id => { const c = cosById(id); if (c && c.only){ if (myName === c.only && !exclCos.has(c.id)){ exclCos.add(c.id); try { localStorage.setItem('s09Excl', JSON.stringify([...exclCos])); } catch(e){} } return isOwner || myName === c.only || exclCos.has(c.id); } return isOwner || amMod() || ownedCos.has(id); };
 /* the items themselves, sized for the gorilla head (faces -z) and torso */
 const CM = {
   black:new THREE.MeshStandardMaterial({color:0x111214, roughness:.5}), red:new THREE.MeshStandardMaterial({color:0x9a1218, roughness:.45}), yel:new THREE.MeshStandardMaterial({color:0xf0b81c, roughness:.4}),
