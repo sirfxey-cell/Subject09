@@ -2080,8 +2080,8 @@ const dpDoor = {g:new THREE.Group(), l:null, r:null, open:0};
   [-1, 1].forEach(s => { const d = new THREE.Mesh(new THREE.BoxGeometry(2.2, 5.6, .3), arMat.plate); d.position.set(s*1.1, 2.8, .25); g.add(d); for (let k=0;k<5;k++){ const r = new THREE.Mesh(new THREE.BoxGeometry(2, .08, .06), arMat.dark); r.position.set(0, -2.2 + k*1.1, .17); d.add(r); } const st = new THREE.Mesh(new THREE.BoxGeometry(.12, 5.4, .32), arMat.haz); st.position.x = -s*1.05; d.add(st); if (s < 0) dpDoor.l = d; else dpDoor.r = d; });
   [-2.55, 2.55].forEach(x => { const p = new THREE.Mesh(new THREE.BoxGeometry(.5, 6.4, .7), arMat.haz); p.position.set(x, 3.2, .3); g.add(p); });
   const hd = new THREE.Mesh(new THREE.BoxGeometry(5.8, .9, .8), arMat.dark); hd.position.set(0, 6.1, .3); g.add(hd);
-  const sg = new THREE.Mesh(new THREE.PlaneGeometry(5.2, .7), new THREE.MeshBasicMaterial({map:labelTex('DEATH PENALTY', '#ff2a2a', 1024, 140, 96), transparent:true, fog:false})); sg.position.set(0, 6.1, .71); g.add(sg);
-  const sub = new THREE.Mesh(new THREE.PlaneGeometry(3.6, .3), new THREE.MeshBasicMaterial({map:labelTex('2 TO 30 CONTESTANTS', '#b9bdc0', 512, 60, 34), transparent:true, fog:false})); sub.position.set(0, 7, .5); g.add(sub);
+  const sg = new THREE.Mesh(new THREE.PlaneGeometry(4.2, .56), new THREE.MeshBasicMaterial({map:labelTex('DEATH PENALTY', '#ff2a2a', 1024, 140, 96), transparent:true, fog:false})); sg.position.set(0, 6.24, .71); g.add(sg);
+  const sub = new THREE.Mesh(new THREE.PlaneGeometry(2.6, .24), new THREE.MeshBasicMaterial({map:labelTex('2 TO 30 PLAYERS', '#b9bdc0', 512, 60, 34), transparent:true, fog:false})); sub.position.set(0, 5.8, .71); g.add(sub);
   for (let k=0;k<2;k++){ const l = new THREE.Mesh(new THREE.SphereGeometry(.12, 10, 8), arMat.red); l.position.set(k ? 2.55 : -2.55, 6.6, .7); g.add(l); }
 })();
 function dpDoorTick(dt, hw){
