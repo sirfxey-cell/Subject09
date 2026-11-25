@@ -1799,6 +1799,8 @@ function drawScreen(k, title, body, big, col){
   lines.slice(0, 6).forEach((l, i) => g.fillText(l, 512, y0 + i*52)); scrTex[k].needsUpdate = true;
 }
 function wrap(g, s, w){ const out = []; s.split('\n').forEach(par => { let cur = ''; par.split(' ').forEach(word => { const t = cur ? cur + ' ' + word : word; if (g.measureText(t).width > w && cur){ out.push(cur); cur = word; } else cur = t; }); out.push(cur); }); return out; }
+/* a hard plastic flapper hitting a peg: a sharp noise click plus a short high knock */
+function wheelClick(){ noiseBurst(.035, .5, 3200); beep(2100, .018, 'square', .16); beep(900, .03, 'triangle', .12); }
 function drawWheel(sel){
   const g = wheelCtx, n = EXP_KEYS.length; g.clearRect(0, 0, 1024, 1024);
   for (let i=0;i<n;i++){ const a0 = -Math.PI/2 + (i - .5)/n*Math.PI*2, a1 = a0 + Math.PI*2/n; g.beginPath(); g.moveTo(512, 512); g.arc(512, 512, 506, a0, a1); g.closePath(); g.fillStyle = i === sel ? '#d6dadc' : i%2 ? '#1b1d1f' : '#262a2d'; g.fill(); g.strokeStyle = '#0a0b0c'; g.lineWidth = 6; g.stroke();
@@ -1867,7 +1869,7 @@ function arenaTick(dt, t, hw){
   arLights.spot.color.setHex(D.ph === 'win' ? 0xf6e7a8 : D.exp === 'mercy' ? 0xff5a5a : D.exp === 'reward' || D.exp === 'revive' ? 0xf6e7a8 : 0xffffff);
   ring.rotation.z += dt*(D.ph === 'xform' ? 1.6 : .15);
   /* the wheel */
-  if (D.ph === 'intro'){ const sel = EXP_KEYS.indexOf(D.exp), n = EXP_KEYS.length, final = sel/n*Math.PI*2 + Math.PI*2*6, u = Math.min(1, Math.max(0, (el - .8)/4.4)), e = 1 - Math.pow(1 - u, 3); wheel.rotation.z = final*e; if (u >= 1 && dpLocal.ph !== 'reveal'){ dpLocal.ph = 'reveal'; drawWheel(sel); beep(523, .2, 'sine', .14); beep(659, .2, 'sine', .14, .12); beep(784, .4, 'sine', .14, .24); } else if (u < 1 && Math.floor(e*n*6) !== wheelSpin){ wheelSpin = Math.floor(e*n*6); beep(1400, .02, 'square', .03); } }
+  if (D.ph === 'intro'){ const sel = EXP_KEYS.indexOf(D.exp), n = EXP_KEYS.length, final = sel/n*Math.PI*2 + Math.PI*2*6, u = Math.min(1, Math.max(0, (el - .8)/4.4)), e = 1 - Math.pow(1 - u, 3); wheel.rotation.z = final*e; if (u >= 1 && dpLocal.ph !== 'reveal'){ dpLocal.ph = 'reveal'; drawWheel(sel); beep(523, .2, 'sine', .14); beep(659, .2, 'sine', .14, .12); beep(784, .4, 'sine', .14, .24); } else if (u < 1 && Math.floor(e*n*6) !== wheelSpin){ wheelSpin = Math.floor(e*n*6); wheelClick(); } }
   /* face mood */
   const F = face; F.tActive = D.ph === 'wait' ? .55 : 1; F.tEye = D.ph === 'intro' ? 1.15 : D.ph === 'win' ? 1.2 : 1; F.tLid = D.ph === 'play' ? .35 : D.ph === 'wait' ? .3 : 0;
   F.tSmile = D.ph === 'res' ? (D.x.res && D.x.res.e.length ? 1 : -.7) : D.ph === 'win' ? (el < 3 ? -.5 : 1) : D.ph === 'intro' ? .7 : D.ph === 'play' ? .15 : .3;
