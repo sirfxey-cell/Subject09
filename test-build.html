@@ -1030,7 +1030,7 @@ function enterLevel(i, kind, g){
   if (pendingLv) return; pendingLv = true; loadP = 0; loadA = 1; loadHold = .8; loadG.visible = true;
   const T = LV[i], hint = ['The lights here still work. Mostly.', 'Corridors are unlit. Keep your lamp on.', 'Deep Labs. Corridors are unlit. Do not stop moving.'][i];
   drawLoad(T.n, kind === 'round' ? (g.m === 'h' ? 'Hide and Seek' : 'Be the Monster') : 'Threat level ' + T.st.replace(/★/g, 'I').replace(/☆/g, '-'), hint);
-  setTimeout(() => { try { enterLevelNow(i, kind, g); } finally { pendingLv = false; } }, 90);
+  setTimeout(() => { try { enterLevelNow(i, kind, g); } finally { pendingLv = false; loadEnd = performance.now(); } }, 90);
 }
 function enterLevelNow(i, kind, g){
   lvIdx = i; portalFields.length = 3; buildLevel(i); lobbyG.visible = false; lvGroup.visible = true; setBoxes(lvBoxes); terrain = null; moonL.intensity = 0; state = 'level'; const T = LV[i];
@@ -1226,22 +1226,22 @@ const loadG = new THREE.Group(); loadG.visible = false; camera.add(loadG);
 const loadSph = new THREE.Mesh(new THREE.SphereGeometry(1.2, 20, 14), new THREE.MeshBasicMaterial({color:0x040506, side:THREE.BackSide, fog:false, depthTest:false, transparent:true})); loadSph.renderOrder = 30;
 const lcv = cv(1024, 512), lg = lcv.getContext('2d'), ltex = new THREE.CanvasTexture(lcv);
 const loadTxt = new THREE.Mesh(new THREE.PlaneGeometry(1.2, .6), new THREE.MeshBasicMaterial({map:ltex, transparent:true, depthTest:false, fog:false})); loadTxt.position.z = -1; loadTxt.renderOrder = 31;
-const loadBar = new THREE.Mesh(new THREE.PlaneGeometry(.8, .006), new THREE.MeshBasicMaterial({color:0xcfd4d6, transparent:true, depthTest:false, fog:false})); loadBar.position.set(0, -.17, -.99); loadBar.renderOrder = 32;
-const loadRing = new THREE.Mesh(new THREE.RingGeometry(.055, .06, 40, 1, 0, 4.4), new THREE.MeshBasicMaterial({color:0xcfd4d6, transparent:true, depthTest:false, fog:false, side:THREE.DoubleSide})); loadRing.position.set(0, .17, -.99); loadRing.renderOrder = 32;
+const loadBar = new THREE.Mesh(new THREE.PlaneGeometry(.8, .006), new THREE.MeshBasicMaterial({color:0xcfd4d6, transparent:true, depthTest:false, fog:false})); loadBar.position.set(0, -.2, -.99); loadBar.renderOrder = 32;
+const loadRing = new THREE.Mesh(new THREE.RingGeometry(.055, .06, 40, 1, 0, 4.4), new THREE.MeshBasicMaterial({color:0xcfd4d6, transparent:true, depthTest:false, fog:false, side:THREE.DoubleSide})); loadRing.position.set(0, .225, -.99); loadRing.renderOrder = 32;
 loadG.add(loadSph, loadTxt, loadBar, loadRing);
-let loadA = 0, loadHold = 0, loadP = 0, pendingLv = false;
+let loadA = 0, loadHold = 0, loadP = 0, pendingLv = false, loadEnd = 0;
 function drawLoad(title, sub, warn){
   lg.clearRect(0, 0, 1024, 512); lg.textAlign = 'center'; lg.textBaseline = 'middle';
   lg.font = '400 22px ' + FM; lg.fillStyle = '#6f777b'; spaced(lg, 'NOW ENTERING', 512, 150, 8);
   lg.font = '500 54px ' + FS; lg.fillStyle = '#e4e7e8'; spaced(lg, title.toUpperCase(), 512, 222, 8);
   lg.font = '400 24px ' + FM; lg.fillStyle = '#9aa1a5'; spaced(lg, sub.toUpperCase(), 512, 290, 6);
-  if (warn){ lg.font = '500 20px ' + FM; lg.fillStyle = '#d9dcde'; spaced(lg, warn.toUpperCase(), 512, 400, 5); }
+  if (warn){ lg.font = '500 20px ' + FM; lg.fillStyle = '#d9dcde'; spaced(lg, warn.toUpperCase(), 512, 352, 5); }
   ltex.needsUpdate = true;
 }
 function loadTick(dt, t){
   if (!loadG.visible) return;
-  loadRing.rotation.z = -t*4; loadP = Math.min(1, loadP + dt*(pendingLv ? 1.2 : 4)); loadBar.scale.x = Math.max(.001, loadP); loadBar.position.x = -.4*(1 - loadP);
-  if (pendingLv) loadA = 1; else if (loadHold > 0) loadHold -= dt; else loadA -= dt*1.4;
+  loadRing.rotation.z = -t*4; loadP = Math.min(1, loadP + dt*(pendingLv ? 1.2 : 4)); if (!pendingLv && performance.now() - loadEnd > 300) loadP = 1; loadBar.scale.x = Math.max(.001, loadP); loadBar.position.x = -.4*(1 - loadP);
+  loadA = pendingLv ? 1 : 1 - Math.max(0, (performance.now() - loadEnd)/1000 - loadHold)*1.4;
   if (loadA <= 0){ loadA = 0; loadG.visible = false; }
   const a = Math.min(1, loadA); loadSph.material.opacity = a; loadTxt.material.opacity = a; loadBar.material.opacity = a; loadRing.material.opacity = a;
 }
