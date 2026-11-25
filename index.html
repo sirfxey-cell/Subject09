@@ -1170,6 +1170,7 @@ function tally(){ const c = [0,0,0]; if (R) R.peers().forEach(p => { const v = p
 const winVote = () => { const c = tally(); return c.indexOf(Math.max.apply(null, c)); };
 
 function enterLobby(m){
+  if (typeof stopSpeech === 'function') stopSpeech(); dpBots = 0; waitSolo = 0; botAv.forEach(a => scene.remove(a.g)); botAv.clear();
   const wasDead = dead || !!kill; kill = null; tension = 0; fxL.power = 1; fxL.powerT0 = 0; spinners.length = 0; vents.length = 0; if (wasDead){ fadeIn(1.8); if (ac){ beep(220, 1.6, 'sine', .05); beep(330, 1.8, 'sine', .04, .3); } }
   if (cut.on) endCut(); arenaG.visible = false; H = null; lastDp = null;
   rosterReset(); deathT0 = -1; deathG.visible = false; deathG.userData = {};
@@ -1633,20 +1634,46 @@ function faceTick(dt, t, hw){
 }
 
 /* ---------- announcer voice: speech synthesis when the device has it, a synthetic voice otherwise; the mouth follows whichever plays ---------- */
-const speech = {env:0, until:0, sched:null, t0:0, useTTS:null, voice:null};
-function pickVoice(){ try { const vs = speechSynthesis.getVoices(); if (!vs.length) return null; return vs.find(v => /en/i.test(v.lang) && /male|daniel|fred|george|david|guy/i.test(v.name)) || vs.find(v => /en/i.test(v.lang)) || vs[0]; } catch(e){ return null; } }
+const speech = {env:0, until:0, sched:null, t0:0, voice:null, envArr:null, envT0:0, src:null, mode:'', sam:null, samLoad:null, samFail:false, ttsOk:null};
+/* The announcer speaks real words. Order of preference:
+   1. the device's own speech voices (natural voice; mouth follows word timing),
+   2. a built-in speech synthesizer loaded once from a CDN (works on headsets with no system voices; the mouth follows the actual audio),
+   3. if both are unavailable, a distorted voice-like sound so the face still talks. */
+function pickVoice(){ try { const vs = speechSynthesis.getVoices(); if (!vs.length) return null; return vs.find(v => /en/i.test(v.lang) && /male|daniel|fred|george|david|guy|alex|google uk english male/i.test(v.name)) || vs.find(v => /en/i.test(v.lang)) || vs[0]; } catch(e){ return null; } }
+try { if (window.speechSynthesis){ speechSynthesis.getVoices(); speechSynthesis.addEventListener && speechSynthesis.addEventListener('voiceschanged', () => { speech.voice = pickVoice(); }); } } catch(e){}
+const NUMW = ['zero','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen','twenty','twenty one','twenty two','twenty three','twenty four','twenty five','twenty six','twenty seven','twenty eight','twenty nine','thirty'];
+function speakable(s){ return String(s).replace(/BADGORILLA/g, 'Bad Gorilla').replace(/#0?(\d+)/g, (m, n) => 'number ' + (NUMW[+n] || n)).replace(/\b(\d+)\b/g, (m, n) => NUMW[+n] || n).replace(/\bIQ\b/g, 'I Q'); }
+function loadSam(){ if (speech.sam || speech.samFail) return Promise.resolve(speech.sam); if (!speech.samLoad) speech.samLoad = import('https://cdn.jsdelivr.net/npm/sam-js@0.3.1/+esm').then(M => { const S = M.default || M.SamJs || M; speech.sam = new S({pitch:96, speed:78, mouth:150, throat:105}); return speech.sam; }).catch(() => { speech.samFail = true; return null; }); return speech.samLoad; }
 function speak(text, spoken){
-  if (!text) return; say(text, Math.max(4, text.length/14));
-  const now = performance.now(), syl = Math.max(3, Math.round(text.replace(/[^a-z]/gi, '').length/2.6)), dur = syl*.19 + .4;
-  speech.t0 = now; speech.until = now + dur*1000; speech.sched = Array.from({length:syl}, (_, i) => ({t:i*.19 + Math.random()*.03, a:.55 + Math.random()*.45, l:.13 + Math.random()*.05}));
-  if (speech.useTTS === null) speech.useTTS = !!(window.speechSynthesis && pickVoice());
-  if (speech.useTTS){
-    try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(spoken || text); u.voice = speech.voice || (speech.voice = pickVoice()); u.pitch = .35; u.rate = .86; u.volume = Math.min(1, SV.e);
-      u.onstart = () => { speech.t0 = performance.now(); speech.until = speech.t0 + 60000; }; u.onboundary = () => { speech.kick = performance.now(); }; u.onend = () => { speech.until = performance.now(); };
-      speechSynthesis.speak(u); return; } catch(e){ speech.useTTS = false; }
+  if (!text) return; say(text, Math.max(4, text.length/14)); const words = speakable(spoken || text);
+  stopSpeech(); const now = performance.now(), syl = Math.max(3, Math.round(text.replace(/[^a-z]/gi, '').length/2.6)), dur = syl*.19 + .4;
+  speech.t0 = now; speech.until = now + dur*1000; speech.envArr = null; speech.sched = Array.from({length:syl}, (_, i) => ({t:i*.19 + Math.random()*.03, a:.55 + Math.random()*.45, l:.13 + Math.random()*.05}));
+  const v = window.speechSynthesis ? (speech.voice || (speech.voice = pickVoice())) : null;
+  if (v && speech.ttsOk !== false){
+    try { const u = new SpeechSynthesisUtterance(words); u.voice = v; u.pitch = .45; u.rate = .88; u.volume = Math.min(1, SV.e); let started = false;
+      u.onstart = () => { started = true; speech.ttsOk = true; speech.mode = 'tts'; speech.t0 = performance.now(); speech.until = speech.t0 + 60000; }; u.onboundary = () => { speech.kick = performance.now(); }; u.onend = () => { speech.until = performance.now(); };
+      speech.mode = 'tts'; speechSynthesis.speak(u);
+      setTimeout(() => { if (!started){ speech.ttsOk = false; try { speechSynthesis.cancel(); } catch(e){} samSpeak(words); } }, 1500);
+      return; } catch(e){ speech.ttsOk = false; }
   }
-  babble(speech.sched);
+  samSpeak(words);
 }
+function samSpeak(words){
+  if (!ac){ return; } speech.mode = 'sam';
+  loadSam().then(S => {
+    if (!S){ speech.mode = 'babble'; babble(speech.sched); return; }
+    let f; try { f = S.buf32(words); } catch(e){ f = null; } if (!f || !f.length){ speech.mode = 'babble'; babble(speech.sched); return; }
+    const rate = 22050, buf = ac.createBuffer(1, f.length, rate); buf.getChannelData(0).set(f);
+    const src = ac.createBufferSource(), g = ac.createGain(), lp = ac.createBiquadFilter(); src.buffer = buf; src.playbackRate.value = .92; lp.type = 'lowpass'; lp.frequency.value = 4200; g.gain.value = 1.6;
+    src.connect(lp); lp.connect(g); g.connect(sfxBus()); src.start(); speech.src = src;
+    /* mouth follows the real loudness of the audio, in 20 ms steps */
+    const win = Math.floor(rate*.02), n = Math.ceil(f.length/win), env = new Float32Array(n); let mx = 1e-4;
+    for (let i=0;i<n;i++){ let s = 0; const a = i*win, b = Math.min(f.length, a + win); for (let k=a;k<b;k++) s += f[k]*f[k]; env[i] = Math.sqrt(s/Math.max(1, b - a)); mx = Math.max(mx, env[i]); }
+    for (let i=0;i<n;i++) env[i] = Math.min(1, env[i]/mx*1.3);
+    speech.envArr = env; speech.envT0 = performance.now(); speech.t0 = speech.envT0; speech.until = speech.envT0 + f.length/rate/.92*1000 + 150;
+  });
+}
+function stopSpeech(){ try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch(e){} try { if (speech.src) speech.src.stop(); } catch(e){} speech.src = null; }
 function babble(sched){
   if (!ac) return; const t0 = ac.currentTime + .02, out = ac.createGain(); out.gain.value = .5; out.connect(sfxBus());
   const f1 = ac.createBiquadFilter(), f2 = ac.createBiquadFilter(); f1.type = f2.type = 'bandpass'; f1.Q.value = 6; f2.Q.value = 8; f1.connect(out); f2.connect(out);
@@ -1659,8 +1686,9 @@ function babble(sched){
 function speechTick(){
   const now = performance.now(), el = (now - speech.t0)/1000;
   if (now > speech.until){ speech.env *= .8; return; }
-  if (speech.useTTS){ const kick = speech.kick && now - speech.kick < 160 ? 1 : 0; speech.env = Math.max(kick*.9, .25 + .55*Math.abs(Math.sin(el*12.5))*(.6 + .4*Math.sin(el*3.1))); return; }
-  let v = 0; if (speech.sched) for (const s of speech.sched){ if (el >= s.t && el < s.t + s.l){ v = s.a*Math.sin((el - s.t)/s.l*Math.PI); break; } } speech.env = v;
+  if (speech.mode === 'tts'){ const kick = speech.kick && now - speech.kick < 160 ? 1 : 0; speech.env = Math.max(kick*.9, .25 + .55*Math.abs(Math.sin(el*12.5))*(.6 + .4*Math.sin(el*3.1))); return; }
+  if (speech.envArr){ const i = Math.floor((now - speech.envT0)/1000*.92/.02); speech.env = i >= 0 && i < speech.envArr.length ? speech.envArr[i] : 0; return; }
+  let v = 0; if (speech.sched && speech.mode === 'babble') for (const s of speech.sched){ if (el >= s.t && el < s.t + s.l){ v = s.a*Math.sin((el - s.t)/s.l*Math.PI); break; } } speech.env = v;
 }
 
 /* ---------- announcer lines ---------- */
@@ -1900,7 +1928,7 @@ function dpOrder(D){ return D.al.slice().sort((a, b) => a - b); }
 /* ---------- per-frame client ---------- */
 let wheelSpin = 0, wheelA = 0, scrT = 0, specT = 0;
 function arenaTick(dt, t, hw){
-  if (dpIsHost()) dpHostTick(); else H = null;
+  if (dpIsHost()){ dpHostTick(); botsAuto(dt, dpIds()); } else H = null;
   const D = dpView(); speechTick(); faceTick(dt, t, hw);
   if (cut.on){ cutTick(); return; }
   moversTick(dt); ibtnTick();
@@ -1935,11 +1963,12 @@ function arenaTick(dt, t, hw){
   drawScreenThrottled(dt, () => dpScreens(D, el, info, waitN));
   /* spectator monitor for eliminated contestants */
   if (D.ct && myNum && !alive && D.ph !== 'win') boothTick(D, t);
+  botsTick(D, t);
 }
 function drawScreenThrottled(dt, f){ scrT -= dt; if (scrT <= 0){ scrT = .25; f(); } }
 function dpScreens(D, el, info, waitN){
   const E = EXP[D.exp], rem = D.al.length, tot = D.ct ? Object.keys(D.ct).length : 0;
-  if (D.ph === 'wait'){ drawScreen(0, 'Death Penalty', 'Minimum 2 contestants. Maximum 30.\nStep into the holding area.'); drawScreen(1, 'Contestants waiting', 'Need ' + Math.max(0, DPC.min - waitN) + ' more', waitN + '/30'); }
+  if (D.ph === 'wait'){ drawScreen(0, 'Death Penalty', 'Minimum 2 contestants. Maximum 30.\nStep into the holding area.'); drawScreen(1, 'Contestants waiting', waitN < DPC.min ? 'Practice contestants join if nobody else comes' : 'Starting', waitN + '/30'); }
   else if (D.ph === 'cd'){ drawScreen(0, 'Death Penalty', 'The doors close when the countdown ends.\nOnly one contestant survives.'); drawScreen(1, waitN + ' contestants waiting', 'Match begins', Math.max(0, Math.ceil(DPC.cd - el)), '#ff3a3a'); }
   else if (D.ph === 'win'){ drawScreen(0, 'Final survivor', D.ws ? 'Contestant ' + pad4n(D.ws) + ' survived ' + (D.n) + ' experiments.' : 'No survivors.'); drawScreen(1, 'Winner', '', D.ws ? pad4n(D.ws) : '-', '#f6e7a8'); }
   else {
@@ -2019,6 +2048,32 @@ function dpDoorTick(dt, hw){
   if (dpDoor.open > .8 && hw.z > 13.1 && Math.abs(hw.x + 7) < 1.9) enterArena();
 }
 
+
+/* ---------- practice contestants: fill the arena when there are not enough people ---------- */
+const BOTC = [0x6b4a2f, 0x8a8f94, 0x3d4a5c, 0x5c3d3d, 0x2f4f3a, 0x9a7b4f];
+const botAv = new Map();
+let waitSolo = 0;
+function botsAuto(dt, ids){
+  const humans = ids.filter(id => id.indexOf('~bot') !== 0).length;
+  if (H && (H.ph === 'wait' || H.ph === 'cd')){ if (humans < 4){ if (!waitSolo) waitSolo = performance.now(); if (performance.now() - waitSolo > 6000 && dpBots !== 4 - humans){ dpBots = 4 - humans; say('Practice contestants have entered the arena.', 4); } } else { waitSolo = 0; dpBots = 0; } }
+}
+function botName(id){ return 'Subject ' + (1000 + ((id.charCodeAt(4) || 1)*373)%9000); }
+function botsTick(D, t){
+  const want = new Set();
+  if (D && D.ct && ['intro', 'xform', 'count', 'play', 'res', 'win'].indexOf(D.ph) >= 0){
+    const order = dpOrder(D), E = EXP[D.exp];
+    Object.keys(D.ct).forEach(id => { if (id.indexOf('~bot') !== 0) return; const num = D.ct[id]; if (D.al.indexOf(num) < 0 && D.ph !== 'res') return; if (D.al.indexOf(num) < 0) return; want.add(id);
+      let a = botAv.get(id); if (!a){ a = makeAvatar(); botAv.set(id, a); }
+      const i = order.indexOf(num); let x, z, r;
+      if (D.ph === 'intro' || !E){ const ang = (i + .5)/order.length*Math.PI*.9 - Math.PI*.45, rr = 3.2 + (i%2)*1.4; x = Math.sin(ang)*rr; z = 2 + Math.cos(ang)*1.5; r = 0; }
+      else { const s = E.spot(i, order.length, D.x || {}, num); x = s[0]; z = s[1]; r = s[2]; }
+      const gy = arenaGround(x, z, 8), bob = Math.sin(t*2 + num)*.03, up = D.exp === 'simon' && D.ph === 'play' && Math.sin(t*1.3 + num) > .6;
+      a.g.visible = true; setAv(a, {c:BOTC[num % BOTC.length], n:pad4n(num) + ' ' + botName(id) + (D.sh && D.sh.indexOf(num) >= 0 ? ' +' : ''), o:0, p:[x, gy + 1.35 + bob, z], a:[x - .35*Math.cos(r), gy + (up ? 2 : 1.0), z + .35*Math.sin(r)], b:[x + .35*Math.cos(r), gy + (up ? 2 : 1.0 + Math.sin(t*3 + num)*.05), z - .35*Math.sin(r)], r:r}, false);
+    });
+  }
+  botAv.forEach((a, id) => { if (!want.has(id)){ scene.remove(a.g); botAv.delete(id); } });
+}
+
 /* ---------- arrival cutscene: darkness, only the face, the welcome speech ---------- */
 const cut = {on:false, t0:0, vis:[]};
 const CUT_LINE = 'Welcome to the Death Penalty program. Made by BADGORILLA. You will play a series of games to test strength, IQ, and agility.';
@@ -2034,7 +2089,7 @@ function endCut(){
   if (!cut.on) return; cut.on = false; arenaG.children.forEach((c, i) => { c.visible = cut.vis[i] !== undefined ? cut.vis[i] : true; });
   face.baseY = 10.2; face.baseZ = -21.4; scene.fog.color.set(0x050607); scene.fog.density = .012; hemi.intensity = .35; flash.material.color.setHex(0x000000); flash.material.opacity = 1;
   setTimeout(() => flash.material.color.setHex(0xdadddf), 1500); rig.position.set(0, 0, 15); rig.rotation.y = 0; vel.set(0, 0, 0); hist.length = 0; if (!renderer.xr.isPresenting){ yaw = 0; pitch = 0; camera.rotation.set(0, 0, 0); }
-  try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch(e){}
+  stopSpeech();
   say('Wait in the holding area. The doors open for the next match.', 6);
 }
 function cutTick(){
