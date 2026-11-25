@@ -3367,7 +3367,14 @@ function mirrorSelf(on){
   if (on){ if (!mirNear) return false; mirState = {g:selfAv.g.visible, h:selfAv.head.visible, hm:hands.map(h => h.mesh.visible)}; selfAv.g.visible = true; selfAv.head.visible = true; hands.forEach(h => { h.mesh.visible = false; }); return true; }
   if (mirState){ selfAv.g.visible = mirState.g; selfAv.head.visible = mirState.h; hands.forEach((h, i) => { h.mesh.visible = mirState.hm[i]; }); mirState = null; }
 }
+const heldG = new THREE.Group(); heldG.position.set(.26, -.27, -.5); heldG.rotation.set(.1, -.5, 0); camera.add(heldG); let heldId = '';
+function heldTick(t){
+  const id = !renderer.xr.isPresenting && state !== 'menu' && !dead && !(isBM() && amMon) ? myCos.hand || '' : '';
+  if (id !== heldId){ heldId = id; while (heldG.children.length) heldG.remove(heldG.children[0]); if (id){ const m = cosMesh(id); m.scale.setScalar(1.3); heldG.add(m); } }
+  heldG.visible = !!id; if (id){ heldG.position.y = -.27 + Math.sin(t*2)*.006; heldG.rotation.z = Math.sin(t*1.3)*.05; }
+}
 function cosTick(dt, t, hw){
+  heldTick(t);
   const inLobby = state === 'lobby'; if (mirror) mirror.visible = inLobby && Math.hypot(hw.x - MIR.x, hw.z - MIR.z) < 10;
   if (!inLobby) return;
   /* door */
@@ -3443,7 +3450,7 @@ renderer.setAnimationLoop(() => {
     avs.forEach((a, k) => { if (!seenIds.has(k)){ scene.remove(a.g); avs.delete(k); } });
     const showSelf = renderer.xr.isPresenting && !dead && (hands[0].has || hands[1].has);
     selfAv.g.visible = showSelf;
-    if (showSelf){ const hh = headW(), yy = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ').y + rig.rotation.y; setAv(selfAv, {c:myColor, n:'', o:0, p:[hh.x, hh.y, hh.z], a:(hands[HL()].has ? hands[HL()].vis : hh).toArray(), b:(hands[1 - HL()].has ? hands[1 - HL()].vis : hh).toArray(), r:yy}, false); selfAv.head.visible = false; selfAv.tag.s.visible = false; selfAv.own.visible = false; hands.forEach(h => { h.mesh.visible = false; }); }
+    if (showSelf){ const hh = headW(), yy = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ').y + rig.rotation.y; setAv(selfAv, {c:myColor, n:'', o:0, cs:myCosArr(), p:[hh.x, hh.y, hh.z], a:(hands[HL()].has ? hands[HL()].vis : hh).toArray(), b:(hands[1 - HL()].has ? hands[1 - HL()].vis : hh).toArray(), r:yy}, false); selfAv.head.visible = false; selfAv.tag.s.visible = false; selfAv.own.visible = false; hands.forEach(h => { h.mesh.visible = false; }); }
     if (state === 'lobby'){ prev.g.visible = true; setAv(prev, {c:myColor, n:myName, o:isOwner ? 1 : 0, cs:myCosArr(), p:[9, 1.48, 2], a:[8.55 + Math.sin(t*1.3)*.05, .98, 2.15], b:[9.45, .98 + Math.sin(t*1.7)*.06, 2.15], r:-Math.PI/2 + Math.sin(t*.6)*.6}, false); } else prev.g.visible = false;
     voiceTick(dt);
     loadTick(dt, t);
