@@ -566,6 +566,13 @@ function animCreature(c, dt, spd, t, lean, close){
 }
 /* ---------- Player avatars: gorilla body with arm IK ---------- */
 const FACE = new THREE.MeshStandardMaterial({color:0x34302d, roughness:.75}), EYEW = new THREE.MeshStandardMaterial({color:0xece8dc, roughness:.3}), PUP = new THREE.MeshBasicMaterial({color:0x0c0a08});
+let ownerTexC = null;
+function ownerTex(){
+  if (ownerTexC) return ownerTexC;
+  const c = cv(256, 64), g = c.getContext('2d'); ownerTexC = new THREE.CanvasTexture(c);
+  const draw = () => { g.clearRect(0, 0, 256, 64); rrect(g, 46, 10, 164, 44, 4); g.fillStyle = 'rgba(228,230,231,.92)'; g.fill(); g.fillStyle = '#121314'; g.font = '600 26px ' + FS; g.textAlign = 'center'; g.textBaseline = 'middle'; spaced(g, 'OWNER', 128, 33, 5); ownerTexC.needsUpdate = true; };
+  draw(); LABELS.push(draw); return ownerTexC;
+}
 function makeAvatar(){
   const g = new THREE.Group(), mat = new THREE.MeshStandardMaterial({color:0x999999, roughness:.95});
   const head = new THREE.Group();
@@ -582,8 +589,9 @@ function makeAvatar(){
   arms.forEach(a => { a.e.scale.setScalar(.075); a.h.add(ell(FACE, .085, .075, .095), ell(FACE, .06, .03, .04, 0, -.05, -.06)); g.add(a.u, a.f, a.e, a.h); });
   const tag = makeTag();
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, 40, 6, 1, true), new THREE.MeshBasicMaterial({color:0xe2e4e6, transparent:true, opacity:.5, fog:false, blending:THREE.AdditiveBlending, depthWrite:false})); beam.visible = false;
-  g.add(head, torso, tag.s, beam); scene.add(g);
-  return {g:g, mat:mat, head:head, torso:torso, arms:arms, hl:arms[0].h, hr:arms[1].h, vis:vis, tag:tag, beam:beam, name:'', init:false};
+  const own = new THREE.Sprite(new THREE.SpriteMaterial({map:ownerTex(), transparent:true, depthTest:false, fog:false})); own.scale.set(.5, .125, 1); own.renderOrder = 5; own.visible = false;
+  g.add(head, torso, tag.s, beam, own); scene.add(g);
+  return {g:g, mat:mat, head:head, torso:torso, arms:arms, hl:arms[0].h, hr:arms[1].h, vis:vis, tag:tag, beam:beam, own:own, name:'', init:false};
 }
 const tv = V(), _sA = V(), _eA = V(), _dA = V(), _bA = V();
 function segTo(m, a, b, r){ _dA.subVectors(b, a); const l = _dA.length() || .001; m.position.addVectors(a, b).multiplyScalar(.5); m.quaternion.setFromUnitVectors(UPV, _dA.divideScalar(l)); m.scale.set(r, l, r); }
@@ -601,7 +609,7 @@ function setAv(a, pr, rev){
     _eA.copy(_sA).addScaledVector(_dA, d/2).addScaledVector(_bA, Math.sqrt(Math.max(0, L*L - d*d/4)));
     m.e.position.copy(_eA); segTo(m.u, _sA, _eA, .07); segTo(m.f, _eA, H, .065); m.h.rotation.y = yaw;
   });
-  a.tag.s.position.set(a.head.position.x, a.head.position.y + .38, a.head.position.z); a.beam.visible = rev; if (rev) a.beam.position.set(a.head.position.x, a.head.position.y + 19, a.head.position.z);
+  a.tag.s.position.set(a.head.position.x, a.head.position.y + .38, a.head.position.z); a.own.visible = pr.o === 1; if (a.own.visible) a.own.position.set(a.head.position.x, a.head.position.y + .55, a.head.position.z); a.beam.visible = rev; if (rev) a.beam.position.set(a.head.position.x, a.head.position.y + 19, a.head.position.z);
 }
 
 const avs = new Map(), prev = makeAvatar();
