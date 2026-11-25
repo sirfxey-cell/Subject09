@@ -11,6 +11,10 @@ Creature growls, roars, grunts and breaths (`growl*`, `roar*`, `grunt*`, `breath
 **rubberduck** from OpenGameArt ("80 CC0 creature SFX" and "80 CC0 RPG SFX"), released under
 [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
 
+`bigroar.mp3` is a new mix made for this game: an Oculus Audio Pack giant scream layered with
+rubberduck roars and growls, pitched down, mixed together and faded out. `rumble1.mp3` is a cut of
+the Oculus Audio Pack subway sound.
+
 ## Music
 
 "Level Up" and "Waiting Room" were made for this game with Suno (Pro plan).
