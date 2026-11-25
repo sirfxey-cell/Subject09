@@ -522,7 +522,8 @@ const term = new THREE.Mesh(new THREE.PlaneGeometry(TW, TH), new THREE.MeshBasic
 const ui = {s:'home', txt:'', msg:''};
 function rects(){
   const r = [], B = (x, y, w, h, l, a, o) => r.push(Object.assign({x:x, y:y, w:w, h:h, l:l, a:a}, o || {}));
-  if (ui.s === 'home'){ const rows = [['CHANGE NAME', 'name', '1 HR COOLDOWN'], ['COLOR', 'color', ''], ['PRIVATE CODE', 'code', ''], ['PUBLIC SERVER', 'pub', roomLabel === 'Public Server' ? 'CONNECTED' : ''], ['STICK MOVE', 'stk', stickMove ? 'ON' : 'OFF'], ['VOICE CHAT', 'mic', micLabel()], ['SOUND', 'snd', 'MUSIC ' + Math.round(SV.m*10) + '  FX ' + Math.round(SV.e*10) + '  VOICE ' + Math.round(SV.v*10)], ['MONSTER MODE', 'bm', 'HEAD START ' + BMS.esc + 'S  GORE ' + (BMS.gore ? 'ON' : 'OFF')]]; if (isOwner) rows.push(['OWNER CONTROLS', 'mod', R ? (R.peers().length - 1) + ' PLAYERS' : 'OFFLINE']); const st = Math.floor(306/rows.length), hh = st - 6; rows.forEach((q, i) => B(36, 196 + i*st, 696, hh, q[0], q[1], {n:'0' + (i + 1), v:q[2], sw:q[1] === 'color'})); }
+  if (ui.s === 'home'){ const rows = [['CHANGE NAME', 'name', '1 HR COOLDOWN'], ['COLOR', 'color', ''], ['PRIVATE CODE', 'code', ''], ['PUBLIC SERVER', 'pub', roomLabel === 'Public Server' ? 'CONNECTED' : ''], ['STICK MOVE', 'stk', stickMove ? 'ON' : 'OFF'], ['VOICE CHAT', 'mic', micLabel()], ['SOUND', 'snd', 'MUSIC ' + Math.round(SV.m*10) + '  FX ' + Math.round(SV.e*10) + '  VOICE ' + Math.round(SV.v*10)], ['MONSTER MODE', 'bm', 'HEAD START ' + BMS.esc + 'S  GORE ' + (BMS.gore ? 'ON' : 'OFF')]]; if (isOwner || amMod()) rows.push([isOwner ? 'OWNER CONTROLS' : 'MOD CONTROLS', 'mod', R ? (R.peers().length - 1) + ' PLAYERS' : 'OFFLINE']); const st = Math.floor(306/rows.length), hh = st - 6; rows.forEach((q, i) => B(36, 196 + i*st, 696, hh, q[0], q[1], {n:'0' + (i + 1), v:q[2], sw:q[1] === 'color'})); }
+  else if (ui.s === 'mod' && !isOwner){ modPeers().slice(0, 5).forEach((p, i) => { const y = 120 + i*58, id = p.peer, mu = muted.has(id); if (protectedPr(p.presence)) return; B(412, y, 92, 46, 'KICK', 'kick:' + id); B(512, y, 220, 46, mu ? 'UNMUTE' : 'SILENCE', 'mute:' + id, {pri:mu}); }); B(36, 420, 696, 52, 'BACK', 'back', {n:'<'}); }
   else if (ui.s === 'mod'){ modPeers().slice(0, 5).forEach((p, i) => { const y = 120 + i*58, id = p.peer, mu = muted.has(id); const md = isModName(p.presence.n); B(300, y, 104, 46, md ? 'UNMOD' : 'MOD', 'mod:' + id, {pri:md}); B(412, y, 92, 46, 'KICK', 'kick:' + id); B(512, y, 92, 46, 'BAN', 'ban:' + id); B(612, y, 120, 46, mu ? 'UNMUTE' : 'SILENCE', 'mute:' + id, {pri:mu}); }); B(36, 420, 696, 52, 'BACK', 'back', {n:'<'}); }
   else if (ui.s === 'snd'){ [['m', 'MUSIC'], ['e', 'EFFECTS'], ['v', 'VOICE']].forEach((q, i) => { const y = 122 + i*92; B(372, y, 80, 64, '-', 'vol-' + q[0]); B(652, y, 80, 64, '+', 'vol+' + q[0]); }); B(36, 420, 696, 52, 'BACK', 'back', {n:'<'}); }
   else if (ui.s === 'bm'){ [['g', 'GHOST'], ['i', 'INVISIBLE'], ['w', 'WALL SEE'], ['f', 'FINISHER']].forEach((q, i) => B(36, 100 + i*62, 330, 52, q[1], 'bk:' + q[0], {n:'0' + (i + 1), v:BMX.bind === q[0] ? '...' : keyName(BMS.keys[q[0]])}));
@@ -551,7 +552,7 @@ function drawTerm(){
   }
   else if (ui.s === 'bm'){ g.font = '400 15px ' + FM; g.fillStyle = BMX.bind ? '#e4e6e7' : '#6c7174'; spaced(g, BMX.bind ? 'PRESS THE KEY YOU WANT ON YOUR KEYBOARD.  ESC TO CANCEL' : 'BE THE MONSTER  /  KEYS LEFT, ROUND SETTINGS RIGHT', 36, 78, 2); }
   else if (ui.s === 'mod'){
-    g.font = '400 15px ' + FM; g.fillStyle = '#6c7174'; spaced(g, 'OWNER CONTROLS  /  PLAYERS IN THIS ROOM', 36, 88, 3);
+    g.font = '400 15px ' + FM; g.fillStyle = '#6c7174'; spaced(g, (isOwner ? 'OWNER CONTROLS' : 'MOD CONTROLS') + '  /  PLAYERS IN THIS ROOM', 36, 88, 3);
     const list = modPeers(); if (!list.length){ g.fillStyle = '#8b9093'; spaced(g, 'NO OTHER PLAYERS HERE', 36, 150, 2); }
     list.slice(0, 5).forEach((p, i) => { g.font = '500 24px ' + FS; g.fillStyle = muted.has(p.peer) ? '#7d8286' : '#e4e6e7'; spaced(g, String(p.presence.n || 'Subject').toUpperCase().slice(0, 14), 36, 143 + i*58, 2); });
     if (ui.msg){ g.font = '400 15px ' + FM; g.fillStyle = '#c4c7c9'; g.textAlign = 'right'; spaced(g, ui.msg.toUpperCase(), 732, 88, 1); g.textAlign = 'left'; }
@@ -591,6 +592,9 @@ try { banned = localStorage.getItem('s09Ban') === '1'; } catch(e){}
 const modPeers = () => R ? R.peers().filter(p => !p.isMe && p.presence) : [];
 let ownerMods = [], modNames = new Set(); try { ownerMods = JSON.parse(localStorage.getItem('s09Mods') || '[]') || []; modNames = new Set(JSON.parse(localStorage.getItem('s09ModsSeen') || '[]') || []); } catch(e){}
 const isModName = n => !!n && modNames.has(String(n));
+const amMod = () => !isOwner && isModName(myName);
+/* the owner and moderators can't be kicked or silenced by a moderator */
+const protectedPr = pr => !pr || pr.o === 1 || isModName(pr.n);
 function setMods(list){ const was = isModName(myName); modNames = new Set(list.map(String)); try { localStorage.setItem('s09ModsSeen', JSON.stringify([...modNames])); } catch(e){} const now = isModName(myName); if (now !== was && !isOwner) say(now ? 'The owner made you a moderator.' : 'You are no longer a moderator.', 5); drawTerm(); }
 function toggleMod(id){ const p = modPeers().find(q => q.peer === id), nm = p && p.presence.n; if (!nm) return; const i = ownerMods.indexOf(nm); if (i >= 0) ownerMods.splice(i, 1); else ownerMods.push(nm); try { localStorage.setItem('s09Mods', JSON.stringify(ownerMods)); } catch(e){} ui.msg = (i >= 0 ? 'Removed moderator ' : 'Made moderator ') + nm; setMods(ownerMods); pub({md:ownerMods.slice()}); }
 function modAction(kind, id){
@@ -605,12 +609,14 @@ function checkMod(peers){
   const me = myId();
   for (const p of peers){
     const pr = p.presence; if (!p.isMe && pr && pr.o === 1 && Array.isArray(pr.md) && pr.md.join('\n') !== [...modNames].join('\n')) setMods(pr.md);
-    if (p.isMe || !pr || pr.o !== 1 || !Array.isArray(pr.m)) continue;
+    if (p.isMe || !pr || !Array.isArray(pr.m)) continue;
+    const own = pr.o === 1, byMod = !own && isModName(pr.n), who = own ? 'the owner' : 'a moderator'; if (!own && !byMod) continue;
     for (const e of pr.m){
       const key = p.peer + ':' + e[2]; if (modSeen.has(key)) continue; modSeen.add(key);
+      if (byMod){ if (e[1] === 'b') continue; if (e[0] === me ? (isOwner || amMod()) : protectedPr((peers.find(q => q.peer === e[0]) || {}).presence)) continue; }
       if (e[0] === me){
-        if (e[1] === 'm' || e[1] === 'u'){ mutedMe = e[1] === 'm'; micApply(); say(mutedMe ? 'The owner has silenced you.' : 'The owner has unsilenced you.', 5); }
-        else { if (e[1] === 'b'){ banned = true; try { localStorage.setItem('s09Ban', '1'); } catch(x){} } else kickedUntil = Date.now() + 120000; removeSelf(e[1] === 'b' ? 'You have been banned by the owner.' : 'You were kicked by the owner.'); return; }
+        if (e[1] === 'm' || e[1] === 'u'){ mutedMe = e[1] === 'm'; micApply(); say(mutedMe ? 'You have been silenced by ' + who + '.' : 'You have been unsilenced by ' + who + '.', 5); }
+        else { if (e[1] === 'b'){ banned = true; try { localStorage.setItem('s09Ban', '1'); } catch(x){} } else kickedUntil = Date.now() + 120000; removeSelf(e[1] === 'b' ? 'You have been banned by the owner.' : 'You were kicked by ' + who + '.'); return; }
       } else if (e[1] === 'm') muted.add(e[0]); else if (e[1] === 'u') muted.delete(e[0]);
     }
   }
@@ -633,9 +639,9 @@ function press(r){
     if (k === 'esc') BMS.esc = cyc([15, 20, 30, 45, 60], BMS.esc); else if (k === 'cdk') BMS.cdk = cyc(['s', 'n', 'l'], BMS.cdk); else if (k === 'ad') BMS.ad = cyc([3, 4, 5], BMS.ad); else if (k === 'rv') BMS.rv = cyc([.5, .75, 1, 1.25], BMS.rv); else if (k === 'rd') BMS.rd = cyc([3, 4, 5, 6, 7], BMS.rd); else if (k === 'gore') BMS.gore = BMS.gore ? 0 : 1; bmSave(); }
   else if (r.a.slice(0, 3) === 'vol'){ const k = r.a[4], d = r.a[3] === '+' ? .1 : -.1; SV[k] = Math.round(Math.max(0, Math.min(1, SV[k] + d))*10)/10; saveVol(); if (k === 'e') beep(660, .08, 'sine', .12); }
   else if (r.a === 'mic'){ if (!mic){ micOn = true; askMic(); ui.msg = 'Allow the microphone in the browser prompt.'; } else { micOn = !micOn; micApply(); ui.msg = micOn ? 'Microphone on.' : 'Microphone off.'; } }
-  else if (r.a === 'mod'){ if (isOwner) ui.s = 'mod'; }
+  else if (r.a === 'mod'){ if (isOwner || amMod()) ui.s = 'mod'; }
   else if (r.a.indexOf('mod:') === 0){ if (isOwner) toggleMod(r.a.slice(4)); }
-  else if (/^(kick|ban|mute):/.test(r.a)){ if (isOwner) modAction(r.a.split(':')[0], r.a.slice(r.a.indexOf(':') + 1)); }
+  else if (/^(kick|ban|mute):/.test(r.a)){ const k = r.a.split(':')[0], id = r.a.slice(r.a.indexOf(':') + 1), tp = modPeers().find(q => q.peer === id); if (isOwner) modAction(k, id); else if (amMod() && k !== 'ban' && tp && !protectedPr(tp.presence)) modAction(k, id); }
   else if (r.a === 'pub'){ joinRoom('pub-1', 'Public Server'); ui.msg = 'Joining public server...'; }
   else if (r.a === 'k'){ if (ui.txt.length < (ui.s === 'name' ? 12 : 8)) ui.txt += r.l; }
   else if (r.a === 'del') ui.txt = ui.txt.slice(0, -1);
@@ -1165,7 +1171,7 @@ function myId(){ const m = R && R.peers().find(p => p.isMe); return m ? m.peer :
 const zonePeers = () => R ? R.peers().filter(p => !p.isMe && p.presence && p.presence.z === zone) : [];
 function pub(extra){
   if (!R) return; const h = headW(), f = a => [+a.x.toFixed(2), +a.y.toFixed(2), +a.z.toFixed(2)], e = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
-  R.presence(bmPub(Object.assign({n:myName, c:myColor, z:zone, v:myVote, o:isOwner ? 1 : 0, m:isOwner ? modLog.slice() : null, md:isOwner ? ownerMods.slice() : null, d:dead ? 1 : 0, t:talking, r:+(e.y + rig.rotation.y).toFixed(2), p:f(h), a:f(hands[HL()].has ? hands[HL()].vis : keys.KeyH ? h.clone().setY(h.y + .4) : h), b:f(hands[1 - HL()].has ? hands[1 - HL()].vis : keys.KeyH ? h.clone().setY(h.y + .4) : h), dp:dpIsHost() ? dpSnap() : null, di:state === 'arena' ? DI : null}, extra || {}))).catch(() => {});
+  R.presence(bmPub(Object.assign({n:myName, c:myColor, z:zone, v:myVote, o:isOwner ? 1 : 0, m:isOwner || amMod() ? modLog.slice() : null, md:isOwner ? ownerMods.slice() : null, d:dead ? 1 : 0, t:talking, r:+(e.y + rig.rotation.y).toFixed(2), p:f(h), a:f(hands[HL()].has ? hands[HL()].vis : keys.KeyH ? h.clone().setY(h.y + .4) : h), b:f(hands[1 - HL()].has ? hands[1 - HL()].vis : keys.KeyH ? h.clone().setY(h.y + .4) : h), dp:dpIsHost() ? dpSnap() : null, di:state === 'arena' ? DI : null}, extra || {}))).catch(() => {});
 }
 let unsub = null;
 async function joinRoom(name, label){
