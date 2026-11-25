@@ -134,6 +134,8 @@ function sfxBus(){ if (!sfxG){ sfxG = ac.createGain(); sfxG.gain.value = SV.e; s
 function beep(f, d, type, v, delay){ if (!ac) return; const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime + (delay||0); o.type = type || 'sine'; o.frequency.setValueAtTime(f, t); g.gain.setValueAtTime(v||.1, t); g.gain.exponentialRampToValueAtTime(.0001, t+d); o.connect(g); g.connect(sfxBus()); o.start(t); o.stop(t+d); }
 function initAudio(){ if (!ac){ ac = new (window.AudioContext || window.webkitAudioContext)(); [46, 69.5].forEach(f => { const o = ac.createOscillator(), g = ac.createGain(); o.frequency.value = f; g.gain.value = .04; o.connect(g); g.connect(sfxBus()); o.start(); }); } if (ac.state === 'suspended') ac.resume(); }
 const gps = [], conn = [], hnd = [];
+/* which controller slot holds the left hand: the headset can swap slots after its system menu */
+const HL = () => hnd[1] === 'left' || hnd[0] === 'right' ? 1 : 0;
 function pulse(i, a, ms){ ms = ms || 40; try { const gp = gps[i]; if (!gp) return; if (gp.hapticActuators && gp.hapticActuators[0] && gp.hapticActuators[0].pulse) gp.hapticActuators[0].pulse(Math.min(1, a), ms); else if (gp.vibrationActuator) gp.vibrationActuator.playEffect('dual-rumble', {duration:ms, strongMagnitude:Math.min(1, a), weakMagnitude:Math.min(1, a)}); } catch(e){} }
 
 /* ---------- Collision ---------- */
@@ -976,7 +978,7 @@ function drawFeedLabel(f, name){
 }
 feeds.forEach(f => drawFeedLabel(f, ''));
 /* return-to-lobby button */
-const retG = new THREE.Group(); retG.position.set(.55, 0, 2.4); spec.add(retG);
+const retG = new THREE.Group(); retG.position.set(.7, 0, 2.45); spec.add(retG);
 retG.add(new THREE.Mesh(new THREE.CylinderGeometry(.2, .26, .8, 24), tvCase).translateY(.4));
 const retBtn = new THREE.Mesh(new THREE.CylinderGeometry(.13, .13, .06, 28), new THREE.MeshBasicMaterial({color:0xdfe3e5})); retBtn.position.y = .83; retG.add(retBtn);
 const retRing = new THREE.Mesh(new THREE.TorusGeometry(.16, .012, 8, 40), new THREE.MeshBasicMaterial({color:0x8b9296})); retRing.rotation.x = Math.PI/2; retRing.position.y = .82; retG.add(retRing);
@@ -1027,7 +1029,7 @@ function myId(){ const m = R && R.peers().find(p => p.isMe); return m ? m.peer :
 const zonePeers = () => R ? R.peers().filter(p => !p.isMe && p.presence && p.presence.z === zone) : [];
 function pub(extra){
   if (!R) return; const h = headW(), f = a => [+a.x.toFixed(2), +a.y.toFixed(2), +a.z.toFixed(2)], e = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
-  R.presence(Object.assign({n:myName, c:myColor, z:zone, v:myVote, o:isOwner ? 1 : 0, m:isOwner ? modLog.slice() : null, d:dead ? 1 : 0, t:talking, r:+(e.y + rig.rotation.y).toFixed(2), p:f(h), a:f(hands[0].has ? hands[0].vis : h), b:f(hands[1].has ? hands[1].vis : h)}, extra || {})).catch(() => {});
+  R.presence(Object.assign({n:myName, c:myColor, z:zone, v:myVote, o:isOwner ? 1 : 0, m:isOwner ? modLog.slice() : null, d:dead ? 1 : 0, t:talking, r:+(e.y + rig.rotation.y).toFixed(2), p:f(h), a:f(hands[HL()].has ? hands[HL()].vis : h), b:f(hands[1 - HL()].has ? hands[1 - HL()].vis : h)}, extra || {})).catch(() => {});
 }
 let unsub = null;
 async function joinRoom(name, label){
@@ -1217,7 +1219,7 @@ renderer.domElement.addEventListener('pointerdown', e => {
 });
 for (let i=0;i<2;i++){
   const c = renderer.xr.getController(i);
-  c.addEventListener('connected', e => { gps[i] = e.data.gamepad; hnd[i] = e.data.handedness; conn[i] = true; }); c.addEventListener('disconnected', () => { conn[i] = false; });
+  c.addEventListener('connected', e => { gps[i] = e.data.gamepad; hnd[i] = e.data.handedness; conn[i] = true; hands[i].has = false; hands[i].touch = false; hist.length = 0; }); c.addEventListener('disconnected', () => { conn[i] = false; });
   c.addEventListener('selectstart', () => { initAudio(); wakeVoices(); if (dead) leaveSpectate(); });
   c.addEventListener('squeezestart', () => { if (state === 'level' && !dead){ lampOn = !lampOn; } });
   scene.add(c); scene.add(renderer.xr.getControllerGrip(i));
@@ -1335,10 +1337,10 @@ if (document.fonts) Promise.all([document.fonts.load('500 30px "IBM Plex Sans Co
 setInterval(() => { if (state === 'lobby' && (ui.s === 'name' || ui.s === 'code')) drawTerm(); }, 500);
 window.__s09 = {die:m => die(m || 'Test.'), level:i => enterLevel(i, 'normal'), lobby:() => enterLobby(), info:() => ({room:roomLabel, peers:R ? R.peers().length : 0, mic:micLabel(), voices:[...voices.values()].map(v => +v.g.gain.value.toFixed(2)), names:R ? R.peers().map(q => q.presence && q.presence.n) : [], state:state, lv:lvIdx, boxes:boxes.length, monsters:monsters.length, pos:headW().toArray().map(v => +v.toFixed(2)), calls:renderer.info.render.calls, tris:renderer.info.render.triangles, geos:renderer.info.memory.geometries}), look:(y, p) => { yaw = y; pitch = p || 0; camera.rotation.set(pitch, yaw, 0); }, tp:(x, z) => { rig.position.set(x, 0, z); }, renderer:renderer};
 renderer.setAnimationLoop(() => {
-  const dt = Math.min(clock.getDelta(), .033), t = clock.elapsedTime;
+  const dt = Math.min(clock.getDelta(), .033), t = clock.elapsedTime, rnow = performance.now(), rdt = Math.min(.25, (rnow - (window.__s09rt || rnow))/1000); window.__s09rt = rnow;
   if (state !== 'menu'){
     if (!dead){ if (renderer.xr.isPresenting){ sticks(dt); locomote(dt); } else desktop(dt); }
-    flash.material.opacity = Math.max(0, flash.material.opacity - dt*(dead ? .4 : 2));
+    flash.material.opacity = Math.max(0, flash.material.opacity - rdt*(dead ? .7 : 2));
     const hw = headW();
     if (state === 'lobby'){
       lobbyAnim(t, dt, hw);
@@ -1361,7 +1363,7 @@ renderer.setAnimationLoop(() => {
     avs.forEach((a, k) => { if (!seenIds.has(k)){ scene.remove(a.g); avs.delete(k); } });
     const showSelf = renderer.xr.isPresenting && !dead && (hands[0].has || hands[1].has);
     selfAv.g.visible = showSelf;
-    if (showSelf){ const hh = headW(), yy = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ').y + rig.rotation.y; setAv(selfAv, {c:myColor, n:'', o:0, p:[hh.x, hh.y, hh.z], a:(hands[0].has ? hands[0].vis : hh).toArray(), b:(hands[1].has ? hands[1].vis : hh).toArray(), r:yy}, false); selfAv.head.visible = false; selfAv.tag.s.visible = false; selfAv.own.visible = false; hands.forEach(h => { h.mesh.visible = false; }); }
+    if (showSelf){ const hh = headW(), yy = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ').y + rig.rotation.y; setAv(selfAv, {c:myColor, n:'', o:0, p:[hh.x, hh.y, hh.z], a:(hands[HL()].has ? hands[HL()].vis : hh).toArray(), b:(hands[1 - HL()].has ? hands[1 - HL()].vis : hh).toArray(), r:yy}, false); selfAv.head.visible = false; selfAv.tag.s.visible = false; selfAv.own.visible = false; hands.forEach(h => { h.mesh.visible = false; }); }
     if (state === 'lobby'){ prev.g.visible = true; setAv(prev, {c:myColor, n:myName, o:isOwner ? 1 : 0, p:[9, 1.48, 2], a:[8.55 + Math.sin(t*1.3)*.05, .98, 2.15], b:[9.45, .98 + Math.sin(t*1.7)*.06, 2.15], r:-Math.PI/2 + Math.sin(t*.6)*.6}, false); } else prev.g.visible = false;
     voiceTick(dt);
     loadTick(dt, t);
