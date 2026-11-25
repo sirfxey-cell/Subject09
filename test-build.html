@@ -52,7 +52,7 @@ small{display:block;margin-top:18px;font:400 .74rem/1.6 var(--mono);color:var(--
 .bt h2{margin:0;font:500 1.9rem/1 "IBM Plex Sans Condensed","Arial Narrow",Arial,sans-serif;letter-spacing:.5em;text-indent:.5em;text-transform:uppercase}
 .bt .tagl{margin:10px 0 28px;font:400 .7rem/1.4 "IBM Plex Mono","Courier New",monospace;letter-spacing:.22em;color:#6f777b;text-transform:uppercase}
 .bt .bar{height:2px;background:#1b1e20;position:relative;overflow:hidden;border:0;padding:0}
-.bt .bar i{position:absolute;left:0;top:0;bottom:0;width:0;background:#cfd4d6;transition:width .35s ease}
+.bt .bar i{position:absolute;left:0;top:0;bottom:0;width:100%;background:#cfd4d6;transform:scaleX(0);transform-origin:0 50%;transition:transform .35s ease}
 .bt .pct{display:flex;justify-content:space-between;margin-top:8px;font:400 .68rem/1 "IBM Plex Mono","Courier New",monospace;letter-spacing:.16em;color:#6f777b}
 .bt ul{list-style:none;margin:22px 0 0;padding:0;height:7.2em;overflow:hidden;text-align:left;font:400 .7rem/1.2em "IBM Plex Mono","Courier New",monospace;color:#7d8589;display:flex;flex-direction:column;justify-content:flex-end}
 .bt li{display:block;border:0;padding:0;grid-template-columns:none;color:inherit;font:inherit;animation:bootIn .25s ease both}
@@ -1212,7 +1212,7 @@ function near3(p, r){ const hw = headW(); return hw.distanceTo(p) < r || hands.s
   const step = () => {
     if (k >= lines.length){ setTimeout(() => { boot.classList.add('out'); setTimeout(() => boot.remove(), 800); }, reduce ? 0 : 450); return; }
     const L = lines[k++], li = document.createElement('li'); if (L[2]) li.className = 'w'; li.innerHTML = '<b>' + String(k).padStart(2, '0') + '</b>&nbsp;&nbsp;' + L[0] + (L[2] ? '' : '<span style="float:right">OK</span>');
-    $('bootLog').appendChild(li); $('bootStep').textContent = L[1]; const p = Math.round(k/lines.length*100); $('bootBar').style.width = p + '%'; $('bootPct').textContent = p + '%';
+    $('bootLog').appendChild(li); $('bootStep').textContent = L[1]; const p = Math.round(k/lines.length*100); $('bootBar').style.transform = 'scaleX(' + p/100 + ')'; $('bootPct').textContent = p + '%';
     if (L[2]){ beep(220, .25, 'square', .03); }
     setTimeout(step, reduce ? 40 : L[2] ? 650 : 190 + Math.random()*170);
   };
