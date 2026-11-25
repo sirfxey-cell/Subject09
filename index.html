@@ -102,7 +102,7 @@ function collide(p, r, fy){
 function inBox(p){ for (const b of nearB(p)) if (p.x>b.min.x && p.x<b.max.x && p.y>b.min.y && p.y<b.max.y && p.z>b.min.z && p.z<b.max.z) return true; return false; }
 
 /* ---------- Facility kit: procedural textures, merged geometry, baked lighting ---------- */
-function mkTex(w, h, draw){ const c = cv(w, h), g = c.getContext('2d'); draw(g, w, h); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; t.userData.keep = true; return t; }
+function mkTex(w, h, draw){ const c = cv(w, h), g = c.getContext('2d'); draw(g, w, h); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; t.userData = t.userData || {}; t.userData.keep = true; return t; }
 const RR = Math.random;
 function speck(g, w, h, n, a){ for (let i=0;i<n;i++){ const v = (RR()-.5)*a, s = 1 + RR()*2.5; g.fillStyle = v > 0 ? 'rgba(255,255,255,' + v + ')' : 'rgba(0,0,0,' + (-v) + ')'; g.fillRect(RR()*w, RR()*h, s, s); } }
 function stain(g, x, y, r, a, col){ col = col || '30,24,16'; const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(' + col + ',' + a + ')'); gr.addColorStop(1, 'rgba(' + col + ',0)'); g.fillStyle = gr; g.fillRect(x - r, y - r, r*2, r*2); }
@@ -617,7 +617,7 @@ const LVT = [
   {wall:0x6a6d6f, acc:'#36393c', floor:0x4f5153, ceil:0x5b5d5f, metal:0x606467, fluid:0x7b858c, light:[.72, .77, .84], emerg:[.34, .37, .42], lit:.38, emergP:.5, amb:[.006, .007, .009], blood:.3, puddle:.6, types:[['lab', 3], ['server', 3], ['generator', 2], ['storage', 1]]}];
 function pickType(L){ let n = 0; L.forEach(t => { n += t[1]; }); let r = rnd()*n; for (const t of L){ r -= t[1]; if (r < 0) return t[0]; } return L[0][0]; }
 function buildLevel(i){
-  if (lvGroup){ scene.remove(lvGroup); lvGroup.traverse(o => { if (o.geometry && !o.geometry.userData.keep) o.geometry.dispose(); if (o.material && !o.material.userData.keep){ if (o.material.map && !o.material.map.userData.keep) o.material.map.dispose(); o.material.dispose(); } }); }
+  if (lvGroup){ scene.remove(lvGroup); lvGroup.traverse(o => { if (o.geometry && !o.geometry.userData.keep) o.geometry.dispose(); if (o.material && !o.material.userData.keep){ if (o.material.map && !(o.material.map.userData && o.material.map.userData.keep)) o.material.map.dispose(); o.material.dispose(); } }); }
   const gp = new THREE.Group(), pal = LVT[i], K = kit(pal), CB = [], lights = []; lvGroup = gp; scene.add(gp); lvPortals = []; lvFlick = []; terrain = null; seed = 100 + i*37;
   /* rooms */
   const room = new Int16Array(NC).fill(-1); let nr = 0;
