@@ -1545,12 +1545,12 @@ const scrCv = [cv(1024, 576), cv(1024, 576)], scrCtx = scrCv.map(c => c.getConte
 const face = {g:new THREE.Group(), eyes:[], upper:[], lower:[], open:0, smile:.2, eyeS:1, lid:0, look:V(), tSmile:.2, tEye:1, tLid:0, active:0, tActive:0};
 (function buildFace(){
   const g = face.g; g.position.set(0, 10.2, -21.4); arenaG.add(g);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 28, 0, Math.PI*2, 0, Math.PI), new THREE.MeshStandardMaterial({color:0x050505, roughness:.35, metalness:.1})); head.scale.set(8, 7.2, 2.6); g.add(head);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 28, 0, Math.PI*2, 0, Math.PI), new THREE.MeshBasicMaterial({color:0x000000})); head.scale.set(8, 7.2, 2.6); g.add(head);
   [-1, 1].forEach(s => {
     const e = new THREE.Group(); e.position.set(s*2.7, 1.7, 2.3); e.rotation.y = s*.32; g.add(e);
     const white = new THREE.Mesh(new THREE.CircleGeometry(1, 40), arMat.white); white.scale.set(1.35, 1.05, 1); e.add(white);
     const pupil = new THREE.Mesh(new THREE.CircleGeometry(.78, 36), arMat.black); pupil.position.set(0, .26, .01); e.add(pupil);
-    const lid = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 2.4), new THREE.MeshBasicMaterial({color:0x050505})); lid.position.set(0, 2.25, .02); e.add(lid);
+    const lid = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 2.4), arMat.black); lid.position.set(0, 2.25, .02); e.add(lid);
     face.eyes.push({g:e, white:white, pupil:pupil, lid:lid});
   });
   const TG = new THREE.BoxGeometry(1, 1, 1);
@@ -1572,7 +1572,7 @@ function faceTick(dt, t, hw){
   /* eyes track a target, the lids drop for a squint */
   F.eyes.forEach((e, i) => {
     e.g.scale.set(F.eyeS, F.eyeS*(1 - F.lid*.15), 1);
-    tmp.copy(F.look); e.g.worldToLocal(tmp); tmp.normalize(); e.pupil.position.set(Math.max(-.42, Math.min(.42, tmp.x*.9)), .26 + Math.max(-.3, Math.min(.18, tmp.y*.9)), .01);
+    tmp.copy(F.look); e.g.worldToLocal(tmp); tmp.normalize(); e.pupil.position.set(Math.max(-.16, Math.min(.16, tmp.x*.35)), .27 + Math.max(-.08, Math.min(.06, tmp.y*.3)), .01);
     e.lid.position.y = 2.25 - F.lid*1.35;
   });
   F.g.rotation.y = Math.sin(t*.37)*.03 + (talk > .1 ? Math.sin(t*2.1)*.02 : 0); F.g.rotation.x = Math.sin(t*.29)*.02 + talk*.015; F.g.position.y = (F.baseY || 10.2) + Math.sin(t*.5)*.05; F.g.position.z = F.baseZ || -21.4;
@@ -1823,7 +1823,7 @@ function enterArenaNow(){
 }
 function dpToBooth(){ const hw = headW(); rig.position.x += 18.5 - hw.x; rig.position.z += 0 - hw.z; rig.position.y = 5; rig.rotation.y = 0; if (!renderer.xr.isPresenting){ yaw = Math.PI/2; camera.rotation.set(0, yaw, 0); } else { rig.rotation.y = Math.PI/2; } vel.set(0, 0, 0); hist.length = 0; }
 function dpToWait(){ const hw = headW(); rig.position.x += (Math.random() - .5)*6 - hw.x; rig.position.z += 15 - hw.z; rig.position.y = 0; rig.rotation.y = 0; vel.set(0, 0, 0); hist.length = 0; }
-function dpTeleport(x, z, yawA){ const hw = headW(); rig.position.x += x - hw.x; rig.position.z += z - hw.z; rig.position.y = arenaGround(x, z, 20); vel.set(0, 0, 0); hist.length = 0; if (!renderer.xr.isPresenting){ yaw = yawA; camera.rotation.set(0, yaw, 0); } }
+function dpTeleport(x, z, yawA){ const hw = headW(); rig.position.x += x - hw.x; rig.position.z += z - hw.z; rig.position.y = arenaGround(x, z, 8); vel.set(0, 0, 0); hist.length = 0; if (!renderer.xr.isPresenting){ yaw = yawA; camera.rotation.set(0, yaw, 0); } }
 
 /* ---------- local input ---------- */
 let pressLock = 0;
@@ -1903,6 +1903,7 @@ function dpEnter(D, myNum, alive){
   else if (ph === 'cd'){ speak(line('cd', sd)); resetStage(); beep(440, .3, 'sine', .1); if (dpLocal.wasIn){ dpLocal.wasIn = false; dpToWait(); } }
   else if (ph === 'intro'){
     if (D.n === 1){ if (myNum){ STATS.mp++; dpLocal.streak = 0; saveStats(); } dpLocal.wasIn = !!myNum; }
+    if (alive){ const order = dpOrder(D), i = order.indexOf(myNum), a = (i + .5)/order.length*Math.PI*.9 - Math.PI*.45, r = 3.2 + (i%2)*1.4; dpTeleport(Math.sin(a)*r, 2 + Math.cos(a)*1.5, 0); }
     resetStage(); drawWheel(-1); dpLocal.cmd = -1; dpLocal.flash = -1; dpLocal.sig = -1; Object.assign(DI, {v:-1, m:-1, c:0, k:[], w:-1, f:0});
     beep(196, .9, 'sawtooth', .06); beep(98, 1.2, 'sine', .14); noiseBurst(.4, .05, 600);
     speak((D.n === 1 ? line('start', sd, {n:Object.keys(D.ct).length}) + ' ' : '') + line('intro', sd));
