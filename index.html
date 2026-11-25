@@ -809,8 +809,8 @@ function monLimb(len, r0, r1){ const k = len + '_' + r0 + '_' + r1; if (!monLimb
 /* ---------- Monster: jointed rig ---------- */
 const SKIN = [0xc9c5bf, 0xb3aea8, 0x9c9792], EYE = [0xf4f6f8, 0xdfe3e6, 0xc9cfd4];
 function makeCreature(T, li){
-  const sk = new THREE.MeshStandardMaterial({color:SKIN[li], roughness:.48, metalness:.02, map:PALE, bumpMap:PALE, bumpScale:.012}), dk = new THREE.MeshStandardMaterial({color:0x0a0807, roughness:1});
-  const ey = new THREE.MeshBasicMaterial({color:EYE[li], fog:false}), th = new THREE.MeshStandardMaterial({color:0xb8ab8c, roughness:.35}), gum = new THREE.MeshStandardMaterial({color:0x3a1517, roughness:.4});
+  const sk = new THREE.MeshStandardMaterial({color:0x060606, roughness:.8, metalness:0}), dk = new THREE.MeshStandardMaterial({color:0x000000, roughness:1});
+  const ey = new THREE.MeshBasicMaterial({color:0xffffff, fog:false}), th = new THREE.MeshStandardMaterial({color:0x1c1b1a, roughness:.5}), gum = new THREE.MeshStandardMaterial({color:0x030303, roughness:.6});
   const g = new THREE.Group(), hips = new THREE.Group(), spine = new THREE.Group(), neck = new THREE.Group(), head = new THREE.Group(), jaw = new THREE.Group();
   const hy = li === 2 ? .95 : 1.08; hips.position.y = hy; g.add(hips); hips.add(ell(sk, .16, .11, .11), ell(sk, .07, .05, .06, -.1, .02, -.06), ell(sk, .07, .05, .06, .1, .02, -.06), spine);
   /* sunken belly, ribcage, shoulder blades, vertebrae */
@@ -824,7 +824,7 @@ function makeCreature(T, li){
   head.position.set(0, .16, .03); neck.add(head);
   /* elongated skull, pulled-back lips, deep sockets */
   const skull = new THREE.Mesh(MON_HEAD, sk); skull.position.set(0, .08, -.01); head.add(skull);
-  [-1, 1].forEach(s => { head.add(ell(dk, .03, .026, .02, s*.046, .123, .1), ell(ey, .007, .007, .005, s*.046, .122, .112), ell(sk, .016, .028, .01, s*.118, .1, -.01)); });
+  [-1, 1].forEach(s => { head.add(ell(dk, .03, .026, .02, s*.046, .123, .1), ell(ey, .018, .016, .01, s*.046, .123, .117), ell(sk, .016, .028, .01, s*.118, .1, -.01)); });
   head.add(ell(dk, .012, .016, .01, 0, .09, .152));
   head.add(ell(gum, .075, .018, .06, 0, .022, .1));
   jaw.position.set(0, .02, .02); head.add(jaw); jaw.add(ell(sk, .08, .035, .1, 0, -.045, .06), ell(gum, .068, .015, .07, 0, -.022, .065), ell(sk, .03, .025, .03, 0, -.06, .14));
@@ -843,7 +843,8 @@ function makeCreature(T, li){
     legs.push({hp:hp, kn:kn});
   });
   g.scale.setScalar(T.sc);
-  return {g:g, hips:hips, hy:hy, spine:spine, chest:chest, neck:neck, head:head, jaw:jaw, arms:arms, legs:legs, ph:Math.random()*6, tw:0, step:0, mats:[sk, dk, ey, th, gum]};
+  const glow = [-1, 1].map(s => { const gl = new THREE.Sprite(new THREE.SpriteMaterial({map:pTex, color:0xffffff, transparent:true, opacity:.7, depthWrite:false, blending:THREE.AdditiveBlending, fog:false})); gl.scale.set(.1, .075, 1); gl.position.set(s*.046, .123, .125); head.add(gl); return gl; });
+  return {g:g, hips:hips, hy:hy, spine:spine, chest:chest, neck:neck, head:head, jaw:jaw, arms:arms, legs:legs, ph:Math.random()*6, tw:0, step:0, mats:[sk, dk, ey, th, gum], glow:glow};
 }
 function animCreature(c, dt, spd, t, lean, close){
   const w = Math.min(1, spd/1.6); c.ph += dt*(1.1 + spd*2.3); const s = Math.sin(c.ph), q = Math.cos(c.ph);
@@ -2744,11 +2745,7 @@ function bmCreature(li, special){
   c.g.traverse(x => { if (x.isMesh){ const m = x.material; if (!cache.has(m)){ const k = m.clone(); dzPatch(k, U); cache.set(m, k); } x.material = cache.get(m); } });
   c.arms.forEach(a => { a.el.children.forEach(h => { if (h.isGroup) h.children.forEach(f => { if (f.isGroup) c.fing.push(f); }); }); });
   c.eyeM = cache.get(c.mats[2]); c.eyeBase = new THREE.Color(special ? 0xffc23a : 0xffffff);
-  if (!special){ const sk = cache.get(c.mats[0]) || c.mats[0], dk = cache.get(c.mats[1]) || c.mats[1], th = cache.get(c.mats[3]) || c.mats[3], gm = cache.get(c.mats[4]) || c.mats[4];
-    sk.color.setHex(0x050505); sk.roughness = .78; sk.map = null; sk.bumpMap = null; sk.needsUpdate = true; th.color.setHex(0x161616); gm.color.setHex(0x040404); dk.color.setHex(0x000000);
-    c.g.traverse(o => { if (o.isMesh && o.material === c.eyeM){ o.scale.multiplyScalar(2.4); o.position.z += .006; } });
-    c.head.updateMatrixWorld(true); [-1, 1].forEach(sd => { const gl = new THREE.Sprite(new THREE.SpriteMaterial({map:pTex, color:0xffffff, transparent:true, opacity:.75, depthWrite:false, blending:THREE.AdditiveBlending, fog:false})); gl.scale.set(.09, .07, 1); gl.position.set(sd*.046, .122, .12); c.head.add(gl); (c.glow = c.glow || []).push(gl); }); }
-  if (special){ const sk = cache.get(c.mats[0]) || c.mats[0], th = cache.get(c.mats[3]) || c.mats[3]; sk.color.setHex(0x2b2624); sk.roughness = .32; sk.emissive = new THREE.Color(0x1a0f02); th.color.setHex(0xe2b33a); th.metalness = .7; th.roughness = .25; if (c.eyeM) c.eyeM.color.setHex(0xffc23a); c.special = true;
+  if (special){ const sk = cache.get(c.mats[0]) || c.mats[0], th = cache.get(c.mats[3]) || c.mats[3]; sk.color.setHex(0x2b2624); sk.roughness = .32; sk.emissive = new THREE.Color(0x1a0f02); th.color.setHex(0xe2b33a); th.metalness = .7; th.roughness = .25; if (c.eyeM) c.eyeM.color.setHex(0xffc23a); if (c.glow) c.glow.forEach(gl => gl.material.color.setHex(0xffc23a)); sk.color.setHex(0x2b2624); c.special = true;
     const cr = makeCrown(); cr.scale.setScalar(1.25); cr.position.set(0, .245, -.01); cr.rotation.x = .12; c.head.add(cr);
     [-1, 1].forEach(s => { for (let k=0;k<3;k++){ const h = new THREE.Mesh(CONE, GOLD); h.scale.set(.024 - k*.006, .07, .024 - k*.006); h.position.set(s*(.075 + k*.028), .19 + k*.045, -.04 - k*.02); h.rotation.set(-.4, 0, -s*(.4 + k*.35)); c.head.add(h); } });
     c.spine.traverse(o => { if (o.isMesh && o.geometry === CYL) o.material = GOLD; }); }
