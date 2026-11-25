@@ -1061,6 +1061,7 @@ let msg = '', msgT = 0, hudT = 0;
 const fmt = s => Math.floor(Math.max(0, s)/60) + ':' + ('0' + Math.floor(Math.max(0, s)%60)).slice(-2);
 function statusText(){
   if (dead) return 'Spectating  /  R or trigger: lobby';
+  if (state === 'arena') return dpStatus();
   if (round){ const el = (Date.now() - round.t0)/1000, left = 180 - el; return (amMon ? 'MONSTER  /  ' : 'HIDER  /  ') + fmt(left); }
   if (state === 'level') return LV[lvIdx].n.split(': ')[0] + '  /  ' + (inSafe() ? 'SAFE ROOM  ' + Math.max(0, Math.ceil(SAFE_MAX - safeT)) + 'S' : 'EXPOSED');
   return roomLabel + '  /  ' + (R ? R.peers().length : 1) + ' PRESENT';
@@ -1085,7 +1086,7 @@ function myId(){ const m = R && R.peers().find(p => p.isMe); return m ? m.peer :
 const zonePeers = () => R ? R.peers().filter(p => !p.isMe && p.presence && p.presence.z === zone) : [];
 function pub(extra){
   if (!R) return; const h = headW(), f = a => [+a.x.toFixed(2), +a.y.toFixed(2), +a.z.toFixed(2)], e = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
-  R.presence(Object.assign({n:myName, c:myColor, z:zone, v:myVote, o:isOwner ? 1 : 0, m:isOwner ? modLog.slice() : null, d:dead ? 1 : 0, t:talking, r:+(e.y + rig.rotation.y).toFixed(2), p:f(h), a:f(hands[HL()].has ? hands[HL()].vis : h), b:f(hands[1 - HL()].has ? hands[1 - HL()].vis : h)}, extra || {})).catch(() => {});
+  R.presence(Object.assign({n:myName, c:myColor, z:zone, v:myVote, o:isOwner ? 1 : 0, m:isOwner ? modLog.slice() : null, d:dead ? 1 : 0, t:talking, r:+(e.y + rig.rotation.y).toFixed(2), p:f(h), a:f(hands[HL()].has ? hands[HL()].vis : keys.KeyH ? h.clone().setY(h.y + .4) : h), b:f(hands[1 - HL()].has ? hands[1 - HL()].vis : keys.KeyH ? h.clone().setY(h.y + .4) : h), dp:dpIsHost() ? dpSnap() : null, di:state === 'arena' ? DI : null}, extra || {})).catch(() => {});
 }
 let unsub = null;
 async function joinRoom(name, label){
@@ -1151,6 +1152,7 @@ function tally(){ const c = [0,0,0]; if (R) R.peers().forEach(p => { const v = p
 const winVote = () => { const c = tally(); return c.indexOf(Math.max.apply(null, c)); };
 
 function enterLobby(m){
+  if (cut.on) endCut(); arenaG.visible = false; H = null; lastDp = null;
   rosterReset(); deathT0 = -1; deathG.visible = false; deathG.userData = {};
   round = null; amMon = false; caught = []; dead = false; reveal = false; clearMonsters(); spec.visible = false; state = 'lobby'; zone = 'L'; lampOn = false;
   lobbyG.visible = true; if (lvGroup) lvGroup.visible = false; setBoxes(lobbyBoxes); terrain = null; moonL.intensity = 0; scene.fog.color.set(0x07090b); scene.fog.density = .022; hemi.color.set(0xb0c0d0); hemi.intensity = .3;
@@ -1163,6 +1165,7 @@ function enterLevel(i, kind, g){
   setTimeout(() => { try { enterLevelNow(i, kind, g); } finally { pendingLv = false; loadEnd = performance.now(); } }, 90);
 }
 function enterLevelNow(i, kind, g){
+  arenaG.visible = false;
   rosterReset();
   lvIdx = i; portalFields.length = 3; buildLevel(i); lobbyG.visible = false; lvGroup.visible = true; setBoxes(lvBoxes); terrain = null; moonL.intensity = 0; state = 'level'; const T = LV[i];
   dead = false; safeT = 0; outT = 0; safeSaid = -1; spec.visible = false; round = kind === 'round' ? g : null; amMon = !!round && round.mon === myId(); caught = []; reveal = false; warned = false;
@@ -1263,13 +1266,14 @@ function headFix(dt){
 }
 function desktop(dt){
   const typing = state === 'lobby' && (ui.s === 'name' || ui.s === 'code'), f = typing ? 0 : (keys.KeyW||0) - (keys.KeyS||0), r = typing ? 0 : (keys.KeyD||0) - (keys.KeyA||0), s = Math.sin(yaw), c = Math.cos(yaw);
-  rig.position.x += (-s*f + c*r)*3.5*dt; rig.position.z += (-c*f - s*r)*3.5*dt; rig.position.y = terrain ? terrain(rig.position.x, rig.position.z) : 0; camera.position.y = 1;
+  rig.position.x += (-s*f + c*r)*3.5*dt; rig.position.z += (-c*f - s*r)*3.5*dt; if (state === 'arena'){ const gy = arenaGround(rig.position.x + camera.position.x, rig.position.z + camera.position.z, rig.position.y + .5); rig.position.y = gy > rig.position.y ? gy : Math.max(gy, rig.position.y - 7*dt); } else rig.position.y = terrain ? terrain(rig.position.x, rig.position.z) : 0; camera.position.y = state === 'arena' && keys.KeyC ? .55 : 1;
   const hw = headW(), b = hw.clone(); collide(hw, HEAD_R, HEAD_MIN); rig.position.x += hw.x - b.x; rig.position.z += hw.z - b.z;
-  for (const y of [.25, .6]){ tmp.set(rig.position.x + camera.position.x, y, rig.position.z + camera.position.z); tmp2.copy(tmp); collide(tmp, .28, 0); rig.position.x += tmp.x - tmp2.x; rig.position.z += tmp.z - tmp2.z; }
+  for (const y of (state === 'arena' ? [.55, .95] : [.25, .6])){ tmp.set(rig.position.x + camera.position.x, (state === 'arena' ? rig.position.y : 0) + y, rig.position.z + camera.position.z); tmp2.copy(tmp); collide(tmp, .28, 0); rig.position.x += tmp.x - tmp2.x; rig.position.z += tmp.z - tmp2.z; }
 }
 renderer.domElement.addEventListener('pointermove', e => { if (e.buttons && !renderer.xr.isPresenting){ yaw -= e.movementX*.004; pitch = Math.max(-1.3, Math.min(1.3, pitch - e.movementY*.004)); camera.rotation.set(pitch, yaw, 0); } });
 const prc = new THREE.Raycaster(), pn = new THREE.Vector2();
 renderer.domElement.addEventListener('pointerdown', e => {
+  if (state === 'arena'){ pn.set(e.clientX/innerWidth*2-1, -(e.clientY/innerHeight)*2+1); prc.setFromCamera(pn, camera); const hit = prc.intersectObjects(ibtns.map(b => b.m))[0]; if (hit && hit.distance < 6){ const b = ibtns.find(q => q.m === hit.object); if (b) dpPress(b.id); } if (cut.on && performance.now() - cut.t0 > 2500) endCut(); return; }
   if (dead){ pn.set(e.clientX/innerWidth*2-1, -(e.clientY/innerHeight)*2+1); prc.setFromCamera(pn, camera); if (prc.intersectObjects([retBtn, retSign, retRing]).length) leaveSpectate(); return; }
   if (state !== 'lobby') return; pn.set(e.clientX/innerWidth*2-1, -(e.clientY/innerHeight)*2+1); prc.setFromCamera(pn, camera);
   const h = prc.intersectObject(term)[0]; if (h) termHit(h.uv.x*768, (1-h.uv.y)*512);
@@ -1278,7 +1282,7 @@ renderer.domElement.addEventListener('pointerdown', e => {
 for (let i=0;i<2;i++){
   const c = renderer.xr.getController(i);
   c.addEventListener('connected', e => { gps[i] = e.data.gamepad; hnd[i] = e.data.handedness; conn[i] = true; hands[i].has = false; hands[i].touch = false; hist.length = 0; }); c.addEventListener('disconnected', () => { conn[i] = false; });
-  c.addEventListener('selectstart', () => { initAudio(); wakeVoices(); if (dead) leaveSpectate(); });
+  c.addEventListener('selectstart', () => { initAudio(); wakeVoices(); if (dead) leaveSpectate(); if (cut.on && performance.now() - cut.t0 > 2500) endCut(); });
   c.addEventListener('squeezestart', () => { if (state === 'level' && !dead){ lampOn = !lampOn; } });
   scene.add(c); scene.add(renderer.xr.getControllerGrip(i));
 }
@@ -1389,19 +1393,614 @@ function loadTick(dt, t){
   if (loadA <= 0){ loadA = 0; loadG.visible = false; }
   const a = Math.min(1, loadA); loadSph.material.opacity = a; loadTxt.material.opacity = a; loadBar.material.opacity = a; loadRing.material.opacity = a;
 }
+/* ======================= DEATH PENALTY: experiment arena ======================= */
+/* Match logic runs on one host (the contestant with the lowest id in the arena). The host publishes the
+   match snapshot in its presence; everyone else renders from that snapshot and sends back only their inputs.
+   If the host leaves, the next lowest id picks up from the last snapshot. */
+const DPC = {max:30, min:2, cd:15, intro:6.5, xform:6, count:5, res:6.5, win:12};
+const AH = 16, ST = 1.0, AW = 22;
+const arenaG = new THREE.Group(); arenaG.visible = false; scene.add(arenaG);
+const arenaBoxes = [], movers = [], ibtns = [];
+const arMat = {
+  plate:new THREE.MeshStandardMaterial({map:TX.metal, color:0x8c9196, roughness:.45, metalness:.55}),
+  dark:new THREE.MeshStandardMaterial({color:0x1a1c1e, roughness:.6, metalness:.3}),
+  haz:new THREE.MeshStandardMaterial({map:TX.haz, roughness:.7}),
+  glass:new THREE.MeshStandardMaterial({color:0x9fb6c2, transparent:true, opacity:.14, roughness:.1, metalness:.2, depthWrite:false}),
+  white:new THREE.MeshBasicMaterial({color:0xf2f4f5, fog:false}),
+  black:new THREE.MeshBasicMaterial({color:0x000000}),
+  red:new THREE.MeshBasicMaterial({color:0xff2a2a, fog:false})
+};
+const arLights = {spot:new THREE.SpotLight(0xffffff, 0, 40, .55, .5, 1), p1:new THREE.PointLight(0xc8d2dc, .5, 40, 1.5), p2:new THREE.PointLight(0xc8d2dc, .5, 40, 1.5)};
+arLights.spot.position.set(0, AH - 1, 4); arLights.spot.target.position.set(0, 0, 0); arLights.p1.position.set(-12, 8, 8); arLights.p2.position.set(12, 8, -8);
+arenaG.add(arLights.spot, arLights.spot.target, arLights.p1, arLights.p2);
+/* a moving piece of the stage: animates toward its target and carries its collider with it */
+function mover(o, hx, hy, hz, sp){
+  const m = {o:o, hx:hx, hy:hy, hz:hz, tgt:o.position.clone(), sp:sp || 1.8, box:null, moving:false};
+  if (hx) { m.box = {min:V(), max:V()}; arenaBoxes.push(m.box); }
+  arenaG.add(o); movers.push(m); syncMover(m); return m;
+}
+function syncMover(m){ if (!m.box) return; const p = m.o.position; m.box.min.set(p.x - m.hx, p.y - m.hy, p.z - m.hz); m.box.max.set(p.x + m.hx, p.y + m.hy, p.z + m.hz); }
+let moveSnd = 0;
+function moversTick(dt){
+  let any = false, regrid = false;
+  movers.forEach(m => {
+    const p = m.o.position, d = m.tgt.clone().sub(p), l = d.length();
+    if (l < .002){ if (m.moving){ m.moving = false; if (m.hx && arenaG.visible) thud(.12); } return; }
+    const st = Math.min(l, m.sp*dt); p.addScaledVector(d, st/l); m.moving = true; any = true;
+    if (Math.abs(d.x) > .001 || Math.abs(d.z) > .001) regrid = true; syncMover(m);
+  });
+  if (regrid && state === 'arena') setBoxes(arenaBoxes);
+  moveSnd -= dt; if (any && moveSnd <= 0 && arenaG.visible){ moveSnd = .5; noiseBurst(.55, .05, 180); beep(46 + Math.random()*8, .4, 'sawtooth', .025); }
+}
+/* touch buttons (hand within reach, or a click on screen) */
+function ibtn(mesh, id, r){ const b = {m:mesh, id:id, r:r || .2, pr:[false, false], wp:V()}; ibtns.push(b); return b; }
+function ibtnTick(){
+  if (state !== 'arena') return;
+  ibtns.forEach(b => {
+    if (!b.m.visible || !b.m.parent || !b.m.parent.visible) return; b.m.getWorldPosition(b.wp);
+    hands.forEach((h, hi) => { const inside = h.has && h.vis.distanceTo(b.wp) < b.r; if (inside && !b.pr[hi]){ dpPress(b.id); pulse(hi, .5, 40); } b.pr[hi] = inside; });
+  });
+}
+const tmpGP = new THREE.Vector3();
+function arenaGround(x, z, maxY){ let g = 0; for (const b of nearB(tmpGP.set(x, 0, z))){ if (x > b.min.x - .05 && x < b.max.x + .05 && z > b.min.z - .05 && z < b.max.z + .05 && b.max.y <= maxY && b.max.y > g) g = b.max.y; } return g; }
+
+/* ---------- arena build ---------- */
+const tiles = [], peds = [], TILE = 3;
+let divider, teamBtns = [], judgeP, cageP, rewardP = [], ring, wheel, wheelTex, wheelCtx, doorL, doorR, scrA, scrB, statsTex, statsCtx, boothMon, boothRT, boothCam, boothLbl, boothLblCtx;
+const scrCv = [cv(1024, 576), cv(1024, 576)], scrCtx = scrCv.map(c => c.getContext('2d')), scrTex = scrCv.map(c => new THREE.CanvasTexture(c));
+(function buildArena(){
+  const K = kit({wall:0x7a7c7e, acc:'#3a3d40', floor:0x5a5c5d, ceil:0x6e7070, metal:0x7f8387, fluid:0x9aa2a8}), CB = arenaBoxes, lights = [];
+  const W = (x, y, z, w, h, d, B) => { sbox(B || K.wall, x, y, z, w, h, d); CB.push({min:V(x - w/2, y - h/2, z - d/2), max:V(x + w/2, y + h/2, z + d/2)}); };
+  fplane(K.floor, 0, 0, 0, AW*2, AW*2, true); fplane(K.ceil, 0, AH, 0, AW*2, AW*2, false); CB.push({min:V(-AW - 2, AH, -AW - 2), max:V(AW + 2, AH + 3, AW + 2)});
+  W(0, AH/2, -AW - .2, AW*2 + .4, AH, .4); W(0, AH/2, AW + .2, AW*2 + .4, AH, .4); W(-AW - .2, AH/2, 0, .4, AH, AW*2 + .4); W(AW + .2, AH/2, 0, .4, AH, AW*2 + .4);
+  /* pit under the stage, stage rim and steps */
+  decal(K.decal, 4, 0, .012, 0, 11, 11, 0, 1, 0, .3); decal(K.decal, 0, 2, .014, -1, 4, 4, 0, 1, 0, 1);
+  [[0, -6.15, 12.6, .3], [0, 6.15, 12.6, .3]].forEach(q => W(q[0], (ST + .05)/2, q[1], q[2], ST + .05, q[3], K.haz));
+  [[-6.15, 0, .3, 12], [6.15, 0, .3, 12]].forEach(q => W(q[0], (ST + .05)/2, q[1], q[2], ST + .05, q[3], K.haz));
+  [[0, 1, 0], [1, 0, 1], [-1, 0, 1]].forEach(s => { const along = s[2] ? 'x' : 'z';
+    for (let k=0;k<2;k++){ const h = (k + 1)*.34, off = 7.1 - k*.6; if (along === 'z') W(0, h/2, off, 4, h, .6, K.metal); else W(s[0]*off, h/2, 0, .6, h, 4, K.metal); } });
+  /* face wall, speakers, observation booth (east), waiting area (south) */
+  for (let k=0;k<4;k++){ const x = k < 2 ? -9.5 - k*2.2 : 9.5 + (k - 2)*2.2; box(K.dark, x, 13.5, -21.6, 1.6, 2.6, .8); for (let s=0;s<6;s++) box(K.metal, x, 12.5 + s*.35, -21.18, 1.4, .06, .04); }
+  W(18, 2.5, 0, 6, 5, 12, K.wall); W(18, 9.7, 0, 6, .4, 12.4, K.metal); W(18, 7.5, -6.1, 6, 4.4, .2, K.metal); W(18, 7.5, 6.1, 6, 4.4, .2, K.metal);
+  box(K.glass, 15.05, 7.25, 0, .06, 4.5, 12); CB.push({min:V(14.9, 5, -6), max:V(15.2, 9.5, 6)}); box(K.metal, 15.05, 5.1, 0, .2, .2, 12.2); box(K.metal, 15.05, 9.45, 0, .2, .2, 12.2);
+  for (let z = -6; z <= 6; z += 3) box(K.metal, 15.05, 7.25, z, .14, 4.5, .1);
+  lights.push({x:18, y:9, z:0, r:.35, g:.38, b:.42, rad:8, room:2});
+  /* waiting area glass with a gap for the sliding doors */
+  box(K.glass, -12.5, 2.5, 9, 19, 5, .06); box(K.glass, 12.5, 2.5, 9, 19, 5, .06); CB.push({min:V(-AW, 0, 8.85), max:V(-2.1, 5, 9.15)}); CB.push({min:V(2.1, 0, 8.85), max:V(AW, 5, 9.15)});
+  box(K.metal, 0, 5.2, 9, AW*2, .4, .4); for (let x = -20; x <= 20; x += 4) if (Math.abs(x) > 2) box(K.metal, x, 2.5, 9, .12, 5, .14);
+  box(K.haz, 0, .006, 9, 4.2, .012, .8);
+  [[-10, 14], [10, 14], [-10, 18], [10, 18]].forEach(q => P.bench(K, CB, {x:q[0], z:q[1], ry:Math.PI}));
+  box(K.dark, 0, 4, AW - .05, 3.2, 4.2, .1); decal(K.decal, 10, 0, 6.4, AW - .25, 2.2, 2.2, 0, 0, -1);
+  /* ceiling rig and lights */
+  for (let x = -16; x <= 16; x += 8) for (let z = -16; z <= 16; z += 8){ box(K.metal, x, AH - .06, z, .55, .1, 2.8); glowCol(K.glow, 0xe8eef4, .8); box(K.glow, x, AH - .12, z, .4, .02, 2.6); lights.push({x:x, y:AH - .6, z:z, r:.4, g:.42, b:.46, rad:13, room:0}); }
+  P.pipes(K, 0, -AW, AW*2, true, 1, AH); P.pipes(K, -AW, 0, AW*2, false, 1, AH);
+  [[-14, -AW + .4, AW*2 - 2], [14, -AW + .4, AW*2 - 2]].forEach(() => {});
+  for (let k=0;k<6;k++) sag(K.dark, [-20 + k*8, AH - .3, -18], [-16 + k*8, AH - .3, 18], .03, 1.5 + k*.2);
+  finishKit(K, arenaG, makeBake(lights, (x, z) => x > 15 && Math.abs(z) < 6 ? 2 : 0, () => true, [.02, .021, .024], AH));
+
+  /* ---- stage tiles (each its own material so experiments can colour them) ---- */
+  for (let r=0;r<4;r++) for (let c=0;c<4;c++){
+    const mt = arMat.plate.clone(); mt.emissive = new THREE.Color(0); const g = new THREE.Group(); g.position.set(-4.5 + c*TILE, ST - .5, -4.5 + r*TILE);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(TILE - .06, 1, TILE - .06), mt); g.add(m);
+    const lip = new THREE.Mesh(new THREE.BoxGeometry(TILE - .02, .04, TILE - .02), arMat.dark); lip.position.y = .49; g.add(lip);
+    const t = mover(g, TILE/2 - .03, .5, TILE/2 - .03, 2.2); t.mat = mt; t.home = g.position.clone(); tiles.push(t);
+  }
+  ring = new THREE.Mesh(new THREE.RingGeometry(2.2, 2.45, 64, 1), new THREE.MeshBasicMaterial({color:0xcfd4d6, side:THREE.DoubleSide, fog:false})); ring.rotation.x = -Math.PI/2; ring.position.y = ST + .03; arenaG.add(ring);
+  /* team divider */
+  const dv = new THREE.Mesh(new THREE.BoxGeometry(.35, 3, 12), arMat.haz); dv.position.set(0, ST - 1.6, 0); divider = mover(dv, .18, 1.5, 6, 1.6);
+  [-1, 1].forEach(s => { const g = new THREE.Group(); g.position.set(s*3.8, ST - .7, 0); g.add(new THREE.Mesh(new THREE.BoxGeometry(.7, 1.2, .7), arMat.dark)); const cap = new THREE.Mesh(new THREE.CylinderGeometry(.26, .26, .12, 24), new THREE.MeshBasicMaterial({color:s < 0 ? 0xff5a4a : 0x5aa8ff, fog:false})); cap.position.y = .66; g.add(cap); const t = mover(g, .35, .6, .35, 1.4); t.cap = cap; ibtn(cap, 'team', .28); teamBtns.push(t); });
+  /* voting / link stations: a ring of pedestals that rise out of the stage */
+  for (let i=0;i<DPC.max;i++){
+    const a = i/DPC.max*Math.PI*2, g = new THREE.Group(); g.position.set(Math.sin(a)*5.35, ST - .7, Math.cos(a)*5.35); g.rotation.y = a;
+    g.add(new THREE.Mesh(new THREE.BoxGeometry(.5, 1.1, .3), arMat.dark));
+    const bA = new THREE.Mesh(new THREE.BoxGeometry(.16, .08, .16), new THREE.MeshBasicMaterial({color:0xd8dcde, fog:false})); bA.position.set(-.13, .6, -.04); g.add(bA);
+    const bB = new THREE.Mesh(new THREE.BoxGeometry(.16, .08, .16), new THREE.MeshBasicMaterial({color:0xff3a3a, fog:false})); bB.position.set(.13, .6, -.04); g.add(bB);
+    const t = mover(g, .25, .55, .25, 1.5); t.a = bA; t.b = bB; t.i = i; ibtn(bA, 'ped:' + i + ':0', .14); ibtn(bB, 'ped:' + i + ':1', .14); peds.push(t);
+  }
+  /* mercy: judge tower and the accused's cage */
+  { const g = new THREE.Group(); g.position.set(0, ST - 1.6, -3); g.add(new THREE.Mesh(new THREE.BoxGeometry(2.2, 3, 2.2), arMat.plate));
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(1.6, .9, .25), arMat.dark); rail.position.set(0, 1.95, 1); g.add(rail);
+    const sp = new THREE.Mesh(new THREE.CylinderGeometry(.16, .16, .1, 24), new THREE.MeshBasicMaterial({color:0xe8ecee, fog:false})); sp.position.set(-.45, 2.42, 1); g.add(sp);
+    const ex = new THREE.Mesh(new THREE.CylinderGeometry(.16, .16, .1, 24), arMat.red); ex.position.set(.45, 2.42, 1); g.add(ex);
+    const ls = new THREE.Mesh(new THREE.PlaneGeometry(1.5, .3), new THREE.MeshBasicMaterial({map:labelTex('SPARE      EXECUTE', '#e4e7e8', 512, 100, 40), transparent:true, fog:false})); ls.position.set(0, 2.15, 1.13); g.add(ls);
+    judgeP = mover(g, 1.1, 1.5, 1.1, 1.3); ibtn(sp, 'mercy:0', .2); ibtn(ex, 'mercy:1', .2); }
+  { const g = new THREE.Group(); g.position.set(0, ST - 1.3, 3.5); g.add(new THREE.Mesh(new THREE.BoxGeometry(2, 1, 2), arMat.plate));
+    for (let k=0;k<14;k++){ const a = k/14*Math.PI*2, b = new THREE.Mesh(new THREE.CylinderGeometry(.025, .025, 2.6, 6), arMat.plate); b.position.set(Math.cos(a)*.95, 1.8, Math.sin(a)*.95); g.add(b); }
+    const top = new THREE.Mesh(new THREE.TorusGeometry(.95, .05, 6, 32), arMat.dark); top.rotation.x = Math.PI/2; top.position.y = 3.1; g.add(top);
+    cageP = mover(g, 1, .5, 1, 1.3); }
+  /* reward pillars */
+  [[-3.6, -2.6], [3.6, -2.6], [0, 3.8]].forEach((q, k) => { const g = new THREE.Group(); g.position.set(q[0], ST - 3.4, q[1]); g.add(new THREE.Mesh(new THREE.CylinderGeometry(.45, .55, 6, 20), arMat.plate));
+    const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(.22, 1), new THREE.MeshBasicMaterial({color:0xf6e7a8, fog:false})); orb.position.y = 3.3; g.add(orb);
+    const t = mover(g, .45, 3, .45, 1.2); t.orb = orb; ibtn(orb, 'orb:' + k, .32); rewardP.push(t); });
+  /* selection wheel */
+  const wc = cv(1024, 1024); wheelCtx = wc.getContext('2d'); wheelTex = new THREE.CanvasTexture(wc);
+  wheel = new THREE.Mesh(new THREE.CircleGeometry(2.6, 64), new THREE.MeshBasicMaterial({map:wheelTex, fog:false})); wheel.position.set(0, 5, -16.8); arenaG.add(wheel);
+  const wr = new THREE.Mesh(new THREE.TorusGeometry(2.65, .1, 8, 64), arMat.plate); wr.position.copy(wheel.position); arenaG.add(wr);
+  const ptr = new THREE.Mesh(new THREE.ConeGeometry(.25, .6, 3), arMat.red); ptr.rotation.z = Math.PI; ptr.position.set(0, 7.9, -16.7); arenaG.add(ptr);
+  const wstand = new THREE.Mesh(new THREE.BoxGeometry(.5, 3, .5), arMat.dark); wstand.position.set(0, 1.5, -17); arenaG.add(wstand);
+  /* big screens */
+  [[-11.5, .28], [11.5, -.28]].forEach((q, k) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(9.6, 5.4), new THREE.MeshBasicMaterial({map:scrTex[k], fog:false})); m.position.set(q[0], 8.4, -21.3); m.rotation.y = q[1]; arenaG.add(m); const fr = new THREE.Mesh(new THREE.BoxGeometry(10, 5.8, .3), arMat.dark); fr.position.set(q[0], 8.4, -21.5); fr.rotation.y = q[1]; arenaG.add(fr); });
+  const sw = new THREE.Mesh(new THREE.PlaneGeometry(9, 5.06), new THREE.MeshBasicMaterial({map:scrTex[0], fog:false})); sw.position.set(-21.75, 7, -2); sw.rotation.y = Math.PI/2; arenaG.add(sw);
+  const se = new THREE.Mesh(new THREE.PlaneGeometry(9, 5.06), new THREE.MeshBasicMaterial({map:scrTex[1], fog:false})); se.position.set(0, 8.5, 8.85); se.rotation.y = Math.PI; arenaG.add(se);
+  const se2 = new THREE.Mesh(new THREE.PlaneGeometry(6, 3.37), new THREE.MeshBasicMaterial({map:scrTex[1], fog:false})); se2.position.set(0, 7.4, 9.2); arenaG.add(se2);
+  /* waiting-area doors */
+  [-1, 1].forEach(s => { const d = new THREE.Mesh(new THREE.BoxGeometry(2.1, 5, .2), arMat.plate); d.position.set(s*1.05, 2.5, 9); const t = mover(d, 1.05, 2.5, .1, 1.6); if (s < 0) doorL = t; else doorR = t; const st = new THREE.Mesh(new THREE.BoxGeometry(.06, 4.6, .22), arMat.haz); st.position.x = -s*.98; d.add(st); });
+  /* stats board */
+  const sc = cv(1024, 640); statsCtx = sc.getContext('2d'); statsTex = new THREE.CanvasTexture(sc);
+  const sb = new THREE.Mesh(new THREE.PlaneGeometry(6, 3.75), new THREE.MeshBasicMaterial({map:statsTex, fog:false})); sb.position.set(-21.75, 2.8, 15); sb.rotation.y = Math.PI/2; arenaG.add(sb);
+  /* exit door back to the Subject 09 lobby */
+  const ex = sprite('EXIT TO LOBBY', '#d9dcde'); ex.position.set(0, 6.6, AW - .4); ex.scale.set(3, .75, 1); arenaG.add(ex);
+  /* observation booth monitor and controls */
+  boothRT = new THREE.WebGLRenderTarget(512, 288); boothCam = new THREE.PerspectiveCamera(62, 16/9, .1, 80);
+  const bl = cv(512, 288); boothLblCtx = bl.getContext('2d'); boothLbl = new THREE.CanvasTexture(bl);
+  const mon = new THREE.Group(); mon.position.set(16.5, 6.6, -3.2); mon.rotation.y = Math.PI/2 + .55; mon.scale.setScalar(.8); arenaG.add(mon);
+  const mm = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.35), new THREE.MeshBasicMaterial({map:boothRT.texture, fog:false})); mon.add(mm);
+  const ml = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.35), new THREE.MeshBasicMaterial({map:boothLbl, transparent:true, fog:false})); ml.position.z = .01; mon.add(ml);
+  const mf = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.55, .12), arMat.dark); mf.position.z = -.07; mon.add(mf);
+  const desk = new THREE.Mesh(new THREE.BoxGeometry(.8, .9, 3.2), arMat.dark); desk.position.set(16.5, 5.45, 0); arenaG.add(desk); arenaBoxes.push({min:V(16.1, 5, -1.6), max:V(16.9, 5.9, 1.6)});
+  [['PREV', -1.1, 'spec:-1'], ['NEXT', 1.1, 'spec:1'], ['LOBBY', 0, 'spec:exit']].forEach(q => { const b = new THREE.Mesh(new THREE.CylinderGeometry(.13, .13, .07, 20), new THREE.MeshBasicMaterial({color:q[2] === 'spec:exit' ? 0x8b9296 : 0xdfe3e5, fog:false})); b.position.set(16.6, 5.94, q[1]); arenaG.add(b); ibtn(b, q[2], .2); const l = new THREE.Mesh(new THREE.PlaneGeometry(.5, .12), new THREE.MeshBasicMaterial({map:labelTex(q[0], '#cfd3d6', 256, 64, 30), transparent:true, fog:false})); l.position.set(16.95, 6.02, q[1]); l.rotation.set(-Math.PI/2, 0, Math.PI/2); arenaG.add(l); });
+})();
+
+/* ---------- the announcer: a giant black face with crescent eyes and a row of teeth ---------- */
+const face = {g:new THREE.Group(), eyes:[], upper:[], lower:[], open:0, smile:.2, eyeS:1, lid:0, look:V(), tSmile:.2, tEye:1, tLid:0, active:0, tActive:0};
+(function buildFace(){
+  const g = face.g; g.position.set(0, 10.2, -21.4); arenaG.add(g);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 28, 0, Math.PI*2, 0, Math.PI), new THREE.MeshBasicMaterial({color:0x000000})); head.scale.set(8, 7.2, 2.6); g.add(head);
+  [-1, 1].forEach(s => {
+    const e = new THREE.Group(); e.position.set(s*2.7, 1.7, 2.3); e.rotation.y = s*.32; g.add(e);
+    const white = new THREE.Mesh(new THREE.CircleGeometry(1, 40), arMat.white); white.scale.set(1.35, 1.05, 1); e.add(white);
+    const pupil = new THREE.Mesh(new THREE.CircleGeometry(.78, 36), arMat.black); pupil.position.set(0, .26, .01); e.add(pupil);
+    const lid = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 2.4), arMat.black); lid.position.set(0, 2.25, .02); e.add(lid);
+    face.eyes.push({g:e, white:white, pupil:pupil, lid:lid});
+  });
+  const TG = new THREE.BoxGeometry(1, 1, 1);
+  for (let k=0;k<11;k++){
+    const w = .36 + Math.random()*.08, u = new THREE.Mesh(TG, arMat.white), l = new THREE.Mesh(TG, arMat.white);
+    u.scale.set(w, .42 + Math.random()*.12, .25); l.scale.set(w*.95, .36 + Math.random()*.1, .25);
+    u.userData.k = l.userData.k = (k - 5)/5; g.add(u, l); face.upper.push(u); face.lower.push(l);
+  }
+})();
+function faceTick(dt, t, hw){
+  const F = face, k = Math.min(1, dt*6);
+  F.active += (F.tActive - F.active)*Math.min(1, dt*2);
+  F.smile += (F.tSmile - F.smile)*k; F.eyeS += (F.tEye - F.eyeS)*k; F.lid += (F.tLid - F.lid)*k;
+  const talk = speech.env; F.open += (talk - F.open)*Math.min(1, dt*18);
+  /* teeth: two rows along an arc; the arc bends with the expression and the rows split apart when it talks */
+  F.upper.forEach((u, i) => { const x = u.userData.k, y = -3.1 + F.smile*.9*x*x - (F.smile < 0 ? .5*F.smile : 0), sp = .08 + F.open*.85;
+    u.position.set(x*2.1, y + .22 + sp*.5, 2.45 - x*x*.6); u.rotation.z = -x*F.smile*.35; u.rotation.y = -x*.35;
+    const l = F.lower[i]; l.position.set(x*2.05, y - .2 - sp*.55, 2.42 - x*x*.6); l.rotation.z = -x*F.smile*.35; l.rotation.y = -x*.35; });
+  /* eyes track a target, the lids drop for a squint */
+  F.eyes.forEach((e, i) => {
+    e.g.scale.set(F.eyeS, F.eyeS*(1 - F.lid*.15), 1);
+    tmp.copy(F.look); e.g.worldToLocal(tmp); tmp.normalize(); e.pupil.position.set(Math.max(-.16, Math.min(.16, tmp.x*.35)), .27 + Math.max(-.08, Math.min(.06, tmp.y*.3)), .01);
+    e.lid.position.y = 2.25 - F.lid*1.35;
+  });
+  F.g.rotation.y = Math.sin(t*.37)*.03 + (talk > .1 ? Math.sin(t*2.1)*.02 : 0); F.g.rotation.x = Math.sin(t*.29)*.02 + talk*.015; F.g.position.y = (F.baseY || 10.2) + Math.sin(t*.5)*.05; F.g.position.z = F.baseZ || -21.4;
+  const s = .25 + .75*F.active; F.g.scale.setScalar(s > .99 ? 1 : s);
+}
+
+/* ---------- announcer voice: speech synthesis when the device has it, a synthetic voice otherwise; the mouth follows whichever plays ---------- */
+const speech = {env:0, until:0, sched:null, t0:0, useTTS:null, voice:null};
+function pickVoice(){ try { const vs = speechSynthesis.getVoices(); if (!vs.length) return null; return vs.find(v => /en/i.test(v.lang) && /male|daniel|fred|george|david|guy/i.test(v.name)) || vs.find(v => /en/i.test(v.lang)) || vs[0]; } catch(e){ return null; } }
+function speak(text, spoken){
+  if (!text) return; say(text, Math.max(4, text.length/14));
+  const now = performance.now(), syl = Math.max(3, Math.round(text.replace(/[^a-z]/gi, '').length/2.6)), dur = syl*.19 + .4;
+  speech.t0 = now; speech.until = now + dur*1000; speech.sched = Array.from({length:syl}, (_, i) => ({t:i*.19 + Math.random()*.03, a:.55 + Math.random()*.45, l:.13 + Math.random()*.05}));
+  if (speech.useTTS === null) speech.useTTS = !!(window.speechSynthesis && pickVoice());
+  if (speech.useTTS){
+    try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(spoken || text); u.voice = speech.voice || (speech.voice = pickVoice()); u.pitch = .35; u.rate = .86; u.volume = Math.min(1, SV.e);
+      u.onstart = () => { speech.t0 = performance.now(); speech.until = speech.t0 + 60000; }; u.onboundary = () => { speech.kick = performance.now(); }; u.onend = () => { speech.until = performance.now(); };
+      speechSynthesis.speak(u); return; } catch(e){ speech.useTTS = false; }
+  }
+  babble(speech.sched);
+}
+function babble(sched){
+  if (!ac) return; const t0 = ac.currentTime + .02, out = ac.createGain(); out.gain.value = .5; out.connect(sfxBus());
+  const f1 = ac.createBiquadFilter(), f2 = ac.createBiquadFilter(); f1.type = f2.type = 'bandpass'; f1.Q.value = 6; f2.Q.value = 8; f1.connect(out); f2.connect(out);
+  const o = ac.createOscillator(), o2 = ac.createOscillator(), g = ac.createGain(); o.type = 'sawtooth'; o2.type = 'square'; o.frequency.value = 72; o2.frequency.value = 36.5; g.gain.value = 0;
+  o.connect(g); o2.connect(g); g.connect(f1); g.connect(f2);
+  sched.forEach(s => { const t = t0 + s.t; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(s.a*.5, t + .03); g.gain.linearRampToValueAtTime(0, t + s.l);
+    f1.frequency.setValueAtTime(380 + Math.random()*500, t); f2.frequency.setValueAtTime(1100 + Math.random()*1300, t); o.frequency.setValueAtTime(64 + Math.random()*16, t); });
+  const end = t0 + sched[sched.length - 1].t + .4; o.start(t0); o2.start(t0); o.stop(end); o2.stop(end);
+}
+function speechTick(){
+  const now = performance.now(), el = (now - speech.t0)/1000;
+  if (now > speech.until){ speech.env *= .8; return; }
+  if (speech.useTTS){ const kick = speech.kick && now - speech.kick < 160 ? 1 : 0; speech.env = Math.max(kick*.9, .25 + .55*Math.abs(Math.sin(el*12.5))*(.6 + .4*Math.sin(el*3.1))); return; }
+  let v = 0; if (speech.sched) for (const s of speech.sched){ if (el >= s.t && el < s.t + s.l){ v = s.a*Math.sin((el - s.t)/s.l*Math.PI); break; } } speech.env = v;
+}
+
+/* ---------- announcer lines ---------- */
+const LINES = {
+  wait:['The arena is open. I need at least two of you.', 'Step inside. Nobody leaves until the experiment is over.'],
+  cd:['Enough of you have arrived. The doors close soon.', 'Contestants, take your places. We begin shortly.'],
+  start:['Welcome, contestants. {n} of you entered. One of you will leave.', 'Good evening, {n} contestants. Only one survives the night.'],
+  intro:['Let us choose your next experiment.', 'The wheel decides. I simply enjoy it.', 'Another experiment. Try not to disappoint me.'],
+  go:['Begin.', 'Now.', 'Go.'],
+  elim:['{n} contestants have been removed. {r} remain.', 'Farewell to {n} of you. {r} still breathe.', '{n} eliminated. How unfortunate. For them.'],
+  elim1:['Contestant {w} has been removed. {r} remain.', 'Goodbye, contestant {w}. {r} of you are left.'],
+  none:['Nobody was eliminated. I am almost proud of you.', 'Everyone survived. That will not last.'],
+  shield:['A shield protected someone. Clever.'],
+  final:['Stop. One contestant remains.'],
+  win:['Contestant {w}. You survived every experiment. Congratulations. For now.'],
+  nowin:['No one survived. The experiment is complete.'],
+  revived:['Contestant {w} returns from the dead. Do not waste it.']
+};
+function line(key, seedStr, vars){ const L = LINES[key] || [key]; let h = 0; for (const c of String(seedStr)) h = (h*31 + c.charCodeAt(0)) >>> 0; let s = L[h % L.length]; Object.keys(vars || {}).forEach(k => { s = s.split('{' + k + '}').join(vars[k]); }); return s; }
+
+/* ---------- experiments: add a new one by adding an entry here ---------- */
+/* each entry: name, rules, intro and rules lines, minimum contestants, play length, stage(x) sets the stage targets,
+   spot(i, n, x) places contestant i of n, setup(H) builds the round data on the host, tick(H, el) runs host checks during play,
+   end(H) returns the contestant numbers to eliminate, client(x, el) runs local visuals and inputs. */
+const pad4n = n => '#' + ('0' + n).slice(-2);
+const SIMON_COL = [0xff3b3b, 0x3b8bff, 0xf2f2f2, 0x3bdc6a], SIMON_NAME = ['RED', 'BLUE', 'WHITE', 'GREEN'], SIMON_TILE = [0, 3, 12, 15];
+const EXP = {
+  simon:{name:'Simon Says', min:2, dur:36, rules:'Follow the order only if it starts with SIMON SAYS. Do it when the light flashes. Wrong move: eliminated.',
+    say:'Simon says. Listen carefully. Obey only when Simon says so. Disobey, and you are removed.',
+    setup:H => { const cmds = []; for (let k=0;k<6;k++){ const r = Math.random(), sim = Math.random() < .65 ? 1 : 0; cmds.push(r < .55 ? {t:'pad', p:Math.random()*4|0, s:sim} : r < .8 ? {t:'hands', s:sim} : {t:'low', s:sim}); } return {cmds:cmds, out:[]}; },
+    stage:x => { tiles.forEach((t, i) => { const k = SIMON_TILE.indexOf(i); t.tgt.y = k >= 0 ? ST - .5 + .55 : ST - .5; }); },
+    spot:(i, n) => { const a = i/n*Math.PI*2; return [Math.sin(a)*2.6, Math.cos(a)*2.6, 0]; },
+    cmdText:c => (c.s ? 'Simon says ' : '') + (c.t === 'pad' ? 'stand on ' + SIMON_NAME[c.p] : c.t === 'hands' ? 'raise both hands' : 'get down low'),
+    check:(c, pr) => { const p = pr.p || [0, 0, 0], a = pr.a || p, b = pr.b || p; let did = false;
+      if (c.t === 'pad'){ const ti = SIMON_TILE[c.p], t = tiles[ti].o.position; did = Math.abs(p[0] - t.x) < 1.55 && Math.abs(p[2] - t.z) < 1.55; }
+      else if (c.t === 'hands') did = a[1] > p[1] + .12 && b[1] > p[1] + .12; else did = p[1] < arenaGround(p[0], p[2], p[1]) + .95;
+      return c.s ? did : !did; },
+    tick:(H, el) => { const x = H.x, k = Math.floor(el/6), ck = el - k*6; if (k < x.cmds.length && ck > 5.2 && !x['c' + k]){ x['c' + k] = 1; const c = x.cmds[k];
+      dpAlive(H).forEach(e => { if (x.out.indexOf(e.num) >= 0) return; if (!EXP.simon.check(c, e.pr)) x.out.push(e.num); }); } },
+    end:H => H.x.out.slice(),
+    client:(x, el) => { const k = Math.floor(el/6), c = x.cmds[k]; tiles.forEach((t, i) => { const p = SIMON_TILE.indexOf(i); t.mat.emissive.setHex(p >= 0 ? SIMON_COL[p] : 0); t.mat.emissiveIntensity = p >= 0 ? (c && c.t === 'pad' && c.p === p && el - k*6 > 4.4 ? 1 : .35) : 0; });
+      if (c && dpLocal.cmd !== k){ dpLocal.cmd = k; speak(EXP.simon.cmdText(c) + '.'); }
+      if (c && el - k*6 > 4.4 && el - k*6 < 5.2 && dpLocal.flash !== k){ dpLocal.flash = k; beep(880, .12, 'square', .08); pulse(0, .5, 60); pulse(1, .5, 60); }
+      return c ? 'ORDER ' + (k + 1) + '/' + x.cmds.length + '\n' + EXP.simon.cmdText(c).toUpperCase() : ''; }},
+  team:{name:'Team Competition', min:2, dur:25, rules:'Two teams. Hit your team\'s button as many times as you can. The losing team loses its weakest member.',
+    say:'Red against blue. Strike your button as fast as you can. The losing team gives up its weakest link.',
+    setup:H => { const al = H.al.slice().sort(() => Math.random() - .5), tm = {}; al.forEach((n, i) => { tm[n] = i%2; }); return {tm:tm}; },
+    stage:() => { divider.tgt.y = ST + 1.5; teamBtns.forEach(t => { t.tgt.y = ST + .6; }); },
+    spot:(i, n, x, num) => { const s = x.tm[num] ? 1 : -1, row = Math.floor(i/2); return [s*(3.8 + .1) , -3 + (row%5)*1.4 - (row%5 > 2 ? 0 : 0) + 1.2*0, s > 0 ? -Math.PI/2 : Math.PI/2].map((v, j) => j === 0 ? s*(2.2 + (row%3)*1.2) : j === 1 ? -4.2 + (row/3|0)*1.8 : v); },
+    tick:() => {},
+    end:H => { const sc = [0, 0], cnt = [0, 0], per = []; dpAlive(H).forEach(e => { const t = H.x.tm[e.num] || 0, c = (e.pr.di && e.pr.di.c) || 0; sc[t] += c; cnt[t]++; per.push({n:e.num, t:t, c:c}); });
+      const avg = [sc[0]/Math.max(1, cnt[0]), sc[1]/Math.max(1, cnt[1])]; H.x.sc = sc; if (avg[0] === avg[1]) return [];
+      const lose = avg[0] < avg[1] ? 0 : 1, L = per.filter(p => p.t === lose).sort((a, b) => a.c - b.c); H.x.lose = lose; return L.length ? [L[0].n] : []; },
+    client:(x, el) => { const my = dpMyNum(), t = x.tm ? x.tm[my] : undefined; return (t === undefined ? 'WATCHING' : 'YOU ARE ' + (t ? 'BLUE' : 'RED') + '\nPRESSES ' + DI.c); }},
+  vote:{name:'The Vote', min:2, dur:20, rules:'MERCY (white): if it wins, nobody dies. GREED (red): if it wins, greedy voters get a shield and one mercy voter dies. No vote: eliminated.',
+    say:'A simple vote. Mercy, or greed. If greed wins, the greedy are protected, and one merciful contestant dies. Choose.',
+    setup:() => ({}), stage:x => { raisePeds(dpN()); },
+    spot:(i, n) => pedSpot(i, n), tick:() => {},
+    end:H => { const v = {0:[], 1:[], n:[]}; dpAlive(H).forEach(e => { const c = e.pr.di ? e.pr.di.v : -1; (c === 0 ? v[0] : c === 1 ? v[1] : v.n).push(e.num); });
+      H.x.v = [v[0].length, v[1].length]; const out = v.n.slice();
+      if (v[1].length > v[0].length){ v[1].forEach(n => { if (H.sh.indexOf(n) < 0) H.sh.push(n); }); if (v[0].length) out.push(v[0][Math.random()*v[0].length|0]); H.x.won = 'GREED'; } else H.x.won = 'MERCY'; return out; },
+    client:(x) => (DI.v === 0 ? 'YOU CHOSE MERCY' : DI.v === 1 ? 'YOU CHOSE GREED' : 'PRESS WHITE OR RED') },
+  mercy:{name:'Mercy Decision', min:2, dur:18, rules:'The judge decides. EXECUTE removes the accused. SPARE: a coin flip may take the judge instead. No decision: the judge dies.',
+    say:'One of you will judge another. Execute them, or show mercy. Mercy has a price.',
+    setup:H => { const al = H.al.slice().sort(() => Math.random() - .5); return {j:al[0], a:al[1]}; },
+    stage:() => { judgeP.tgt.y = ST + 1.5 - .3; cageP.tgt.y = ST + .5 - .3 + .3; },
+    spot:(i, n, x, num) => num === x.j ? [0, -3.2, Math.PI] : num === x.a ? [0, 3.5, 0] : (() => { const a = i/n*Math.PI*2 + .4; return [Math.sin(a)*5, Math.cos(a)*5, a]; })(),
+    tick:(H, el) => { const j = dpAlive(H).find(e => e.num === H.x.j); if (j && j.pr.di && j.pr.di.m >= 0 && H.x.ch === undefined) H.x.ch = j.pr.di.m; },
+    end:H => { const x = H.x; if (x.ch === 1) return [x.a]; if (x.ch === 0){ x.flip = Math.random() < .5 ? 1 : 0; return x.flip ? [x.j] : []; } return [x.j]; },
+    client:(x) => { const my = dpMyNum(); return my === x.j ? 'YOU ARE THE JUDGE\nSPARE OR EXECUTE ' + pad4n(x.a) : my === x.a ? 'YOU ARE ACCUSED\nJUDGE: ' + pad4n(x.j) : 'JUDGE ' + pad4n(x.j) + '  /  ACCUSED ' + pad4n(x.a); }},
+  link:{name:'Linked Contestants', min:2, dur:27, rules:'You are linked to a partner. When your light flashes white, both press within one second. Pairs that never manage it are removed together.',
+    say:'I have tied your lives together. When the light flashes, press with your partner. Fail together, die together.',
+    setup:H => { const al = H.al.slice().sort(() => Math.random() - .5), pr = []; for (let i=0;i+1<al.length;i+=2) pr.push([al[i], al[i + 1]]); if (al.length%2) pr.push([al[al.length - 1], 0]); return {pr:pr, sig:[2 + Math.random()*4, 11 + Math.random()*4, 20 + Math.random()*4]}; },
+    stage:x => { raisePeds(x.pr ? x.pr.length*2 : 0); },
+    spot:(i, n, x, num) => { const k = x.pr.findIndex(p => p[0] === num || p[1] === num), side = x.pr[k] && x.pr[k][1] === num ? 1 : 0, np = x.pr.length, slot = (k + side*np/1) % Math.max(1, np*2); return pedSpot(k*2 + side, np*2); },
+    tick:() => {},
+    end:H => { const x = H.x, ok = {}; const get = n => { const e = dpAlive(H).find(q => q.num === n); return e && e.pr.di && e.pr.di.k ? e.pr.di.k : []; };
+      x.res = x.pr.map(p => { let s = 0; x.sig.forEach((t, r) => { const a = get(p[0])[r], b = p[1] ? get(p[1])[r] : a; if (a > t && b > t && Math.abs(a - b) < 1 && a - t < 4) s++; }); return s; });
+      const out = []; x.pr.forEach((p, k) => { if (!x.res[k]){ out.push(p[0]); if (p[1]) out.push(p[1]); } }); return out; },
+    client:(x, el) => { const my = dpMyNum(), k = x.pr ? x.pr.findIndex(p => p[0] === my || p[1] === my) : -1, r = x.sig.findIndex(t => el > t && el < t + 3.5);
+      linkLines(x); const lit = r >= 0; peds.forEach(p => { p.a.material.color.setHex(lit ? 0xffffff : 0x55595c); });
+      if (lit && dpLocal.sig !== r){ dpLocal.sig = r; beep(1200, .1, 'sine', .12); pulse(0, .6, 80); pulse(1, .6, 80); }
+      if (k < 0) return 'WATCHING'; const pp = x.pr[k], other = pp[0] === my ? pp[1] : pp[0]; return 'LINKED TO ' + (other ? pad4n(other) : 'THE ANNOUNCER') + '\n' + (lit ? 'PRESS NOW' : 'WAIT FOR THE FLASH'); }},
+  reward:{name:'Reward Round', min:2, dur:20, rules:'Three pillars rise. Touch an orb first to claim a shield: it saves you from your next elimination.',
+    say:'A gift. Three shields, at the top of three pillars. Climb, and take one. Nobody dies. This time.',
+    setup:() => ({cl:[0, 0, 0]}), stage:() => { rewardP.forEach(t => { t.tgt.y = ST + 2.6 - 3; }); },
+    spot:(i, n) => { const a = i/n*Math.PI*2; return [Math.sin(a)*5.2, Math.cos(a)*5.2, a]; },
+    tick:(H) => { dpAlive(H).forEach(e => { const w = e.pr.di ? e.pr.di.w : -1; if (w >= 0 && w < 3 && !H.x.cl[w] && H.x.cl.indexOf(e.num) < 0){ H.x.cl[w] = e.num; if (H.sh.indexOf(e.num) < 0) H.sh.push(e.num); } }); },
+    end:() => [],
+    client:(x) => { rewardP.forEach((t, k) => { t.orb.visible = !x.cl[k]; }); const my = dpMyNum(); return x.cl.indexOf(my) >= 0 ? 'SHIELD CLAIMED' : 'CLIMB AND TAKE A SHIELD\nLEFT: ' + x.cl.filter(c => !c).length; }},
+  floor:{name:'Falling Floor', min:2, dur:30, rules:'The floor drops away one tile at a time. Fall into the pit and you are out. Keep moving.',
+    say:'The floor is tired of holding you up. Stay on it as long as you can.',
+    setup:() => { const ord = Array.from({length:16}, (_, i) => i).sort(() => Math.random() - .5).slice(0, 12); return {dr:ord.map((ti, k) => [ti, 3 + k*2.1]), fell:[]}; },
+    stage:() => {}, spot:(i, n) => { const t = tiles[(i*5)%16].home; return [t.x + (Math.random() - .5), t.z + (Math.random() - .5), 0]; },
+    tick:(H) => { dpAlive(H).forEach(e => { if (e.pr.di && e.pr.di.f && H.x.fell.indexOf(e.num) < 0) H.x.fell.push(e.num); }); },
+    end:H => H.x.fell.slice(),
+    client:(x, el) => { x.dr.forEach(d => { const t = tiles[d[0]], warn = el > d[1] - 1.4 && el < d[1]; t.tgt.y = el >= d[1] ? -1.2 : ST - .5; t.mat.emissive.setHex(warn ? 0xff2020 : 0); t.mat.emissiveIntensity = warn ? .5 + .5*Math.sin(el*30) : 0; });
+      const hw = headW(); if (dpAmAlive() && !DI.f && Math.abs(hw.x) < 6 && Math.abs(hw.z) < 6 && hw.y < ST + .05){ DI.f = 1; beep(90, .5, 'sawtooth', .2); say('You fell.', 3); }
+      const left = x.dr.filter(d => el < d[1]).length; return DI.f ? 'YOU FELL' : 'TILES LEFT TO FALL: ' + left; }},
+  revive:{name:'Resurrection', min:1, dur:6, needDead:1, rules:'The wheel has mercy. One removed contestant is brought back.',
+    say:'Death is not always final. One of the removed returns to the stage.',
+    setup:H => { const dead = Object.values(H.ct).filter(n => H.al.indexOf(n) < 0); const w = dead[Math.random()*dead.length|0]; return {w:w}; },
+    stage:() => { ring.material.color.setHex(0xf6e7a8); }, spot:(i, n) => { const a = i/n*Math.PI*2; return [Math.sin(a)*4.5, Math.cos(a)*4.5, a]; },
+    tick:() => {}, end:H => { if (H.x.w && H.al.indexOf(H.x.w) < 0){ H.al.push(H.x.w); H.rv = H.x.w; } return []; },
+    client:(x) => 'RETURNING: ' + (x.w ? pad4n(x.w) : '-') }
+};
+const EXP_KEYS = Object.keys(EXP);
+function pedSpot(i, n){ const a = (i/Math.max(1, n))*Math.PI*2, k = Math.round(a/(Math.PI*2)*DPC.max) % DPC.max, ang = k/DPC.max*Math.PI*2; return [Math.sin(ang)*4.55, Math.cos(ang)*4.55, ang + Math.PI, k]; }
+function raisePeds(n){ const used = new Set(); for (let i=0;i<n;i++) used.add(pedSpot(i, n)[3]); peds.forEach((p, k) => { p.tgt.y = used.has(k) ? ST + .45 : ST - .7; }); }
+/* stations used by this round: contestant i uses pedestal pedSpot(i, n)[3] */
+const linkG = new THREE.Group(); arenaG.add(linkG);
+function linkLines(x){
+  if (linkG.userData.id === x) return; linkG.userData.id = x; while (linkG.children.length) linkG.remove(linkG.children[0]);
+  const np = x.pr.length; x.pr.forEach((p, k) => { if (!p[1]) return; const a = pedSpot(k*2, np*2), b = pedSpot(k*2 + 1, np*2);
+    const g = new THREE.BufferGeometry().setFromPoints([V(a[0], ST + 1.6, a[1]), V(0, ST + 2.6, 0), V(b[0], ST + 1.6, b[1])]); linkG.add(new THREE.Line(g, new THREE.LineBasicMaterial({color:0xff4a4a}))); });
+}
+
+/* ---------- match state (host) ---------- */
+let H = null, lastDp = null, dpBots = 0;
+const DI = {v:-1, m:-1, c:0, k:[], w:-1, f:0};
+const dpLocal = {key:'', t0:0, ph:'', exp:'', cmd:-1, flash:-1, sig:-1, said:'', spot:'', elimSeen:'', amIn:false, alive:false, streak:0, specI:0, aliveT:0, statsDirty:true, startSeen:''};
+function dpIds(){ const ids = [myId()]; zonePeers().forEach(p => ids.push(p.peer)); for (let k=1;k<=dpBots;k++) ids.push('~bot' + k); return ids; }
+function dpHostId(){ const ids = [myId()].concat(zonePeers().map(p => p.peer)).sort(); return ids[0]; }
+const dpIsHost = () => state === 'arena' && dpHostId() === myId();
+function dpPr(id){ if (id === myId()){ const h = headW(); return {p:[h.x, h.y, h.z], a:hands[HL()].has ? hands[HL()].vis.toArray() : [h.x, h.y, h.z], b:hands[1 - HL()].has ? hands[1 - HL()].vis.toArray() : [h.x, h.y, h.z], di:DI, n:myName}; }
+  if (id.indexOf('~bot') === 0) return botPr(id); const p = zonePeers().find(q => q.peer === id); return p ? p.presence : null; }
+function dpAlive(Hs){ const rev = {}; Object.keys(Hs.ct).forEach(id => { rev[Hs.ct[id]] = id; }); return Hs.al.map(n => ({num:n, id:rev[n], pr:dpPr(rev[n]) || {}})); }
+function botPr(id){ const b = bots[id] || (bots[id] = {di:{v:-1, m:-1, c:0, k:[], w:-1, f:0}, n:'Subject ' + (1000 + (id.charCodeAt(4)*37)%9000)}); const D = dpView(), x = D && D.x || {}, el = dpEl();
+  if (D && D.ph === 'play'){ if (D.exp === 'vote' && b.di.v < 0 && el > 3) b.di.v = Math.random() < .5 ? 0 : 1; if (D.exp === 'mercy' && el > 5) b.di.m = Math.random() < .5 ? 0 : 1; if (D.exp === 'team') b.di.c = Math.floor(el*(1 + Math.random())); if (D.exp === 'link' && x.sig) x.sig.forEach((t, r) => { if (el > t + .4 && !b.di.k[r]) b.di.k[r] = t + .3 + Math.random()*.6; }); if (D.exp === 'reward' && el > 4 && Math.random() < .01) b.di.w = Math.random()*3|0; if (D.exp === 'floor' && el > 8 && Math.random() < .002) b.di.f = 1; }
+  else b.di = {v:-1, m:-1, c:0, k:[], w:-1, f:0};
+  const ok = Math.random() < .7; return {p:[0, ok ? 2.5 : 1.6, 0], a:[0, ok ? 3 : 1.2, 0], b:[0, ok ? 3 : 1.2, 0], di:b.di, n:b.n}; }
+const bots = {};
+function hSet(ph){ H.k++; H.ph = ph; H.t = performance.now(); }
+function hEl(){ return (performance.now() - H.t)/1000; }
+function dpHostTick(){
+  if (!H){ if (lastDp && lastDp.id){ H = JSON.parse(JSON.stringify(lastDp)); H.t = performance.now() - (lastDp.el || 0)*1000; } else { H = {id:Math.random().toString(36).slice(2, 8), k:0, ph:'wait', t:performance.now(), exp:'', n:0, ct:{}, al:[], sh:[], x:{}, ws:0, rv:0}; } }
+  const el = hEl(), ids = dpIds();
+  if (H.ph === 'wait'){ if (ids.length >= DPC.min) hSet('cd'); }
+  else if (H.ph === 'cd'){ if (ids.length < DPC.min) hSet('wait'); else if (el >= DPC.cd){ H.ct = {}; ids.slice().sort().slice(0, DPC.max).forEach((id, i) => { H.ct[id] = i + 1; }); H.al = Object.values(H.ct); H.sh = []; H.n = 0; H.ws = 0; H.rv = 0; dpNext(); } }
+  else if (H.ph === 'intro'){ if (el >= DPC.intro) hSet('xform'); }
+  else if (H.ph === 'xform'){ if (el >= DPC.xform) hSet('count'); }
+  else if (H.ph === 'count'){ if (el >= DPC.count) hSet('play'); }
+  else if (H.ph === 'play'){ const E = EXP[H.exp]; E.tick(H, el);
+    /* contestants who leave the arena mid-match are out */
+    const gone = dpAlive(H).filter(e => !e.pr || !e.pr.p).map(e => e.num);
+    if (el >= E.dur || H.al.length - gone.length <= 1){ let out = E.end(H).concat(gone).filter((n, i, a) => a.indexOf(n) === i && H.al.indexOf(n) >= 0), saved = [];
+      out = out.filter(n => { const s = H.sh.indexOf(n); if (s >= 0 && gone.indexOf(n) < 0){ H.sh.splice(s, 1); saved.push(n); return false; } return true; });
+      if (out.length >= H.al.length) out = []; H.al = H.al.filter(n => out.indexOf(n) < 0); H.x.res = {e:out, s:saved}; hSet('res'); } }
+  else if (H.ph === 'res'){ if (el >= DPC.res){ if (H.al.length <= 1){ H.ws = H.al[0] || 0; hSet('win'); } else dpNext(); } }
+  else if (H.ph === 'win'){ if (el >= DPC.win){ H.id = Math.random().toString(36).slice(2, 8); H.ct = {}; H.al = []; H.sh = []; H.x = {}; hSet(ids.length >= DPC.min ? 'cd' : 'wait'); } }
+}
+function dpNext(){
+  H.n++; H.rv = 0; const dead = Object.keys(H.ct).length - H.al.length;
+  let pool = EXP_KEYS.filter(k => EXP[k].min <= H.al.length && (!EXP[k].needDead || dead > 0) && k !== H.exp);
+  if (pool.indexOf('revive') >= 0 && Math.random() > .25) pool = pool.filter(k => k !== 'revive');
+  H.exp = pool[Math.random()*pool.length|0]; H.x = EXP[H.exp].setup(H) || {}; hSet('intro');
+}
+function dpSnap(){ if (!H) return null; return {id:H.id, k:H.k, ph:H.ph, el:+hEl().toFixed(2), exp:H.exp, n:H.n, ct:H.ct, al:H.al, sh:H.sh, x:H.x, ws:H.ws, rv:H.rv}; }
+/* the snapshot everyone renders from */
+function dpView(){
+  if (dpIsHost()) return dpSnap();
+  const hp = zonePeers().find(p => p.peer === dpHostId()); if (hp && hp.presence.dp){ lastDp = hp.presence.dp; return lastDp; }
+  return lastDp;
+}
+function dpEl(){ return (performance.now() - dpLocal.t0)/1000; }
+const dpMyNum = () => { const D = dpView(); return D && D.ct ? D.ct[myId()] || 0 : 0; };
+const dpAmAlive = () => { const D = dpView(), n = dpMyNum(); return !!(D && n && D.al.indexOf(n) >= 0); };
+const dpN = () => { const D = dpView(); return D ? D.al.length : 0; };
+
+/* ---------- stats ---------- */
+const STATS = {mp:0, mw:0, es:0, st:0, el:0, rv:0, bs:0}; try { Object.assign(STATS, JSON.parse(localStorage.getItem('s09Stats') || '{}')); } catch(e){}
+function saveStats(){ try { localStorage.setItem('s09Stats', JSON.stringify(STATS)); } catch(e){} dpLocal.statsDirty = true; }
+function drawStats(){
+  const g = statsCtx; g.fillStyle = '#0d0e0f'; g.fillRect(0, 0, 1024, 640); g.textBaseline = 'middle';
+  g.font = '400 26px ' + FM; g.fillStyle = '#7d8286'; g.textAlign = 'left'; spaced(g, 'CONTESTANT RECORD', 60, 64, 6);
+  g.font = '500 54px ' + FS; g.fillStyle = '#e4e6e7'; spaced(g, myName.toUpperCase(), 60, 130, 4);
+  const rows = [['MATCHES PLAYED', STATS.mp], ['MATCHES WON', STATS.mw], ['EXPERIMENTS SURVIVED', STATS.es], ['TIME SURVIVED', fmt(STATS.st)], ['TIMES ELIMINATED', STATS.el], ['TIMES RESURRECTED', STATS.rv], ['BEST STREAK', STATS.bs]];
+  rows.forEach((r, i) => { const y = 214 + i*58; g.fillStyle = '#2a2d2f'; g.fillRect(60, y + 26, 904, 1); g.font = '400 28px ' + FM; g.fillStyle = '#9aa1a5'; g.textAlign = 'left'; spaced(g, r[0], 60, y, 3); g.font = '500 40px ' + FS; g.fillStyle = '#e4e6e7'; g.textAlign = 'right'; g.fillText(String(r[1]), 964, y); });
+  g.textAlign = 'left'; statsTex.needsUpdate = true;
+}
+
+/* ---------- screens and the wheel ---------- */
+function drawScreen(k, title, body, big, col){
+  const g = scrCtx[k]; g.fillStyle = '#07080a'; g.fillRect(0, 0, 1024, 576); for (let y=0;y<576;y+=3){ g.fillStyle = 'rgba(255,255,255,.02)'; g.fillRect(0, y, 1024, 1); }
+  g.textBaseline = 'middle'; g.textAlign = 'center';
+  g.font = '400 28px ' + FM; g.fillStyle = '#7d8286'; spaced(g, title.toUpperCase(), 512, 64, 6);
+  if (big !== undefined && big !== null){ g.font = '600 190px ' + FS; g.fillStyle = col || '#eef0f1'; g.fillText(String(big), 512, 250); }
+  g.font = '500 40px ' + FS; g.fillStyle = '#d9dcde'; const lines = wrap(g, String(body || '').toUpperCase(), 900); const y0 = big !== undefined && big !== null ? 420 : 288 - (lines.length - 1)*26;
+  lines.slice(0, 6).forEach((l, i) => g.fillText(l, 512, y0 + i*52)); scrTex[k].needsUpdate = true;
+}
+function wrap(g, s, w){ const out = []; s.split('\n').forEach(par => { let cur = ''; par.split(' ').forEach(word => { const t = cur ? cur + ' ' + word : word; if (g.measureText(t).width > w && cur){ out.push(cur); cur = word; } else cur = t; }); out.push(cur); }); return out; }
+function drawWheel(sel){
+  const g = wheelCtx, n = EXP_KEYS.length; g.clearRect(0, 0, 1024, 1024);
+  for (let i=0;i<n;i++){ const a0 = -Math.PI/2 + (i - .5)/n*Math.PI*2, a1 = a0 + Math.PI*2/n; g.beginPath(); g.moveTo(512, 512); g.arc(512, 512, 506, a0, a1); g.closePath(); g.fillStyle = i === sel ? '#d6dadc' : i%2 ? '#1b1d1f' : '#262a2d'; g.fill(); g.strokeStyle = '#0a0b0c'; g.lineWidth = 6; g.stroke();
+    g.save(); g.translate(512, 512); g.rotate(-Math.PI/2 + i/n*Math.PI*2); g.textAlign = 'right'; g.textBaseline = 'middle'; g.font = '600 40px ' + FS; g.fillStyle = i === sel ? '#101112' : '#d9dcde'; g.fillText(EXP[EXP_KEYS[i]].name.toUpperCase(), 470, 0); g.restore(); }
+  g.beginPath(); g.arc(512, 512, 70, 0, Math.PI*2); g.fillStyle = '#0d0e0f'; g.fill(); g.font = '600 44px ' + FM; g.fillStyle = '#ff3a3a'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('09', 512, 514); wheelTex.needsUpdate = true;
+}
+drawWheel(-1);
+
+/* ---------- entering and leaving ---------- */
+function enterArena(){
+  const inside = R ? R.peers().filter(p => !p.isMe && p.presence && p.presence.z === 'dp').length : 0;
+  if (inside >= DPC.max){ say('The arena is full. Thirty contestants at most.', 4); return; }
+  if (pendingLv) return; pendingLv = true; loadP = 0; loadHold = .8; loadG.visible = true; drawLoad('Death Penalty', 'Experiment arena', 'Up to 30 contestants. One survives.');
+  setTimeout(() => { try { enterArenaNow(); } finally { pendingLv = false; loadEnd = performance.now(); } }, 90);
+}
+function enterArenaNow(){
+  rosterReset(); deathT0 = -1; deathG.visible = false; round = null; amMon = false; dead = false; reveal = false; clearMonsters(); spec.visible = false;
+  lobbyG.visible = false; if (lvGroup) lvGroup.visible = false; arenaG.visible = true; state = 'arena'; zone = 'dp'; lampOn = false; setBoxes(arenaBoxes); terrain = null;
+  scene.fog.color.set(0x050607); scene.fog.density = .012; hemi.color.set(0xb0c0d0); hemi.intensity = .35;
+  rig.position.set(0, 0, 15); rig.rotation.y = 0; vel.set(0, 0, 0); hist.length = 0; H = null; lastDp = null; dpLocal.key = ''; dpLocal.amIn = false;
+  Object.assign(DI, {v:-1, m:-1, c:0, k:[], w:-1, f:0}); dpLocal.statsDirty = true; pub({g:null, k:null}); startCut();
+}
+function dpToBooth(){ const hw = headW(); rig.position.x += 18.5 - hw.x; rig.position.z += 0 - hw.z; rig.position.y = 5; rig.rotation.y = 0; if (!renderer.xr.isPresenting){ yaw = Math.PI/2; camera.rotation.set(0, yaw, 0); } else { rig.rotation.y = Math.PI/2; } vel.set(0, 0, 0); hist.length = 0; }
+function dpToWait(){ const hw = headW(); rig.position.x += (Math.random() - .5)*6 - hw.x; rig.position.z += 15 - hw.z; rig.position.y = 0; rig.rotation.y = 0; vel.set(0, 0, 0); hist.length = 0; }
+function dpTeleport(x, z, yawA){ const hw = headW(); rig.position.x += x - hw.x; rig.position.z += z - hw.z; rig.position.y = arenaGround(x, z, 8); vel.set(0, 0, 0); hist.length = 0; if (!renderer.xr.isPresenting){ yaw = yawA; camera.rotation.set(0, yaw, 0); } }
+
+/* ---------- local input ---------- */
+let pressLock = 0;
+function dpPress(id){
+  if (performance.now() < pressLock) return; pressLock = performance.now() + 120;
+  const D = dpView(), el = dpEl();
+  if (id.indexOf('spec:') === 0){ if (id === 'spec:exit') return enterLobby('Back in the lobby.'); dpLocal.specI += +id.slice(5); beep(700, .06, 'sine', .08); return; }
+  if (!D || D.ph !== 'play' || !dpAmAlive()) return;
+  const my = dpMyNum();
+  if (id === 'team' && D.exp === 'team'){ const n = D.al.slice().sort((a, b) => a - b); DI.c++; beep(400 + (DI.c%5)*60, .05, 'square', .05); }
+  else if (id.indexOf('ped:') === 0){ const p = id.split(':'), pi = +p[1], ch = +p[2], mine = pedSpot(dpOrder(D).indexOf(my), D.exp === 'link' ? (D.x.pr.length*2) : D.al.length)[3];
+    if (D.exp === 'link'){ const k = D.x.pr.findIndex(q => q[0] === my || q[1] === my), side = D.x.pr[k] && D.x.pr[k][1] === my ? 1 : 0, ped = pedSpot(k*2 + side, D.x.pr.length*2)[3]; if (pi !== ped) return; const r = D.x.sig.findIndex(t => el > t && el < t + 4); if (r >= 0 && !DI.k[r]){ DI.k[r] = +el.toFixed(2); beep(990, .08, 'sine', .1); } }
+    else if (D.exp === 'vote'){ if (pi !== mine) return; DI.v = ch; beep(ch ? 330 : 660, .12, 'sine', .1); } }
+  else if (id.indexOf('mercy:') === 0 && D.exp === 'mercy' && my === D.x.j && DI.m < 0){ DI.m = +id.slice(6); beep(DI.m ? 120 : 760, .3, DI.m ? 'sawtooth' : 'sine', .15); }
+  else if (id.indexOf('orb:') === 0 && D.exp === 'reward' && DI.w < 0){ DI.w = +id.slice(4); beep(1320, .2, 'sine', .12); }
+}
+function dpOrder(D){ return D.al.slice().sort((a, b) => a - b); }
+
+/* ---------- per-frame client ---------- */
+let wheelSpin = 0, wheelA = 0, scrT = 0, specT = 0;
+function arenaTick(dt, t, hw){
+  if (dpIsHost()) dpHostTick(); else H = null;
+  const D = dpView(); speechTick(); faceTick(dt, t, hw);
+  if (cut.on){ cutTick(); return; }
+  moversTick(dt); ibtnTick();
+  if (dpLocal.statsDirty){ dpLocal.statsDirty = false; drawStats(); }
+  /* the exit at the back of the holding area */
+  if (hw.z > AW - 1.4 && Math.abs(hw.x) < 1.6 && hw.y < 5) return enterLobby('Back in the lobby.');
+  const waitN = dpIds().length;
+  if (!D){ face.tActive = .3; drawScreenThrottled(dt, () => { drawScreen(0, 'Death Penalty', 'Waiting for the host'); drawScreen(1, 'Holding area', '', waitN + '/30'); }); return; }
+  const key = D.id + ':' + D.k; const myNum = D.ct ? D.ct[myId()] : 0, alive = !!(myNum && D.al.indexOf(myNum) >= 0);
+  if (key !== dpLocal.key){ dpLocal.key = key; dpLocal.t0 = performance.now() - (D.el || 0)*1000; dpEnter(D, myNum, alive); }
+  else { const est = performance.now() - (D.el || 0)*1000; if (est < dpLocal.t0) dpLocal.t0 = est; }
+  const el = dpEl(), E = EXP[D.exp];
+  if (alive && ['intro', 'xform', 'count', 'play', 'res'].indexOf(D.ph) >= 0) STATS.st += dt;
+  /* doors: open only between matches */
+  const open = D.ph === 'wait' || D.ph === 'cd'; doorL.tgt.x = open ? -3.1 : -1.05; doorR.tgt.x = open ? 3.1 : 1.05;
+  /* lights */
+  const dim = D.ph === 'intro' ? Math.max(.06, .35 - el*.2) : D.ph === 'win' ? .6 : D.ph === 'play' ? .22 : .32; hemi.intensity += (dim - hemi.intensity)*Math.min(1, dt*2);
+  arLights.spot.intensity += ((D.ph === 'play' || D.ph === 'count' || D.ph === 'win' ? 2.2 : D.ph === 'xform' ? 1.2 : 0) - arLights.spot.intensity)*Math.min(1, dt*3);
+  arLights.spot.color.setHex(D.ph === 'win' ? 0xf6e7a8 : D.exp === 'mercy' ? 0xff5a5a : D.exp === 'reward' || D.exp === 'revive' ? 0xf6e7a8 : 0xffffff);
+  ring.rotation.z += dt*(D.ph === 'xform' ? 1.6 : .15);
+  /* the wheel */
+  if (D.ph === 'intro'){ const sel = EXP_KEYS.indexOf(D.exp), n = EXP_KEYS.length, final = sel/n*Math.PI*2 + Math.PI*2*6, u = Math.min(1, Math.max(0, (el - .8)/4.4)), e = 1 - Math.pow(1 - u, 3); wheel.rotation.z = final*e; if (u >= 1 && dpLocal.ph !== 'reveal'){ dpLocal.ph = 'reveal'; drawWheel(sel); beep(523, .2, 'sine', .14); beep(659, .2, 'sine', .14, .12); beep(784, .4, 'sine', .14, .24); } else if (u < 1 && Math.floor(e*n*6) !== wheelSpin){ wheelSpin = Math.floor(e*n*6); beep(1400, .02, 'square', .03); } }
+  /* face mood */
+  const F = face; F.tActive = D.ph === 'wait' ? .55 : 1; F.tEye = D.ph === 'intro' ? 1.15 : D.ph === 'win' ? 1.2 : 1; F.tLid = D.ph === 'play' ? .35 : D.ph === 'wait' ? .3 : 0;
+  F.tSmile = D.ph === 'res' ? (D.x.res && D.x.res.e.length ? 1 : -.7) : D.ph === 'win' ? (el < 3 ? -.5 : 1) : D.ph === 'intro' ? .7 : D.ph === 'play' ? .15 : .3;
+  if (D.ph === 'play'){ const ps = zonePeers().filter(p => p.presence.p); const tgt = ps.length ? ps[Math.floor(t/3) % ps.length].presence.p : [hw.x, hw.y, hw.z]; F.look.set(tgt[0], tgt[1], tgt[2]); } else F.look.set(hw.x, hw.y, hw.z);
+  /* experiment visuals and inputs */
+  let info = '';
+  if (E && (D.ph === 'xform' || D.ph === 'count' || D.ph === 'play' || D.ph === 'res')){ E.stage(D.x || {}); if (D.ph === 'play' || D.ph === 'res') info = E.client(D.x || {}, D.ph === 'play' ? el : E.dur) || ''; }
+  if (D.ph === 'count'){ const c = Math.ceil(DPC.count - el); if (c !== dpLocal.cd && c > 0){ dpLocal.cd = c; beep(c > 1 ? 660 : 990, .15, 'square', .1); } }
+  /* screens */
+  drawScreenThrottled(dt, () => dpScreens(D, el, info, waitN));
+  /* spectator monitor for eliminated contestants */
+  if (D.ct && myNum && !alive && D.ph !== 'win') boothTick(D, t);
+}
+function drawScreenThrottled(dt, f){ scrT -= dt; if (scrT <= 0){ scrT = .25; f(); } }
+function dpScreens(D, el, info, waitN){
+  const E = EXP[D.exp], rem = D.al.length, tot = D.ct ? Object.keys(D.ct).length : 0;
+  if (D.ph === 'wait'){ drawScreen(0, 'Death Penalty', 'Minimum 2 contestants. Maximum 30.\nStep into the holding area.'); drawScreen(1, 'Contestants waiting', 'Need ' + Math.max(0, DPC.min - waitN) + ' more', waitN + '/30'); }
+  else if (D.ph === 'cd'){ drawScreen(0, 'Death Penalty', 'The doors close when the countdown ends.\nOnly one contestant survives.'); drawScreen(1, waitN + ' contestants waiting', 'Match begins', Math.max(0, Math.ceil(DPC.cd - el)), '#ff3a3a'); }
+  else if (D.ph === 'win'){ drawScreen(0, 'Final survivor', D.ws ? 'Contestant ' + pad4n(D.ws) + ' survived ' + (D.n) + ' experiments.' : 'No survivors.'); drawScreen(1, 'Winner', '', D.ws ? pad4n(D.ws) : '-', '#f6e7a8'); }
+  else {
+    const title = 'Experiment ' + D.n + (E && D.ph !== 'intro' ? ' / ' + E.name : '');
+    if (D.ph === 'intro') drawScreen(0, title, el > 5.2 && E ? E.name : 'Selecting experiment...', null);
+    else if (D.ph === 'res'){ const r = D.x.res || {e:[], s:[]}; drawScreen(0, title + ' / results', (r.e.length ? 'Eliminated: ' + r.e.map(pad4n).join(' ') : 'No eliminations') + (r.s && r.s.length ? '\nShield used: ' + r.s.map(pad4n).join(' ') : '') + (D.exp === 'vote' && D.x.v ? '\nMercy ' + D.x.v[0] + ' / Greed ' + D.x.v[1] + ': ' + D.x.won + ' wins' : '') + (D.exp === 'team' && D.x.sc ? '\nRed ' + D.x.sc[0] + ' / Blue ' + D.x.sc[1] : '') + (D.exp === 'mercy' ? '\nJudge chose ' + (D.x.ch === 1 ? 'EXECUTE' : D.x.ch === 0 ? 'SPARE' + (D.x.flip ? ' and lost the coin flip' : ' and won the coin flip') : 'nothing') : '')); }
+    else drawScreen(0, title, (E ? E.rules : '') + (info ? '\n\n' + info : ''));
+    const big = D.ph === 'count' ? Math.max(0, Math.ceil(DPC.count - el)) : D.ph === 'play' && E ? Math.max(0, Math.ceil(E.dur - el)) : rem;
+    drawScreen(1, D.ph === 'count' ? 'Get ready' : D.ph === 'play' ? 'Time left  /  ' + rem + ' of ' + tot + ' remain' : 'Contestants remaining', D.ph === 'play' ? '' : 'of ' + tot, big, D.ph === 'count' ? '#ff3a3a' : null);
+  }
+}
+/* phase changes, seen by everyone at the same moment */
+function dpEnter(D, myNum, alive){
+  const E = EXP[D.exp], ph = D.ph, sd = D.id + D.k; dpLocal.ph = ph;
+  if (ph === 'wait'){ speak(line('wait', sd)); resetStage(); if (!dpLocal.inHold) { dpLocal.inHold = true; } if (myNum === 0 && rig.position.z < 9.4 && rig.position.y < 4) dpToWait(); }
+  else if (ph === 'cd'){ speak(line('cd', sd)); resetStage(); beep(440, .3, 'sine', .1); if (dpLocal.wasIn){ dpLocal.wasIn = false; dpToWait(); } }
+  else if (ph === 'intro'){
+    if (D.n === 1){ if (myNum){ STATS.mp++; dpLocal.streak = 0; saveStats(); } dpLocal.wasIn = !!myNum; }
+    if (alive){ const order = dpOrder(D), i = order.indexOf(myNum), a = (i + .5)/order.length*Math.PI*.9 - Math.PI*.45, r = 3.2 + (i%2)*1.4; dpTeleport(Math.sin(a)*r, 2 + Math.cos(a)*1.5, 0); }
+    resetStage(); drawWheel(-1); dpLocal.cmd = -1; dpLocal.flash = -1; dpLocal.sig = -1; Object.assign(DI, {v:-1, m:-1, c:0, k:[], w:-1, f:0});
+    beep(196, .9, 'sawtooth', .06); beep(98, 1.2, 'sine', .14); noiseBurst(.4, .05, 600);
+    speak((D.n === 1 ? line('start', sd, {n:Object.keys(D.ct).length}) + ' ' : '') + line('intro', sd));
+  }
+  else if (ph === 'xform'){ if (E){ speak(E.name + '. ' + E.say); } noiseBurst(1.2, .08, 140); thud(.4); }
+  else if (ph === 'count'){ if (E && alive){ const order = dpOrder(D), i = order.indexOf(myNum), s = E.spot(i, order.length, D.x || {}, myNum); dpTeleport(s[0], s[1], s[2]); } }
+  else if (ph === 'play'){ speak(line('go', sd)); beep(1046, .4, 'square', .1); pulse(0, .5, 100); pulse(1, .5, 100); }
+  else if (ph === 'res'){
+    const r = D.x.res || {e:[], s:[]};
+    if (D.exp === 'revive' && D.x.w){ speak(line('revived', sd, {w:pad4n(D.x.w)})); if (D.x.w === myNum){ STATS.rv++; saveStats(); const s = [0, 4.5, Math.PI]; dpTeleport(s[0], s[1], s[2]); say('You are back in the game.', 4); } }
+    else if (r.e.length === 1) speak(line('elim1', sd, {w:pad4n(r.e[0]), r:D.al.length}) + (r.s && r.s.length ? ' ' + line('shield', sd) : ''));
+    else if (r.e.length) speak(line('elim', sd, {n:r.e.length, r:D.al.length}) + (r.s && r.s.length ? ' ' + line('shield', sd) : ''));
+    else speak(line('none', sd) + (r.s && r.s.length ? ' ' + line('shield', sd) : ''));
+    if (myNum && r.e.indexOf(myNum) >= 0){ STATS.el++; saveStats(); dpOut(); }
+    else if (alive){ STATS.es++; dpLocal.streak++; STATS.bs = Math.max(STATS.bs, dpLocal.streak); saveStats(); }
+    if (r.e.length){ beep(70, .8, 'sawtooth', .12); thud(.5); }
+  }
+  else if (ph === 'win'){
+    resetStage(); speak(line('final', sd) + ' ' + (D.ws ? line('win', sd, {w:pad4n(D.ws)}) : line('nowin', sd)));
+    if (D.ws && D.ws === myNum){ STATS.mw++; saveStats(); const s = [0, 0, Math.PI]; setTimeout(() => { judgeP.tgt.y = ST + 1.2; dpTeleport(0, -3, 0); }, 300); }
+    [523, 659, 784, 1046].forEach((f, k) => beep(f, 1.2, 'sine', .1, k*.18)); [261, 329, 392].forEach(f => beep(f, 2.4, 'triangle', .06, .8));
+  }
+}
+function dpOut(){ beep(70, 1, 'sawtooth', .25); noiseBurst(.8, .2, 2400); pulse(0, 1, 300); pulse(1, 1, 300); flash.material.opacity = .8; dpToBooth(); say('You have been eliminated. Watch from the observation booth. PREV / NEXT changes the camera.', 7); }
+function resetStage(){ tiles.forEach(t => { t.tgt.copy(t.home); t.mat.emissive.setHex(0); }); divider.tgt.y = ST - 1.6; teamBtns.forEach(t => { t.tgt.y = ST - .7; }); peds.forEach(p => { p.tgt.y = ST - .7; p.a.material.color.setHex(0xd8dcde); }); judgeP.tgt.y = ST - 1.6; cageP.tgt.y = ST - 1.3; rewardP.forEach(t => { t.tgt.y = ST - 3.4; t.orb.visible = true; }); ring.material.color.setHex(0xcfd4d6); while (linkG.children.length) linkG.remove(linkG.children[0]); linkG.userData.id = null; }
+function boothTick(D, t){
+  specT -= 1/60; const list = zonePeers().filter(p => p.presence.p && D.ct[p.peer] && D.al.indexOf(D.ct[p.peer]) >= 0);
+  const g = boothLblCtx; g.clearRect(0, 0, 512, 288);
+  if (!list.length){ g.fillStyle = '#000'; g.fillRect(0, 0, 512, 288); g.font = '600 26px ' + FM; g.fillStyle = '#cfd3d6'; g.textAlign = 'center'; g.fillText('NO CONTESTANTS TO WATCH', 256, 144); boothLbl.needsUpdate = true; return; }
+  const i = ((dpLocal.specI % list.length) + list.length) % list.length, p = list[i], pr = p.presence, pp = pr.p, r = +pr.r || 0;
+  boothCam.position.set(pp[0] + Math.sin(r)*2.6, pp[1] + .9, pp[2] + Math.cos(r)*2.6); boothCam.lookAt(pp[0], pp[1], pp[2]);
+  if (specT <= 0){ specT = 1/20; renderer.xr.enabled = false; renderer.setRenderTarget(boothRT); renderer.render(scene, boothCam); renderer.setRenderTarget(null); renderer.xr.enabled = true; }
+  g.font = '600 22px ' + FM; g.textAlign = 'left'; g.textBaseline = 'top'; g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(0, 0, 512, 40); g.fillRect(0, 248, 512, 40);
+  g.fillStyle = '#eef0f1'; g.fillText('WATCHING ' + pad4n(D.ct[p.peer]) + '  ' + String(pr.n || '').toUpperCase().slice(0, 14), 12, 10); g.textAlign = 'right'; g.fillText(D.al.length + ' REMAIN', 500, 258); g.textAlign = 'left'; g.fillText('PREV / NEXT', 12, 258); boothLbl.needsUpdate = true;
+}
+/* name tags in the arena show the contestant number, plus a mark for a shield */
+function dpTag(p){ const D = dpView(); if (!D || !D.ct) return p.presence; const n = D.ct[p.peer]; if (!n) return p.presence; const out = Object.assign({}, p.presence); out.n = pad4n(n) + ' ' + String(p.presence.n || '') + (D.sh && D.sh.indexOf(n) >= 0 ? ' +' : '') + (D.al.indexOf(n) < 0 ? ' X' : ''); return out; }
+function dpStatus(){ const D = dpView(); if (!D) return 'Death Penalty'; const n = dpMyNum(); return 'Death Penalty  /  ' + (n ? pad4n(n) + (dpAmAlive() ? '' : ' OUT') : 'Waiting') + '  /  ' + (D.ct && D.al.length ? D.al.length + ' remain' : dpIds().length + ' here'); }
+
+/* ---------- lobby: the big Death Penalty door ---------- */
+const dpDoor = {g:new THREE.Group(), l:null, r:null, open:0};
+(function(){
+  const g = dpDoor.g; g.position.set(-7, 0, 13.95); g.rotation.y = Math.PI; lobbyG.add(g);
+  const back = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 5.6), new THREE.MeshBasicMaterial({color:0x020202})); back.position.set(0, 2.8, .05); g.add(back);
+  const glow = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 5.4), new THREE.MeshBasicMaterial({color:0xff1a1a, transparent:true, opacity:.18, blending:THREE.AdditiveBlending, depthWrite:false, fog:false})); glow.position.set(0, 2.7, .08); g.add(glow);
+  [-1, 1].forEach(s => { const d = new THREE.Mesh(new THREE.BoxGeometry(2.2, 5.6, .3), arMat.plate); d.position.set(s*1.1, 2.8, .25); g.add(d); for (let k=0;k<5;k++){ const r = new THREE.Mesh(new THREE.BoxGeometry(2, .08, .06), arMat.dark); r.position.set(0, -2.2 + k*1.1, .17); d.add(r); } const st = new THREE.Mesh(new THREE.BoxGeometry(.12, 5.4, .32), arMat.haz); st.position.x = -s*1.05; d.add(st); if (s < 0) dpDoor.l = d; else dpDoor.r = d; });
+  [-2.55, 2.55].forEach(x => { const p = new THREE.Mesh(new THREE.BoxGeometry(.5, 6.4, .7), arMat.haz); p.position.set(x, 3.2, .3); g.add(p); });
+  const hd = new THREE.Mesh(new THREE.BoxGeometry(5.8, .9, .8), arMat.dark); hd.position.set(0, 6.1, .3); g.add(hd);
+  const sg = new THREE.Mesh(new THREE.PlaneGeometry(5.2, .7), new THREE.MeshBasicMaterial({map:labelTex('DEATH PENALTY', '#ff2a2a', 1024, 140, 96), transparent:true, fog:false})); sg.position.set(0, 6.1, .71); g.add(sg);
+  const sub = new THREE.Mesh(new THREE.PlaneGeometry(3.6, .3), new THREE.MeshBasicMaterial({map:labelTex('2 TO 30 CONTESTANTS', '#b9bdc0', 512, 60, 34), transparent:true, fog:false})); sub.position.set(0, 7, .5); g.add(sub);
+  for (let k=0;k<2;k++){ const l = new THREE.Mesh(new THREE.SphereGeometry(.12, 10, 8), arMat.red); l.position.set(k ? 2.55 : -2.55, 6.6, .7); g.add(l); }
+})();
+function dpDoorTick(dt, hw){
+  const d = Math.hypot(hw.x + 7, hw.z - 13.9), want = d < 5 ? 1 : 0; dpDoor.open += Math.sign(want - dpDoor.open)*Math.min(Math.abs(want - dpDoor.open), dt*.8);
+  dpDoor.l.position.x = -1.1 - dpDoor.open*2.1; dpDoor.r.position.x = 1.1 + dpDoor.open*2.1;
+  if (dpDoor.open > .3 && Math.abs(dpDoor.lastOpen - dpDoor.open) > .02){ if (!dpDoor.snd || performance.now() - dpDoor.snd > 600){ dpDoor.snd = performance.now(); noiseBurst(.6, .04, 160); } }
+  dpDoor.lastOpen = dpDoor.open;
+  if (dpDoor.open > .8 && hw.z > 13.1 && Math.abs(hw.x + 7) < 1.9) enterArena();
+}
+
+/* ---------- arrival cutscene: darkness, only the face, the welcome speech ---------- */
+const cut = {on:false, t0:0, vis:[]};
+const CUT_LINE = 'Welcome to the Death Penalty program. Made by BADGORILLA. You will play a series of games to test strength, IQ, and agility.';
+face.baseY = 10.2; face.baseZ = -21.4;
+function startCut(){
+  cut.on = true; cut.t0 = performance.now(); cut.vis = arenaG.children.map(c => c.visible); arenaG.children.forEach(c => { c.visible = c === face.g; });
+  face.baseY = 3.8; face.baseZ = -9; face.active = .2; face.tActive = 1; face.tSmile = .9; face.tEye = 1.2; face.tLid = 0;
+  scene.fog.color.set(0x000000); scene.fog.density = .02; hemi.intensity = 0; rig.position.set(0, 0, 4); rig.rotation.y = 0; if (!renderer.xr.isPresenting){ yaw = 0; pitch = .12; camera.rotation.set(pitch, 0, 0); }
+  beep(55, 2.5, 'sawtooth', .08); noiseBurst(1.2, .06, 300);
+  setTimeout(() => { if (cut.on) speak(CUT_LINE, CUT_LINE.replace('BADGORILLA', 'Bad Gorilla')); }, 1400);
+}
+function endCut(){
+  if (!cut.on) return; cut.on = false; arenaG.children.forEach((c, i) => { c.visible = cut.vis[i] !== undefined ? cut.vis[i] : true; });
+  face.baseY = 10.2; face.baseZ = -21.4; scene.fog.color.set(0x050607); scene.fog.density = .012; hemi.intensity = .35; flash.material.color.setHex(0x000000); flash.material.opacity = 1;
+  setTimeout(() => flash.material.color.setHex(0xdadddf), 1500); rig.position.set(0, 0, 15); rig.rotation.y = 0; vel.set(0, 0, 0); hist.length = 0; if (!renderer.xr.isPresenting){ yaw = 0; pitch = 0; camera.rotation.set(0, 0, 0); }
+  try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch(e){}
+  say('Wait in the holding area. The doors open for the next match.', 6);
+}
+function cutTick(){
+  const el = (performance.now() - cut.t0)/1000; vel.set(0, 0, 0); rig.position.x = 0; rig.position.z = 4;
+  face.look.copy(headW()); if (el > 3 && performance.now() > speech.until + 1200 && el > 7) endCut(); else if (el > 18) endCut();
+}
+
 /* ---------- Main loop ---------- */
 drawTerm(); drawHud(); initNet(); askMic();
 if (document.fonts) Promise.all([document.fonts.load('500 30px "IBM Plex Sans Condensed"'), document.fonts.load('400 16px "IBM Plex Mono"')]).then(() => { LABELS.forEach(f => f()); drawTerm(); drawHud(); boards.forEach(b => { b.last = ''; }); avs.forEach(a => { a.name = ''; }); prev.name = ''; }).catch(() => {});
 setInterval(() => { if (state === 'lobby' && (ui.s === 'name' || ui.s === 'code')) drawTerm(); }, 500);
-window.__s09 = {level:i => enterLevel(i, 'normal'), lobby:() => enterLobby(), info:() => ({room:roomLabel, peers:R ? R.peers().length : 0, mic:micLabel(), voices:[...voices.values()].map(v => +v.g.gain.value.toFixed(2)), names:R ? R.peers().map(q => q.presence && q.presence.n) : [], state:state, lv:lvIdx, boxes:boxes.length, monsters:monsters.length, pos:headW().toArray().map(v => +v.toFixed(2)), calls:renderer.info.render.calls, tris:renderer.info.render.triangles, geos:renderer.info.memory.geometries}), look:(y, p) => { yaw = y; pitch = p || 0; camera.rotation.set(pitch, yaw, 0); }, tp:(x, z) => { rig.position.set(x, 0, z); }, renderer:renderer};
+window.__s09 = {arena:() => enterArena(), level:i => enterLevel(i, 'normal'), lobby:() => enterLobby(), info:() => ({room:roomLabel, peers:R ? R.peers().length : 0, mic:micLabel(), voices:[...voices.values()].map(v => +v.g.gain.value.toFixed(2)), names:R ? R.peers().map(q => q.presence && q.presence.n) : [], state:state, lv:lvIdx, boxes:boxes.length, monsters:monsters.length, pos:headW().toArray().map(v => +v.toFixed(2)), calls:renderer.info.render.calls, tris:renderer.info.render.triangles, geos:renderer.info.memory.geometries}), look:(y, p) => { yaw = y; pitch = p || 0; camera.rotation.set(pitch, yaw, 0); }, tp:(x, z) => { rig.position.set(x, 0, z); }, renderer:renderer};
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), .033), t = clock.elapsedTime, rnow = performance.now(), rdt = Math.min(.25, (rnow - (window.__s09rt || rnow))/1000); window.__s09rt = rnow;
   if (state !== 'menu'){
     if (!dead){ if (renderer.xr.isPresenting){ sticks(dt); locomote(dt); } else desktop(dt); }
     flash.material.opacity = Math.max(0, flash.material.opacity - rdt*(dead ? .7 : 2));
     const hw = headW();
+    if (state === 'arena') arenaTick(dt, t, hw);
     if (state === 'lobby'){
-      lobbyAnim(t, dt, hw);
+      lobbyAnim(t, dt, hw); dpDoorTick(dt, hw);
       lobbyPortals.forEach(p => { if (near3(p.pos, 1.1)) usePortal(p.m); });
       hands.forEach((h, hi) => { if (!h.has){ h.pr = false; return; } tmp.copy(h.vis); term.worldToLocal(tmp); const inside = Math.abs(tmp.x) < TW/2 && Math.abs(tmp.y) < TH/2 && tmp.z < .09 && tmp.z > -.12; if (inside && !h.pr){ termHit((tmp.x/TW + .5)*768, (.5 - tmp.y/TH)*512); pulse(hi, .35, 35); } h.pr = inside; });
       boards.forEach((b, i) => { if (near3(b.m.position, .6) && myVote !== i){ myVote = i; beep(600, .1, 'sine', .1); pulse(0, .3, 40); pulse(1, .3, 40); pub(); } });
@@ -1415,9 +2014,9 @@ renderer.setAnimationLoop(() => {
     }
     if (state === 'level' && round && dead) roundTick();
     msgT -= dt; if (msgT <= 0 && msg){ msg = ''; drawHud(); } hudT += dt; if (hudT > .5){ hudT = 0; drawHud(); }
-    pubT += dt; if (pubT > .1){ pubT = 0; pub(); }
+    pubT += dt; if (pubT > (state === 'arena' && R && R.peers().length > 10 ? .2 : .1)){ pubT = 0; pub(); }
     const seenIds = new Set();
-    zonePeers().forEach(p => { if (p.presence.d) return; seenIds.add(p.peer); let a = avs.get(p.peer); if (!a){ a = makeAvatar(); avs.set(p.peer, a); } a.g.visible = true; setAv(a, p.presence, reveal); });
+    zonePeers().forEach(p => { if (p.presence.d) return; seenIds.add(p.peer); let a = avs.get(p.peer); if (!a){ a = makeAvatar(); avs.set(p.peer, a); } a.g.visible = true; setAv(a, state === 'arena' ? dpTag(p) : p.presence, reveal); });
     avs.forEach((a, k) => { if (!seenIds.has(k)){ scene.remove(a.g); avs.delete(k); } });
     const showSelf = renderer.xr.isPresenting && !dead && (hands[0].has || hands[1].has);
     selfAv.g.visible = showSelf;
