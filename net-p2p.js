@@ -24,6 +24,7 @@
           send = function (d, to) { return act.send(d, to ? { target: to } : {}); };
           get = function (h) { act.onMessage = h; };
         }
+        function pid(x) { return x && typeof x === 'object' ? String(x.peerId || x.id || '') : String(x); }
         function on(ev, h) {
           if (typeof room[ev] === 'function') room[ev](h); else room[ev] = h;
         }
@@ -44,12 +45,13 @@
           handlers.forEach(function (h) { try { h({ peers: l, joined: [], left: [], updated: [] }); } catch (e) {} });
         }
 
-        on('onPeerJoin', function (id) {
+        on('onPeerJoin', function (x) {
+          var id = pid(x);
           if (!others.has(id)) others.set(id, {});
           try { Promise.resolve(send(mine, id)).catch(function () {}); } catch (e) {}
           fire();
         });
-        on('onPeerLeave', function (id) { others.delete(id); seen.delete(id); fire(); });
+        on('onPeerLeave', function (x) { var id = pid(x); others.delete(id); seen.delete(id); fire(); });
         var sweep = setInterval(function () {
           var now = Date.now(), gone = false;
           seen.forEach(function (t, id) { if (now - t > 20000) { seen.delete(id); others.delete(id); gone = true; } });
@@ -57,7 +59,8 @@
           // Keep-alive so idle players are not dropped.
           if (!left) { try { Promise.resolve(send(mine)).catch(function () {}); } catch (e) {} }
         }, 5000);
-        get(function (data, id) {
+        get(function (data, x) {
+          var id = pid(x);
           if (!data || typeof data !== 'object') return;
           others.set(id, data);
           seen.set(id, Date.now());
