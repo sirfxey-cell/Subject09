@@ -27,11 +27,16 @@
         function on(ev, h) {
           if (typeof room[ev] === 'function') room[ev](h); else room[ev] = h;
         }
-        var mine = {}, others = new Map(), handlers = new Set(), left = false;
+        var mine = {}, others = new Map(), seen = new Map(), handlers = new Set(), left = false;
 
         function list() {
           var a = [{ peer: T.selfId, isMe: true, presence: mine }];
-          others.forEach(function (p, id) { a.push({ peer: id, isMe: false, presence: p }); });
+          var now = Date.now();
+          others.forEach(function (p, id) {
+            // Skip peers that have not said anything yet or went quiet (closed tab, lost connection).
+            if (!seen.has(id) || now - seen.get(id) > 20000) return;
+            a.push({ peer: id, isMe: false, presence: p });
+          });
           return a;
         }
         function fire() {
@@ -44,10 +49,18 @@
           try { Promise.resolve(send(mine, id)).catch(function () {}); } catch (e) {}
           fire();
         });
-        on('onPeerLeave', function (id) { others.delete(id); fire(); });
+        on('onPeerLeave', function (id) { others.delete(id); seen.delete(id); fire(); });
+        var sweep = setInterval(function () {
+          var now = Date.now(), gone = false;
+          seen.forEach(function (t, id) { if (now - t > 20000) { seen.delete(id); others.delete(id); gone = true; } });
+          if (gone) fire();
+          // Keep-alive so idle players are not dropped.
+          if (!left) { try { Promise.resolve(send(mine)).catch(function () {}); } catch (e) {} }
+        }, 5000);
         get(function (data, id) {
           if (!data || typeof data !== 'object') return;
           others.set(id, data);
+          seen.set(id, Date.now());
           fire();
         });
 
@@ -65,7 +78,9 @@
           onPeers: function (h) { handlers.add(h); return function () { handlers.delete(h); }; },
           leave: function () {
             left = true;
+            clearInterval(sweep);
             others.clear();
+            seen.clear();
             try { room.leave(); } catch (e) {}
             return Promise.resolve();
           }
