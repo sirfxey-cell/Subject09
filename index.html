@@ -63,7 +63,25 @@ small{display:block;margin-top:18px;font:400 .74rem/1.6 var(--mono);color:var(--
 @keyframes bootFlick{0%{opacity:1}47%{opacity:.6}48%{opacity:1}83%{opacity:.8}84%{opacity:1}}
 @keyframes bootIn{from{opacity:0;transform:translateY(4px)}}
 @keyframes bootWarn{50%{opacity:.25}}
-@media (prefers-reduced-motion:reduce){#boot::before,#boot::after,.bt .ring,.bt .ring2{animation:none}}
+.bt .go{display:block;width:100%;margin:22px 0 0;padding:16px;background:transparent;color:#e6e8e9;border:1px solid #3a3f42;font:500 .85rem/1 "IBM Plex Mono","Courier New",monospace;letter-spacing:.3em;animation:goPulse 1.6s ease-in-out infinite}
+.bt .go:hover{border-color:#8b9296}
+.bt .go[hidden]{display:none}
+@keyframes goPulse{50%{opacity:.45}}
+#overlay.ts{background:radial-gradient(ellipse at 50% 42%,rgba(14,17,19,.86),rgba(4,5,6,.97) 72%);color:#e2e5e6}
+#overlay.ts::after{background:repeating-linear-gradient(0deg,rgba(255,255,255,.02) 0 1px,transparent 1px 3px)}
+.ts .title{position:relative;z-index:1;width:100%;max-width:34rem;text-align:center;opacity:0}
+.ts.in .title{opacity:1;animation:tsIn 1.2s cubic-bezier(.2,.7,.2,1) both}
+.ts .kick{font:400 .72rem/1.4 var(--mono);letter-spacing:.34em;color:#7d8589;text-transform:uppercase}
+.ts h1{margin:14px 0 6px;white-space:nowrap;font:500 clamp(1.9rem,8vw,4.4rem)/1 var(--cond);letter-spacing:.3em;text-indent:.3em;color:#eef0f1;text-shadow:0 0 28px rgba(200,215,225,.18)}
+.ts .rule{width:60%;height:1px;margin:18px auto 34px;background:linear-gradient(90deg,transparent,#5b6266,transparent)}
+.ts .play{display:block;width:min(100%,19rem);margin:0 auto;padding:22px 18px;font:600 1.25rem/1 var(--cond);letter-spacing:.5em;text-indent:.5em;background:#e6e9ea;color:#0b0c0d;border:0;border-radius:2px;box-shadow:0 0 0 1px rgba(255,255,255,.08),0 0 40px rgba(200,215,225,.16);transition:transform .15s ease,box-shadow .2s ease}
+.ts .play:hover{transform:translateY(-1px);box-shadow:0 0 0 1px rgba(255,255,255,.2),0 0 54px rgba(200,215,225,.28)}
+.ts .play:disabled{opacity:.5}
+.ts .sec{display:block;width:auto;margin:16px auto 0;padding:10px 16px;background:transparent;border:0;color:#8e969a;font:400 .74rem/1 var(--mono);letter-spacing:.24em;text-decoration:underline;text-underline-offset:4px}
+.ts .sec[hidden],.ts .play[hidden]{display:none}
+.ts small{margin-top:30px;color:#6a7175;font:400 .7rem/1.7 var(--mono)}
+@keyframes tsIn{from{opacity:0;transform:translateY(10px) scale(.985)}}
+@media (prefers-reduced-motion:reduce){.bt .go,.ts .title{animation:none}#boot::before,#boot::after,.bt .ring,.bt .ring2{animation:none}}
 </style>
 </head>
 <body>
@@ -74,21 +92,15 @@ small{display:block;margin-top:18px;font:400 .74rem/1.6 var(--mono);color:var(--
   <div class="bar"><i id="bootBar"></i></div>
   <div class="pct"><span id="bootStep">BOOT</span><span id="bootPct">0%</span></div>
   <ul id="bootLog"></ul>
+  <button id="bootGo" class="go">Tap to begin</button>
 </div></div>
-<div id="overlay"><div class="card">
-  <div class="bar"><span>Facility access</span><span>Form S-09</span></div>
-  <div class="body">
+<div id="overlay" class="ts"><div class="title">
+  <div class="kick">Containment facility / Form S-09</div>
   <h1>Subject 09</h1>
-  <p class="sub">You have been assigned a designation. Please remain calm and follow the procedure below.</p>
-  <ol>
-    <li><span>01</span>Move by pushing against floors and walls with your hands.</li>
-    <li><span>02</span>Register your designation and color at the personnel terminal.</li>
-    <li><span>03</span>Vote for a sector, then enter a door: Classic, Hide &amp; Seek, or Be the Monster.</li>
-    <li><span>04</span>If you are retrieved, you will observe the remaining subjects.</li>
-  </ol>
-  <div class="row"><button id="vrBtn" disabled>Checking for VR</button><button id="flatBtn" class="alt">Play on screen</button></div>
-  <small id="note">Headset: right stick turns; Stick Move is on the terminal. Screen: drag to look, WASD to walk, L for the lamp.</small>
-  </div>
+  <div class="rule"></div>
+  <button id="vrBtn" class="play" disabled>Play</button>
+  <button id="flatBtn" class="sec">Play on screen</button>
+  <small id="note">Push floors and walls with your hands to move. Right stick turns.</small>
 </div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -1148,16 +1160,16 @@ for (let i=0;i<2;i++){
   c.addEventListener('squeezestart', () => { if (state === 'level' && !dead){ lampOn = !lampOn; } });
   scene.add(c); scene.add(renderer.xr.getControllerGrip(i));
 }
-$('flatBtn').onclick = () => { initAudio(); askMic(); $('overlay').hidden = true; enterLobby(); };
+$('flatBtn').onclick = () => { initAudio(); askMic(); musicOut(); $('overlay').hidden = true; enterLobby(); };
 const vrBtn = $('vrBtn');
 if (navigator.xr && navigator.xr.isSessionSupported){
   navigator.xr.isSessionSupported('immersive-vr').then(ok => {
-    if (!ok) throw 0; vrBtn.disabled = false; vrBtn.textContent = 'Enter VR';
-    vrBtn.onclick = async () => { try { initAudio(); renderer.xr.setReferenceSpaceType('local-floor'); const sp = navigator.xr.requestSession('immersive-vr', {optionalFeatures:['local-floor']}); askMic(); const s = await sp; await renderer.xr.setSession(s); $('overlay').hidden = true; enterLobby(); s.addEventListener('end', () => { $('overlay').hidden = false; state = 'menu'; }); } catch(e){ $('note').textContent = 'Could not start VR here. Open this link directly in your headset’s browser.'; } };
+    if (!ok) throw 0; vrBtn.disabled = false; vrBtn.textContent = 'Play';
+    vrBtn.onclick = async () => { try { initAudio(); musicOut(); renderer.xr.setReferenceSpaceType('local-floor'); const sp = navigator.xr.requestSession('immersive-vr', {optionalFeatures:['local-floor']}); askMic(); const s = await sp; await renderer.xr.setSession(s); $('overlay').hidden = true; enterLobby(); s.addEventListener('end', () => { $('overlay').hidden = false; state = 'menu'; musicIn(); }); } catch(e){ $('note').textContent = 'Could not start VR here. Open this link directly in your headset’s browser.'; } };
   if (/[?&]pwa=1/.test(location.search)) setTimeout(() => vrBtn.onclick(), 300);
   }).catch(() => { noVR(); });
 } else { noVR(); }
-function noVR(){ let framed = false; try { framed = window.top !== window.self; } catch(e){ framed = true; } vrBtn.textContent = framed ? 'VR blocked here' : 'VR not detected'; if (framed) $('note').textContent = 'This page runs inside a frame that blocks VR. To play in a headset, open the GitHub Pages copy of Subject 09 in the Quest Browser.'; }
+function noVR(){ let framed = false; try { framed = window.top !== window.self; } catch(e){ framed = true; } vrBtn.hidden = true; const f = $('flatBtn'); f.className = 'play'; f.textContent = 'Play'; $('note').textContent = framed ? 'Screen mode. For VR, open the GitHub Pages copy of Subject 09 in the Quest Browser.' : 'Drag to look. WASD to walk. L for the lamp.'; }
 
 /* ---------- Thumbsticks: right = snap turn, left = optional walk ---------- */
 let stickMove = false, turned = false;
@@ -1206,20 +1218,27 @@ function monstersTick(dt, hw, t){
 }
 function near3(p, r){ const hw = headW(); return hw.distanceTo(p) < r || hands.some(h => h.has && h.vis.distanceTo(p) < r*.75); }
 
+/* ---------- Title music: loops through loading and the title screen, fades out when play starts ---------- */
+const music = new Audio('music/menu.mp3'); music.loop = true; music.preload = 'auto'; music.volume = 0; let musicFx = 0;
+function musicTo(v, ms, then){ clearInterval(musicFx); const v0 = music.volume, t0 = performance.now(); musicFx = setInterval(() => { const k = Math.min(1, (performance.now() - t0)/ms); try { music.volume = Math.max(0, Math.min(1, v0 + (v - v0)*k)); } catch(e){} if (k >= 1){ clearInterval(musicFx); if (then) then(); } }, 40); }
+function musicIn(){ music.play().then(() => musicTo(.75, 1500)).catch(() => {}); }
+function musicOut(){ musicTo(0, 2200, () => music.pause()); }
 /* ---------- Boot screen ---------- */
 (function(){
-  const boot = $('boot'); if (!boot) return;
+  const boot = $('boot'); if (!boot){ $('overlay').classList.add('in'); return; }
   const lines = [['Power restored', 'GRID'], ['Sealing bulkheads', 'DOORS'], ['Compiling facility geometry', 'MAP'], ['Calibrating arm telemetry', 'MOTION'], ['Linking facility network', 'NET'], ['Containment breach: Sector B', 'ALERT', 1], ['Assigning designation', 'ID'], ['Intake ready', 'READY']];
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches; let k = 0;
   const step = () => {
-    if (k >= lines.length){ setTimeout(() => { boot.classList.add('out'); setTimeout(() => boot.remove(), 800); }, reduce ? 0 : 450); return; }
+    if (k >= lines.length){ setTimeout(() => { boot.classList.add('out'); $('overlay').classList.add('in'); setTimeout(() => boot.remove(), 800); }, reduce ? 0 : 450); return; }
     const L = lines[k++], li = document.createElement('li'); if (L[2]) li.className = 'w'; li.innerHTML = '<b>' + String(k).padStart(2, '0') + '</b>&nbsp;&nbsp;' + L[0] + (L[2] ? '' : '<span style="float:right">OK</span>');
     $('bootLog').appendChild(li); $('bootStep').textContent = L[1]; const p = Math.round(k/lines.length*100); $('bootBar').style.transform = 'scaleX(' + p/100 + ')'; $('bootPct').textContent = p + '%';
     if (L[2]){ beep(220, .25, 'square', .03); }
     setTimeout(step, reduce ? 40 : L[2] ? 650 : 190 + Math.random()*170);
   };
-  boot.addEventListener('click', () => { k = lines.length; step(); });
-  setTimeout(step, 150);
+  let started = false;
+  const go = () => { if (started){ k = lines.length; return; } started = true; $('bootGo').hidden = true; initAudio(); musicIn(); step(); };
+  boot.addEventListener('click', go); addEventListener('keydown', e => { if (boot.isConnected && (e.code === 'Enter' || e.code === 'Space')) go(); });
+  if (/[?&]pwa=1/.test(location.search)){ $('bootGo').hidden = true; started = true; setTimeout(step, 150); }
 })();
 /* ---------- Sector loading card (inside the headset too) ---------- */
 const loadG = new THREE.Group(); loadG.visible = false; camera.add(loadG);
