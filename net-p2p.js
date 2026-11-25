@@ -15,8 +15,18 @@
     join: function (name) {
       return load().then(function (T) {
         var room = T.joinRoom({ appId: APP }, String(name));
-        var pair = room.makeAction('pres');
-        var send = pair[0], get = pair[1];
+        var act = room.makeAction('pres');
+        var send, get;
+        if (Array.isArray(act)) {
+          send = function (d, to) { return act[0](d, to); };
+          get = act[1];
+        } else {
+          send = function (d, to) { return act.send(d, to ? { target: to } : {}); };
+          get = function (h) { act.onMessage = h; };
+        }
+        function on(ev, h) {
+          if (typeof room[ev] === 'function') room[ev](h); else room[ev] = h;
+        }
         var mine = {}, others = new Map(), handlers = new Set(), left = false;
 
         function list() {
@@ -29,12 +39,12 @@
           handlers.forEach(function (h) { try { h({ peers: l, joined: [], left: [], updated: [] }); } catch (e) {} });
         }
 
-        room.onPeerJoin(function (id) {
+        on('onPeerJoin', function (id) {
           if (!others.has(id)) others.set(id, {});
-          try { send(mine, id); } catch (e) {}
+          try { Promise.resolve(send(mine, id)).catch(function () {}); } catch (e) {}
           fire();
         });
-        room.onPeerLeave(function (id) { others.delete(id); fire(); });
+        on('onPeerLeave', function (id) { others.delete(id); fire(); });
         get(function (data, id) {
           if (!data || typeof data !== 'object') return;
           others.set(id, data);
@@ -49,7 +59,7 @@
             Object.keys(patch || {}).forEach(function (k) {
               if (patch[k] === null || patch[k] === undefined) delete mine[k]; else mine[k] = patch[k];
             });
-            try { send(mine); } catch (e) {}
+            try { Promise.resolve(send(mine)).catch(function () {}); } catch (e) {}
             return Promise.resolve();
           },
           onPeers: function (h) { handlers.add(h); return function () { handlers.delete(h); }; },
