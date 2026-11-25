@@ -12,7 +12,7 @@
 <script src="net-p2p.js?v=5"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@400;500;600&family=Permanent+Marker&family=Special+Elite&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#e7e8e8;--fg:#1c1d1e;--muted:#5f6366;--faint:#8c9093;--card:#f3f3f2;--line:#c9cbcc;--btn:#1f2122;--btn-fg:#eceeef;
 --mono:"IBM Plex Mono","Courier New",monospace;--cond:"IBM Plex Sans Condensed","Arial Narrow",Arial,sans-serif;
@@ -103,7 +103,7 @@ small{display:block;margin-top:18px;font:400 .74rem/1.6 var(--mono);color:var(--
 <div id="boot" role="status" aria-live="polite"><div class="bt">
   <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="ring" cx="60" cy="60" r="56"/><circle class="ring2" cx="60" cy="60" r="48"/><circle class="core" cx="60" cy="60" r="38"/><path class="core" d="M60 2v14M60 104v14M2 60h14M104 60h14"/><text class="num" x="60" y="71" text-anchor="middle">09</text></svg>
   <h2>Subject 09</h2>
-  <div class="tagl">Containment facility / intake systems</div>
+  <div class="tagl">Halvard Annex / intake systems / night shift</div>
   <div class="bar"><i id="bootBar"></i></div>
   <div class="pct"><span id="bootStep">BOOT</span><span id="bootPct">0%</span></div>
   <ul id="bootLog"></ul>
@@ -112,7 +112,7 @@ small{display:block;margin-top:18px;font:400 .74rem/1.6 var(--mono);color:var(--
 <div id="touch" hidden><div id="joy"><i></i></div><div id="tbtns"><button data-k="back" hidden>LOBBY</button><button data-k="lamp" hidden>LAMP</button><button data-k="hands">HANDS</button><button data-k="low">LOW</button><button data-k="jump">JUMP</button></div></div>
 <div id="help" hidden>WASD / arrows move &middot; drag to look &middot; Space jump, hold at a wall to climb &middot; Shift run &middot; click to use &middot; H hands up &middot; C low &middot; L lamp &middot; R lobby when out &middot; ? help</div>
 <div id="overlay" class="ts"><div class="title">
-  <div class="kick">Containment facility / Form S-09</div>
+  <div class="kick">Halvard Annex &middot; intake form S-09</div>
   <h1>Subject 09</h1>
   <div class="by">Made by <b>BADGORILLA</b></div>
   <div class="rule"></div>
@@ -611,7 +611,7 @@ async function removeSelf(msg){
 }
 const taken = nm => R && R.peers().some(p => !p.isMe && p.presence && p.presence.n === nm);
 function press(r){
-  beep(700, .06, 'square', .05); ui.msg = '';
+  uiClick(); ui.msg = '';
   if (r.a === 'name' || r.a === 'code'){ ui.s = r.a; ui.txt = ''; }
   else if (r.a === 'color') ui.s = 'color';
   else if (r.a === 'back') ui.s = 'home';
@@ -1176,7 +1176,7 @@ function enterLobby(m){
   rosterReset(); deathT0 = -1; deathG.visible = false; deathG.userData = {};
   round = null; amMon = false; caught = []; dead = false; reveal = false; clearMonsters(); spec.visible = false; state = 'lobby'; zone = 'L'; lampOn = false;
   lobbyG.visible = true; if (lvGroup) lvGroup.visible = false; setBoxes(lobbyBoxes); terrain = null; moonL.intensity = 0; scene.fog.color.set(0x07090b); scene.fog.density = .022; hemi.color.set(0xb0c0d0); hemi.intensity = .3;
-  rig.position.set(0, 0, 10); rig.rotation.y = 0; vel.set(0,0,0); hist.length = 0; flash.material.opacity = 0; pub({g:null, k:null}); say(m || 'Welcome back, ' + myName + '. Please remain calm.', 6);
+  rig.position.set(0, 0, 10); rig.rotation.y = 0; vel.set(0,0,0); hist.length = 0; flash.material.opacity = 0; pub({g:null, k:null}); say(m || [myName + '. You are back. Sign in at the terminal if you need to.', 'Intake Hall. Badge accepted: ' + myName + '.', 'Welcome back, ' + myName + '. The coffee machine is still broken.', myName + ', your last session ended badly. Try again.'][(Math.random()*4)|0], 6);
 }
 function enterLevel(i, kind, g){
   if (pendingLv) return; pendingLv = true; loadP = 0; loadA = 1; loadHold = .8; loadG.visible = true;
@@ -1196,8 +1196,8 @@ function enterLevelNow(i, kind, g){
   lvSafe.visible = !round; lvPortals.forEach(p => { p.g.visible = !round; }); lvExit.visible = !round;
   clearMonsters(); seed = 900 + i;
   if (round){ rig.rotation.y = 0; if (amMon) rig.position.set(0, 0, -27); else { const sp = lvSpot(3, Math.random); rig.position.set(sp[0], 0, sp[1]); } say(amMon ? 'You are the monster. Night vision on. Wait for the signal.' : 'Hide! Your flashlight is your only light.', 8); }
-  else { rig.rotation.y = 0; rig.position.set(0, 0, 32); for (let k=0;k<T.mon;k++) addMonster(T); say(T.n + '. Locate the lift. Do not run.', 6); }
-  decorateLevel(); levelIntro();
+  else { rig.rotation.y = 0; rig.position.set(0, 0, 32); for (let k=0;k<T.mon;k++) addMonster(T); say(['Sector A. The lift is at the far end. Keep looking at anything that moves.', 'Sector B. It hunts by sound. Walk, and keep your voice down.', 'Sector C. Quiet will not save you here. Find the lift.'][i] || T.n, 7); }
+  decorateLevel(); dressSector(i); levelIntro();
   pub({k:null});
 }
 function announce(m){
@@ -1237,7 +1237,7 @@ const SAFE_MAX = 10, SAFE_RESET = 15; let safeT = 0, outT = 0, safeSaid = -1;
 function safeTick(dt){
   if (inSafe()){
     outT = 0; safeT += dt; const left = Math.ceil(SAFE_MAX - safeT);
-    if (left <= 5 && left > 0 && left !== safeSaid){ safeSaid = left; say('Occupancy limit reached. Leave the safe room. ' + left, 1.2); beep(880, .07, 'sine', .06); pulse(0, .2, 30); pulse(1, .2, 30); }
+    if (left <= 5 && left > 0 && left !== safeSaid){ safeSaid = left; say('You have been in here too long. Out. ' + left, 1.2); beep(880, .07, 'sine', .06); pulse(0, .2, 30); pulse(1, .2, 30); }
     if (safeT >= SAFE_MAX) ejectSafe();
   } else { outT += dt; safeSaid = -1; if (outT > SAFE_RESET) safeT = 0; }
 }
@@ -1246,7 +1246,7 @@ function ejectSafe(){
   if (!opts.length) return; const o = opts[Math.random()*opts.length|0], h = headW();
   rig.position.x += o[0] - h.x; rig.position.z += o[1] - h.z; rig.position.y = 0; vel.set(0, 0, 0); hist.length = 0;
   safeT = SAFE_MAX; flash.material.opacity = .7; beep(110, .6, 'sawtooth', .18); pulse(0, .8, 250); pulse(1, .8, 250);
-  say('You have exceeded the occupancy limit.', 4);
+  say('Safe room overstay. Door is opening.', 4);
 }
 
 /* ---------- Locomotion ---------- */
@@ -1409,7 +1409,7 @@ function musicOut(){ musicTo(0, 2200, () => music.pause()); }
 /* ---------- Boot screen ---------- */
 (function(){
   const boot = $('boot'); if (!boot){ $('overlay').classList.add('in'); return; }
-  const lines = [['Power restored', 'GRID'], ['Sealing bulkheads', 'DOORS'], ['Compiling facility geometry', 'MAP'], ['Calibrating arm telemetry', 'MOTION'], ['Linking facility network', 'NET'], ['Containment breach: Sector B', 'ALERT', 1], ['Assigning designation', 'ID'], ['Intake ready', 'READY']];
+  const lines = [['Generator 2 on line (generator 1 still down)', 'POWER'], ['Bulkhead seals: 41 of 44 holding', 'DOORS'], ['Floor plans loaded (rev. 7, out of date)', 'MAP'], ['Arm sensors calibrated', 'MOTION'], ['Annex network reconnected', 'NET'], ['Movement in Sector B. Unconfirmed', 'ALERT', 1], ['Subject number assigned', 'ID'], ['Intake desk open', 'READY']];
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches; let k = 0;
   const step = () => {
     if (k >= lines.length){ setTimeout(() => { boot.classList.add('out'); $('overlay').classList.add('in'); setTimeout(() => boot.remove(), 800); }, reduce ? 0 : 450); return; }
@@ -1693,17 +1693,17 @@ function speechTick(){
 
 /* ---------- announcer lines ---------- */
 const LINES = {
-  wait:['The arena is open. I need at least two of you.', 'Step inside. Nobody leaves until the experiment is over.'],
+  wait:['Come in. Sit. I do not bite. The stage does.', 'The arena is quiet tonight. I would like it louder.'],
   cd:['Enough of you have arrived. The doors close soon.', 'Contestants, take your places. We begin shortly.'],
-  start:['Welcome, contestants. {n} of you entered. One of you will leave.', 'Good evening, {n} contestants. Only one survives the night.'],
-  intro:['Let us choose your next experiment.', 'The wheel decides. I simply enjoy it.', 'Another experiment. Try not to disappoint me.'],
+  start:['{n} of you walked in. I have already decided I like one of you. I will not say which.', 'Good evening, {n} contestants. Please hold still while I memorise your faces.'],
+  intro:['The wheel picks. I only watch. Mostly.', 'Next one. Somebody stand up straight, it helps me aim.', 'I built the wheel myself. Do not ask what it is made of.'],
   go:['Begin.', 'Now.', 'Go.'],
   elim:['{n} contestants have been removed. {r} remain.', 'Farewell to {n} of you. {r} still breathe.', '{n} eliminated. How unfortunate. For them.'],
   elim1:['Contestant {w} has been removed. {r} remain.', 'Goodbye, contestant {w}. {r} of you are left.'],
-  none:['Nobody was eliminated. I am almost proud of you.', 'Everyone survived. That will not last.'],
+  none:['Nobody died. That is disappointing, and a little impressive.', 'All of you, still here. We will fix that.'],
   shield:['A shield protected someone. Clever.'],
   final:['Stop. One contestant remains.'],
-  win:['Contestant {w}. You survived every experiment. Congratulations. For now.'],
+  win:['Contestant {w}. You are the last one standing. I will remember you. That is not a compliment.'],
   nowin:['No one survived. The experiment is complete.'],
   revived:['Contestant {w} returns from the dead. Do not waste it.']
 };
@@ -2097,6 +2097,139 @@ function cutTick(){
   face.look.copy(headW()); if (el > 3 && performance.now() > speech.until + 1200 && el > 7) endCut(); else if (el > 18) endCut();
 }
 
+/* ======================= THE LIVED-IN PASS: handwriting, paperwork, graffiti, clutter, tactile sounds ======================= */
+const FH = '"Caveat", "Segoe Print", "Bradley Hand", cursive', FMK = '"Permanent Marker", "Marker Felt", "Segoe Print", cursive', FT = '"Special Elite", "Courier New", monospace';
+/* hand lettering: every glyph drawn separately with a little drift in size, angle and baseline */
+function handText(g, text, x, y, size, font, ink, jit){
+  let cx = x; g.textBaseline = 'alphabetic'; g.textAlign = 'left';
+  for (const ch of String(text)){ const s = size*(1 + (Math.random() - .5)*.08); g.font = s + 'px ' + font; g.save(); g.translate(cx, y + (Math.random() - .5)*jit); g.rotate((Math.random() - .5)*.06); g.fillStyle = ink; g.globalAlpha = .82 + Math.random()*.18; g.fillText(ch, 0, 0); g.restore(); cx += g.measureText(ch).width*(.96 + Math.random()*.06); }
+  g.globalAlpha = 1; return cx;
+}
+function wrapHand(g, text, size, font, maxW){ g.font = size + 'px ' + font; const out = []; let cur = ''; String(text).split(' ').forEach(w => { const t = cur ? cur + ' ' + w : w; if (g.measureText(t).width > maxW && cur){ out.push(cur); cur = w; } else cur = t; }); if (cur) out.push(cur); return out; }
+/* a sheet of paper: off-white, slightly uneven, maybe ruled, maybe a fold, maybe a coffee ring */
+function paperTex(text, o){
+  o = o || {}; const W = o.w || 512, Hh = o.h || 640, c = cv(W, Hh), g = c.getContext('2d'), t = new THREE.CanvasTexture(c);
+  const seed = Math.random(), draw = () => {
+    const R = mulberry((seed*1e9)|0), rr = () => R();
+    g.clearRect(0, 0, W, Hh); g.fillStyle = o.paper || '#e9e4d6'; g.fillRect(0, 0, W, Hh);
+    for (let k=0;k<1400;k++){ g.fillStyle = 'rgba(80,70,50,' + rr()*.05 + ')'; g.fillRect(rr()*W, rr()*Hh, 2, 2); }
+    const grd = g.createRadialGradient(W/2, Hh/2, Hh*.2, W/2, Hh/2, Hh*.8); grd.addColorStop(0, 'rgba(0,0,0,0)'); grd.addColorStop(1, 'rgba(90,70,40,.22)'); g.fillStyle = grd; g.fillRect(0, 0, W, Hh);
+    if (o.lined){ g.strokeStyle = 'rgba(70,110,170,.28)'; g.lineWidth = 2; for (let y=110;y<Hh - 30;y+=46){ g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); } g.strokeStyle = 'rgba(190,60,60,.3)'; g.beginPath(); g.moveTo(70, 0); g.lineTo(70, Hh); g.stroke(); }
+    if (rr() < .5){ g.strokeStyle = 'rgba(0,0,0,.07)'; g.lineWidth = 3; g.beginPath(); g.moveTo(0, Hh*.5 + (rr() - .5)*20); g.lineTo(W, Hh*.5 + (rr() - .5)*20); g.stroke(); }
+    if (o.coffee || rr() < .2){ const x = W*(.6 + rr()*.3), y = Hh*(.7 + rr()*.2), r = 60 + rr()*20; g.strokeStyle = 'rgba(110,70,30,.25)'; g.lineWidth = 6 + rr()*5; g.beginPath(); g.arc(x, y, r, rr()*6, rr()*6 + 5.4); g.stroke(); }
+    if (o.title){ g.font = '28px ' + FT; g.fillStyle = 'rgba(30,30,30,.9)'; g.textAlign = 'left'; g.fillText(o.title, 40, 70); g.fillRect(40, 82, W - 80, 2); }
+    const typed = o.typed, size = o.size || (typed ? 26 : 44), font = typed ? FT : FH, ink = o.ink || (typed ? 'rgba(25,25,28,.88)' : 'rgba(25,35,80,.92)');
+    let y = o.title ? 140 : (o.lined ? 100 : 90);
+    String(text).split('\n').forEach(par => { wrapHand(g, par, size, font, W - 90).forEach(l => { if (typed){ g.font = size + 'px ' + font; g.fillStyle = ink; g.textAlign = 'left'; g.fillText(l, 45 + (rr() - .5)*2, y); } else handText(g, l, 48 + rr()*10, y, size, font, ink, 3); y += size*(typed ? 1.45 : 1.05); }); y += size*.35; });
+    if (o.sign) handText(g, o.sign, W - 60 - o.sign.length*16, Math.min(Hh - 40, y + 30), 40, FH, ink, 2);
+    t.needsUpdate = true;
+  };
+  draw(); LABELS.push(draw); return t;
+}
+/* spray paint or marker on a wall: transparent, a little overspray and a drip or two */
+function graffitiTex(text, col, w, h){
+  const W = w || 1024, Hh = h || 256, c = cv(W, Hh), g = c.getContext('2d'), t = new THREE.CanvasTexture(c); const seed = Math.random();
+  const draw = () => { const R = mulberry((seed*1e9)|0); g.clearRect(0, 0, W, Hh); const size = Math.min(Hh*.55, W/(String(text).length*.62));
+    g.save(); g.translate(W/2, Hh*.6); g.rotate((R() - .5)*.08); g.font = size + 'px ' + FMK; const tw = g.measureText(text).width; g.translate(-tw/2, 0);
+    g.shadowColor = col; g.shadowBlur = 10; let cx = 0; for (const ch of String(text)){ g.save(); g.translate(cx, (R() - .5)*size*.08); g.rotate((R() - .5)*.08); g.fillStyle = col; g.globalAlpha = .8 + R()*.2; g.fillText(ch, 0, 0); g.restore(); if (R() < .18 && ch !== ' '){ g.fillStyle = col; g.globalAlpha = .6; g.fillRect(cx + size*.2, size*.05, 3, size*(.2 + R()*.5)); } cx += g.measureText(ch).width; }
+    g.restore(); g.globalAlpha = 1; t.needsUpdate = true; };
+  draw(); LABELS.push(draw); return t;
+}
+function tallyTex(n){ const c = cv(512, 256), g = c.getContext('2d'), t = new THREE.CanvasTexture(c); g.strokeStyle = 'rgba(20,20,20,.85)'; g.lineWidth = 7; g.lineCap = 'round'; let x = 30;
+  for (let i=0;i<n;i++){ const grp = i%5; if (grp === 4){ g.beginPath(); g.moveTo(x - 4*26 - 10, 170 + Math.random()*10); g.lineTo(x + 6, 70 + Math.random()*10); g.stroke(); x += 34; } else { g.beginPath(); g.moveTo(x + (Math.random() - .5)*6, 60 + Math.random()*10); g.lineTo(x + (Math.random() - .5)*8, 180 + Math.random()*10); g.stroke(); x += 26; } if (x > 490){ break; } }
+  t.needsUpdate = true; return t; }
+function mulberry(a){ return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0)/4294967296; }; }
+const paperMat = tex => new THREE.MeshStandardMaterial({map:tex, roughness:.9, side:THREE.DoubleSide});
+const decalMat = tex => new THREE.MeshBasicMaterial({map:tex, transparent:true, depthWrite:false, polygonOffset:true, polygonOffsetFactor:-2, fog:true});
+
+/* ---------- tactile interface sounds instead of pure tones ---------- */
+function uiClick(v){ if (!ac) return; const t = ac.currentTime, n = Math.floor(ac.sampleRate*.025), b = ac.createBuffer(1, n, ac.sampleRate), d = b.getChannelData(0); for (let i=0;i<n;i++) d[i] = (Math.random()*2 - 1)*Math.pow(1 - i/n, 6);
+  const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = b; f.type = 'bandpass'; f.frequency.value = 2200 + Math.random()*500; f.Q.value = 1.4; g.gain.value = (v || 1)*.6; s.connect(f); f.connect(g); g.connect(sfxBus()); s.start(t);
+  const o = ac.createOscillator(), og = ac.createGain(); o.frequency.setValueAtTime(180, t); o.frequency.exponentialRampToValueAtTime(70, t + .05); og.gain.setValueAtTime((v || 1)*.18, t); og.gain.exponentialRampToValueAtTime(.0001, t + .06); o.connect(og); og.connect(sfxBus()); o.start(t); o.stop(t + .08); }
+
+/* ---------- lobby clutter: the room people actually worked in ---------- */
+const readables = [];
+(function dressLobby(){
+  const G = lobbyG, CB = lobbyBoxes, add = (m, x, y, z, ry, rx, rz) => { m.position.set(x, y, z); m.rotation.set(rx || 0, ry || 0, rz || 0); G.add(m); return m; };
+  const grey = new THREE.MeshStandardMaterial({color:0x4a4d50, roughness:.6, metalness:.4}), dark = new THREE.MeshStandardMaterial({color:0x1c1e20, roughness:.5, metalness:.3}), white = new THREE.MeshStandardMaterial({color:0xd8d6d0, roughness:.5});
+  /* notice board between the terminal and the lockers */
+  const cork = mkTex(256, 256, (g, w, h) => { g.fillStyle = '#7a5a3a'; g.fillRect(0, 0, w, h); for (let k=0;k<6000;k++){ g.fillStyle = 'rgba(' + (40 + Math.random()*60|0) + ',' + (25 + Math.random()*40|0) + ',10,' + (.3 + Math.random()*.4) + ')'; g.fillRect(Math.random()*w, Math.random()*h, 2, 2); } });
+  add(new THREE.Mesh(new THREE.BoxGeometry(.06, 1.3, 2.4), new THREE.MeshStandardMaterial({map:cork, roughness:.95})), -12.0, 1.85, 5.4);
+  add(new THREE.Mesh(new THREE.BoxGeometry(.08, 1.42, .06), grey), -11.98, 1.85, 4.17); add(new THREE.Mesh(new THREE.BoxGeometry(.08, 1.42, .06), grey), -11.98, 1.85, 6.63); add(new THREE.Mesh(new THREE.BoxGeometry(.08, .06, 2.5), grey), -11.98, 2.53, 5.4); add(new THREE.Mesh(new THREE.BoxGeometry(.08, .06, 2.5), grey), -11.98, 1.17, 5.4);
+  const notes = [
+    {t:'WHO KEEPS TAKING THE BLUE STAPLER', o:{size:46, w:512, h:300}, s:[.36, .22], at:[4.75, 2.25]},
+    {t:'Night shift: do not let 09 see you blink.\n- R.', o:{size:44, lined:true}, s:[.3, .38], at:[5.35, 1.95]},
+    {t:'NOTICE\nThe cafeteria is closed until further notice. Do not ask Dennis about it.', o:{typed:true, title:'FACILITIES', size:24}, s:[.34, .44], at:[6.0, 1.9]},
+    {t:'Lost: one (1) left shoe.\nIf found, keep it. I am not going back in there.', o:{size:40}, s:[.32, .3], at:[4.9, 1.55]},
+    {t:'DAYS WITHOUT AN INCIDENT', o:{typed:true, size:30, h:400}, s:[.36, .28], at:[5.95, 1.42]},
+    {t:'Lift code changed. Ask security.\nSecurity is also gone.', o:{size:40, paper:'#efe7a2', w:400, h:400}, s:[.2, .2], at:[5.45, 1.5]}];
+  notes.forEach((n, i) => { const m = add(new THREE.Mesh(new THREE.PlaneGeometry(n.s[0], n.s[1]), paperMat(paperTex(n.t, n.o))), -11.955, n.at[1], n.at[0], Math.PI/2, 0, (Math.random() - .5)*.12); const pin = add(new THREE.Mesh(new THREE.SphereGeometry(.012, 6, 5), new THREE.MeshStandardMaterial({color:[0xb03030, 0x2f5fa8, 0xd8c040][i%3]})), -11.94, n.at[1] + n.s[1]/2 - .03, n.at[0]); });
+  { const z = add(new THREE.Mesh(new THREE.PlaneGeometry(.1, .08), decalMat(graffitiTex('0', 'rgba(170,30,30,.95)', 256, 200))), -11.95, 1.36, 5.95, Math.PI/2); }
+  /* broken vending machine with a taped note */
+  const vg = new THREE.Group(); vg.position.set(11.35, 0, 10.6); vg.rotation.y = -Math.PI/2 + .03; G.add(vg); CB.push({min:V(10.85, 0, 10.0), max:V(12.0, 1.95, 11.2)});
+  vg.add(add(new THREE.Mesh(new THREE.BoxGeometry(1.15, 1.95, .85), new THREE.MeshStandardMaterial({color:0x2b2f33, roughness:.45, metalness:.35})), 0, .975, 0));
+  const glass = new THREE.Mesh(new THREE.PlaneGeometry(.72, 1.3), new THREE.MeshStandardMaterial({color:0x0c0f12, roughness:.08, metalness:.6})); glass.position.set(-.14, 1.1, .43); vg.add(glass);
+  for (let r=0;r<5;r++) for (let k=0;k<4;k++){ if (Math.random() < .35) continue; const sn = new THREE.Mesh(new THREE.BoxGeometry(.12, .16, .05), new THREE.MeshStandardMaterial({color:[0x7a2a22, 0x2a4a7a, 0x8a7a2a, 0x3a6a3a][(r + k)%4], roughness:.6})); sn.position.set(-.4 + k*.17, .6 + r*.24, .36); sn.rotation.z = (Math.random() - .5)*.4; vg.add(sn); }
+  const pad = new THREE.Mesh(new THREE.BoxGeometry(.22, .5, .04), dark); pad.position.set(.4, 1.25, .43); vg.add(pad);
+  const vn = new THREE.Mesh(new THREE.PlaneGeometry(.3, .24), paperMat(paperTex('OUT OF ORDER\nAGAIN\nit ate my dollar', {size:52, w:512, h:420, ink:'rgba(10,10,10,.92)'}))); vn.position.set(-.12, 1.2, .44); vn.rotation.z = .07; vg.add(vn);
+  const tape = new THREE.Mesh(new THREE.PlaneGeometry(.12, .03), new THREE.MeshStandardMaterial({color:0xcfc8a8, transparent:true, opacity:.75})); tape.position.set(-.12, 1.32, .445); tape.rotation.z = -.15; vg.add(tape);
+  /* wet floor sign and a mop bucket somebody left behind */
+  const yl = new THREE.MeshStandardMaterial({color:0xc9a227, roughness:.55}), signT = mkTex(256, 384, (g, w, h) => { g.fillStyle = '#c9a227'; g.fillRect(0, 0, w, h); g.fillStyle = '#111'; g.font = '700 42px ' + FS; g.textAlign = 'center'; g.fillText('CAUTION', w/2, 70); g.font = '600 30px ' + FS; g.fillText('WET FLOOR', w/2, 330); g.beginPath(); g.arc(w/2, 190, 70, 0, 7); g.lineWidth = 8; g.strokeStyle = '#111'; g.stroke(); g.fillRect(w/2 - 6, 150, 12, 60); g.fillRect(w/2 - 6, 222, 12, 12); });
+  const sg = new THREE.Group(); sg.position.set(2.6, 0, 3.4); sg.rotation.y = .5; G.add(sg);
+  [-1, 1].forEach(s => { const p = new THREE.Mesh(new THREE.PlaneGeometry(.32, .62), new THREE.MeshStandardMaterial({map:signT, roughness:.6, side:THREE.DoubleSide})); p.position.set(0, .3, s*.08); p.rotation.x = s*.26; sg.add(p); });
+  const bk = new THREE.Group(); bk.position.set(3.25, 0, 3.9); G.add(bk); bk.add(add(new THREE.Mesh(new THREE.CylinderGeometry(.2, .17, .32, 16, 1, true), yl), 0, .2, 0)); bk.add(add(new THREE.Mesh(new THREE.CircleGeometry(.19, 16), new THREE.MeshStandardMaterial({color:0x3a3a30, roughness:.2})), 0, .3, 0, 0, -Math.PI/2));
+  const mop = new THREE.Mesh(new THREE.CylinderGeometry(.015, .015, 1.4, 6), new THREE.MeshStandardMaterial({color:0x7a6a4a})); mop.position.set(.05, .78, -.1); mop.rotation.set(.35, 0, .2); bk.add(mop);
+  /* paperwork on the floor, a coffee cup on the terminal, sticky notes on its bezel */
+  ['Incident report 0412\nSubject reported hearing its own name over the intercom. Intercom has been disconnected since 2019.', 'TRANSFER ORDER\nSubjects 01 through 08: reassigned.\nReason: (left blank)', 'Shift swap?\nI will take your Thursday if you take Sector B. Please. - Kay'].forEach((txt, i) => {
+    const m = add(new THREE.Mesh(new THREE.PlaneGeometry(.21, .28), paperMat(paperTex(txt, {typed:i !== 2, title:i < 2 ? 'HALVARD ANNEX' : null, size:i === 2 ? 40 : 22, lined:i === 2}))), -2.5 + i*1.4 + Math.random()*.4, .012 + i*.002, -6 - Math.random()*2, 0, -Math.PI/2); m.rotation.z = Math.random()*6; readables.push({p:m.position.clone(), text:txt.replace(/\n/g, ' '), seen:false, zone:'lobby'}); });
+  const cup = new THREE.Mesh(new THREE.CylinderGeometry(.045, .038, .11, 14), white); cup.position.set(-.3, 2.005, .1); vg.add(cup);
+  [['pw is NOT 1234', .78], ['the clock\nis wrong', .62]].forEach(q => { const m = new THREE.Mesh(new THREE.PlaneGeometry(.09, .09), paperMat(paperTex(q[0], {paper:'#efe48a', w:256, h:256, size:42}))); m.position.set(.33, q[1], .445); m.rotation.z = (Math.random() - .5)*.25; vg.add(m); });
+  /* a chair someone knocked over and nobody picked up */
+  const ch = new THREE.Group(); ch.position.set(-5.2, .24, 8.2); ch.rotation.set(0, .7, Math.PI/2); G.add(ch); ch.add(add(new THREE.Mesh(new THREE.BoxGeometry(.45, .05, .45), dark), 0, .45, 0)); ch.add(add(new THREE.Mesh(new THREE.BoxGeometry(.45, .5, .05), dark), 0, .72, -.2)); [[-.2, -.2], [.2, -.2], [-.2, .2], [.2, .2]].forEach(q => ch.add(add(new THREE.Mesh(new THREE.CylinderGeometry(.015, .015, .45, 6), grey), q[0], .22, q[1])));
+  /* tally marks scratched by the window, at sitting height */
+  add(new THREE.Mesh(new THREE.PlaneGeometry(.5, .25), decalMat(tallyTex(23))), 11.97, .95, -1.2, -Math.PI/2);
+})();
+
+/* ---------- each sector gets the marks of the people who came through before ---------- */
+const SECTOR_TAGS = [
+  ['IT MOVES WHEN YOU LOOK AWAY', 'KEEP YOUR EYES ON IT', 'DONT BLINK', 'LIFT IS NORTH. I THINK', 'J + M WERE HERE', 'WRONG WAY'],
+  ['SHH', 'IT HEARS YOU BREATHING', 'WALK. DONT RUN', 'NO TALKING PAST HERE', 'THE LIGHTS ARE LYING', 'TURN BACK'],
+  ['KEEP MOVING', 'IT DOESNT SLEEP', 'ALMOST OUT', 'THEY STOPPED COUNTING US', 'WHO TURNED THE LIGHTS OFF', 'NOT THIS WAY']];
+const SECTOR_NOTES = [
+  ['Day 6. It does not move while you watch it. I have not slept.', 'Inventory: 14 flashlights. 3 working. 0 batteries.', 'If you read this, go left at the red door. Do not go right. I went right.', 'Maintenance ticket 4471: fan in A-12 spinning backwards again. Closed as "working as intended".'],
+  ['It found Marcus by the vents. He was whispering. Do not whisper.', 'Shift log 03:12. Knocking from inside cell 9. Cell 9 has been empty since spring.', 'To whoever keeps propping the lift door with a mop: stop. - Facilities', 'Reminder: subjects are not to be addressed by name. Use numbers.'],
+  ['Being quiet does not matter down here. Just run.', 'They said the lift goes up. They did not say where.', 'Last entry. If anyone finds this, tell my sister I tried.', 'Subject 07 reached this point. Subject 07 did not reach the next one.']];
+const SPRAY = ['rgba(200,40,35,.9)', 'rgba(235,235,230,.85)', 'rgba(20,20,20,.9)', 'rgba(210,170,40,.85)'];
+function dressSector(i){
+  readables.length = 0; readables.push(...lobbyReadables);
+  if (!lvGroup || !lvBoxes) return;
+  /* find wall faces: tall thin boxes with open floor in front of them */
+  const walls = lvBoxes.filter(b => b.max.y - b.min.y > 3 && Math.min(b.max.x - b.min.x, b.max.z - b.min.z) < .8 && Math.max(b.max.x - b.min.x, b.max.z - b.min.z) > 2.4);
+  const used = [], tags = SECTOR_TAGS[i] || SECTOR_TAGS[0];
+  for (let k=0, tries=0;k<12 && tries<200;tries++){
+    const b = walls[(Math.random()*walls.length)|0]; if (!b) break; const alongX = (b.max.x - b.min.x) > (b.max.z - b.min.z), side = Math.random() < .5 ? -1 : 1;
+    const cx = alongX ? b.min.x + .8 + Math.random()*Math.max(.1, b.max.x - b.min.x - 1.6) : (side < 0 ? b.min.x - .015 : b.max.x + .015), cz = alongX ? (side < 0 ? b.min.z - .015 : b.max.z + .015) : b.min.z + .8 + Math.random()*Math.max(.1, b.max.z - b.min.z - 1.6);
+    const out = V(cx + (alongX ? 0 : side*.9), 1.2, cz + (alongX ? side*.9 : 0)); if (inBox(out) || inSafeAt(out.x, out.z) || used.some(u => u.distanceTo(out) < 6)) continue; used.push(out);
+    const tally = Math.random() < .15, txt = tags[k % tags.length], w = tally ? 1 : Math.min(3.2, .55 + txt.length*.13), h = tally ? .5 : w*.25;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), decalMat(tally ? tallyTex(5 + (Math.random()*30|0)) : graffitiTex(txt, SPRAY[(Math.random()*SPRAY.length)|0])));
+    m.position.set(cx, 1.1 + Math.random()*.9, cz); m.rotation.y = alongX ? (side < 0 ? Math.PI : 0) : (side < 0 ? -Math.PI/2 : Math.PI/2); m.rotation.z = (Math.random() - .5)*.1; lvGroup.add(m); k++;
+  }
+  /* papers on the floor; walking over one lets you read it */
+  const notes = SECTOR_NOTES[i] || SECTOR_NOTES[0], cells = []; for (let c=0;c<NC;c++) if (lvNav.nbr[c] && lvNav.nbr[c].length) cells.push(c);
+  for (let k=0;k<14;k++){ const c = cells[(Math.random()*cells.length)|0], q = cellC(c), x = q[0] + (Math.random() - .5)*5, z = q[1] + (Math.random() - .5)*5; if (inBox(V(x, .2, z))) continue;
+    const txt = k < notes.length ? notes[k] : ['MEMO', 'FORM 7-B', 'ROUTING SLIP', 'DO NOT REMOVE'][k%4], m = new THREE.Mesh(new THREE.PlaneGeometry(.21, .28), paperMat(paperTex(k < notes.length ? txt : txt + '\n' + 'Item ' + (100 + (Math.random()*900|0)) + '. Signed, illegible.', {typed:k%2 === 1, lined:k%2 === 0, title:k%2 ? 'HALVARD ANNEX' : null, size:k%2 ? 22 : 40})));
+    m.position.set(x, .012 + k*.0004, z); m.rotation.set(-Math.PI/2, 0, Math.random()*6); lvGroup.add(m); if (k < notes.length) readables.push({p:m.position.clone(), text:txt, seen:false, zone:'level'}); }
+  /* a dropped flashlight, still on, pointing at nothing */
+  { const c = cells[(Math.random()*cells.length)|0], q = cellC(c), fl = new THREE.Group(); fl.position.set(q[0] + 1, .05, q[1] - 1); fl.rotation.y = Math.random()*6; lvGroup.add(fl);
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(.03, .035, .26, 10), new THREE.MeshStandardMaterial({color:0x222426, metalness:.6, roughness:.4})); body.rotation.z = Math.PI/2; fl.add(body);
+    const beam = new THREE.Mesh(new THREE.ConeGeometry(.5, 2.4, 14, 1, true), new THREE.MeshBasicMaterial({color:0xfff3d6, transparent:true, opacity:.06, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide})); beam.rotation.z = Math.PI/2; beam.position.x = 1.33; fl.add(beam);
+    readables.push({p:fl.position.clone(), text:'A flashlight, still switched on. Whoever dropped it was in a hurry.', seen:false, zone:'level'}); }
+}
+const inSafeAt = (x, z) => Math.hypot(x, z - 32) < 10.5;
+const lobbyReadables = readables.slice();
+let readT = 0;
+function readablesTick(dt, hw){ readT -= dt; if (readT > 0) return; readT = .25; for (const r of readables){ if (r.zone === 'lobby' && state !== 'lobby') continue; if (r.zone === 'level' && state !== 'level') continue; const d = Math.hypot(r.p.x - hw.x, r.p.z - hw.z); if (d < 1.1 && !r.seen){ r.seen = true; uiClick(.5); say(r.text, Math.max(5, r.text.length/12)); } else if (d > 3) r.seen = false; } }
+
 /* ======================= ATMOSPHERE, MONSTER BEHAVIOUR, KILL CINEMATICS ======================= */
 /* ---------- global light control for every baked surface: brightness and colour grade ---------- */
 const GRADE = [new THREE.Color(1, 1, 1), new THREE.Color(1.04, .95, .93), new THREE.Color(.9, .98, 1.04)];
@@ -2387,12 +2520,13 @@ function fxTick(dt, t, hw){
   AU.wetT = state === 'arena' ? .45 : state === 'lobby' ? .32 : dead ? .12 : .26;
   vig.style.opacity = String(Math.min(1, .35 + tension*.65));
   if (kill) killTick(dt, t);
+  readablesTick(dt, hw);
 }
 function levelIntro(){ revealDone = false; tension = 0; fxL.powerT0 = performance.now() + 700; fxL.power = 0; setTimeout(() => { if (!ac) return; beep(55, 2.2, 'sawtooth', .07); [0, 450, 900, 1500].forEach(d => setTimeout(() => { noiseBurst(.25, .12, 300); thud(.35); }, d)); }, 900); monsters.forEach(monsterInit); }
 
 /* ---------- Main loop ---------- */
 drawTerm(); drawHud(); initNet(); askMic();
-if (document.fonts) Promise.all([document.fonts.load('500 30px "IBM Plex Sans Condensed"'), document.fonts.load('400 16px "IBM Plex Mono"')]).then(() => { LABELS.forEach(f => f()); drawTerm(); drawHud(); boards.forEach(b => { b.last = ''; }); avs.forEach(a => { a.name = ''; }); prev.name = ''; }).catch(() => {});
+if (document.fonts) Promise.all([document.fonts.load('500 30px "IBM Plex Sans Condensed"'), document.fonts.load('400 16px "IBM Plex Mono"'), document.fonts.load('40px "Caveat"'), document.fonts.load('40px "Permanent Marker"'), document.fonts.load('24px "Special Elite"')]).then(() => { LABELS.forEach(f => f()); drawTerm(); drawHud(); boards.forEach(b => { b.last = ''; }); avs.forEach(a => { a.name = ''; }); prev.name = ''; }).catch(() => {});
 setInterval(() => { if (state === 'lobby' && (ui.s === 'name' || ui.s === 'code')) drawTerm(); }, 500);
 window.__s09 = {arena:() => enterArena(), level:i => enterLevel(i, 'normal'), lobby:() => enterLobby(), info:() => ({room:roomLabel, peers:R ? R.peers().length : 0, mic:micLabel(), voices:[...voices.values()].map(v => +v.g.gain.value.toFixed(2)), names:R ? R.peers().map(q => q.presence && q.presence.n) : [], state:state, lv:lvIdx, boxes:boxes.length, monsters:monsters.length, pos:headW().toArray().map(v => +v.toFixed(2)), calls:renderer.info.render.calls, tris:renderer.info.render.triangles, geos:renderer.info.memory.geometries}), look:(y, p) => { yaw = y; pitch = p || 0; camera.rotation.set(pitch, yaw, 0); }, tp:(x, z) => { rig.position.set(x, 0, z); }, renderer:renderer};
 renderer.setAnimationLoop(() => {
@@ -2412,7 +2546,7 @@ renderer.setAnimationLoop(() => {
       if (round) roundTick();
       else {
         safeTick(dt); monstersTick(dt, hw, t); lvPortals.forEach(p => { if (inSafe() && near3(p.pos, 1.1)) usePortal(p.m); });
-        if (near3(lvExit.position, 1.5) && !pendingLv){ if (lvIdx < 2){ beep(98, 1.2, 'sine', .12); noiseBurst(.6, .08, 220); enterLevel(lvIdx + 1, 'normal'); } else if (!window.__s09esc){ window.__s09esc = 1; flash.material.color.setHex(0xffffff); flash.material.opacity = 1; [262, 330, 392, 523].forEach((f, k) => beep(f, 2.6, 'sine', .09, k*.22)); beep(131, 3.2, 'triangle', .08); say('You escaped Subject 09.', 6); setTimeout(() => { window.__s09esc = 0; flash.material.color.setHex(0xdadddf); enterLobby('You escaped Subject 09. The facility will want you back.'); }, 2600); } }
+        if (near3(lvExit.position, 1.5) && !pendingLv){ if (lvIdx < 2){ beep(98, 1.2, 'sine', .12); noiseBurst(.6, .08, 220); enterLevel(lvIdx + 1, 'normal'); } else if (!window.__s09esc){ window.__s09esc = 1; flash.material.color.setHex(0xffffff); flash.material.opacity = 1; [262, 330, 392, 523].forEach((f, k) => beep(f, 2.6, 'sine', .09, k*.22)); beep(131, 3.2, 'triangle', .08); say('Daylight. Or something like it.', 6); setTimeout(() => { window.__s09esc = 0; flash.material.color.setHex(0xdadddf); enterLobby('You made it out. Your file has been stamped UNRESOLVED.'); }, 2600); } }
       }
     }
     if (state === 'level' && round && dead) roundTick();
