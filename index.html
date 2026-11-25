@@ -514,9 +514,10 @@ function drawBoards(cnt, win){
 }
 
 /* ---------- Identity / terminal ---------- */
-const COLORS = ['#e3e5e6','#b9bcbe','#8f9396','#66696c','#43464a','#8a9499','#9b958d','#6f7a73'];
+const COLORS = ['#e23b3b','#ff7a1a','#f7c331','#9bd84a','#2fbf71','#1fb5a8','#2aa7e0','#3b6fe2','#7a4fe0','#c34fe0','#ff5fa8','#8a5a3c',
+  '#ffffff','#c9ccce','#8f9396','#4a4d51','#1c1d1f','#6b4a2f','#d9b48a','#7fd6ff','#b8ff6b','#ffd1e8','#7a1418','#0f5d3e'];
 const pad4 = n => ('0000' + n).slice(-4);
-let myName = 'Subject ' + pad4(Math.random()*10000|0), myColor = COLORS[Math.random()*8|0], lastNameAt = 0, myVote = 0, nameAuto = true, isOwner = false, R = null, roomLabel = 'Offline', roomCap = null;
+let myName = 'Subject ' + pad4(Math.random()*10000|0), myColor = COLORS[Math.random()*12|0], lastNameAt = 0, myVote = 0, nameAuto = true, isOwner = false, R = null, roomLabel = 'Offline', roomCap = null;
 try { const sn = localStorage.getItem('s09Name'); if (sn){ myName = sn; nameAuto = false; } const sc = localStorage.getItem('s09Color'); if (sc) myColor = sc; lastNameAt = +localStorage.getItem('s09NameAt') || 0; } catch(e){}
 const TW = 2.4, TH = 1.6, tcv = cv(768, 512), tg = tcv.getContext('2d'), tTex = new THREE.CanvasTexture(tcv);
 const term = new THREE.Mesh(new THREE.PlaneGeometry(TW, TH), new THREE.MeshBasicMaterial({map:tTex, fog:false})); term.position.set(-11.78, 1.5, 2); term.rotation.y = Math.PI/2; lobbyG.add(term);
@@ -529,7 +530,7 @@ function rects(){
   else if (ui.s === 'snd'){ [['m', 'MUSIC'], ['e', 'EFFECTS'], ['v', 'VOICE']].forEach((q, i) => { const y = 122 + i*92; B(372, y, 80, 64, '-', 'vol-' + q[0]); B(652, y, 80, 64, '+', 'vol+' + q[0]); }); B(36, 420, 696, 52, 'BACK', 'back', {n:'<'}); }
   else if (ui.s === 'bm'){ [['g', 'GHOST'], ['i', 'INVISIBLE'], ['w', 'WALL SEE'], ['f', 'FINISHER']].forEach((q, i) => B(36, 100 + i*62, 330, 52, q[1], 'bk:' + q[0], {n:'0' + (i + 1), v:BMX.bind === q[0] ? '...' : keyName(BMS.keys[q[0]])}));
     [['esc', 'HEAD START', BMS.esc + 'S'], ['cdk', 'COOLDOWNS', BM_CDN[BMS.cdk]], ['ad', 'ABILITY TIME', BMS.ad + 'S'], ['rv', 'ROAR VOLUME', Math.round(BMS.rv*100) + '%'], ['rd', 'ROAR LENGTH', BMS.rd + 'S'], ['gore', 'GORE', BMS.gore ? 'ON' : 'OFF']].forEach((q, i) => B(392, 100 + i*52, 340, 44, q[1], 'bs:' + q[0], {n:'0' + (i + 5), v:q[2]})); B(36, 420, 696, 52, 'BACK', 'back', {n:'<'}); }
-  else if (ui.s === 'color'){ COLORS.forEach((c, i) => B(36 + (i%4)*176, 132 + (i/4|0)*118, 164, 106, '', 'col' + i, {f:c})); B(36, 404, 696, 50, 'BACK', 'back', {n:'<'}); }
+  else if (ui.s === 'color'){ COLORS.forEach((c, i) => B(36 + (i%6)*116, 112 + (i/6|0)*72, 108, 62, '', 'col' + i, {f:c})); B(36, 412, 696, 50, 'BACK', 'back', {n:'<'}); }
   else {
     ['1234567890', 'QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'].forEach((row, ri) => { const x0 = (768 - (row.length*66 - 6))/2; row.split('').forEach((ch, i) => B(x0 + i*66, 196 + ri*54, 60, 48, ch, 'k')); });
     B(36, 420, 160, 52, 'DELETE', 'del'); B(208, 420, 160, 52, 'BACK', 'back'); B(380, 420, 352, 52, 'CONFIRM', 'ok', {pri:true});
@@ -546,7 +547,7 @@ function drawTerm(){
     g.font = '500 48px ' + FS; g.fillStyle = '#e4e6e7'; spaced(g, myName.toUpperCase(), 36, 128, 3);
     g.font = '400 15px ' + FM; g.fillStyle = '#8b9093'; spaced(g, roomLabel.toUpperCase() + '   PRESENT ' + peers + '   COINS ' + coins, 36, 168, 2);
     if (ui.msg){ g.textAlign = 'right'; g.fillStyle = '#c4c7c9'; spaced(g, ui.msg.toUpperCase(), 732, 88, 1); g.textAlign = 'left'; }
-  } else if (ui.s === 'color'){ g.font = '400 15px ' + FM; g.fillStyle = '#6c7174'; spaced(g, 'SELECT COLOR', 36, 96, 3); }
+  } else if (ui.s === 'color'){ g.font = '400 15px ' + FM; g.fillStyle = '#6c7174'; spaced(g, 'PICK YOUR COLOR', 36, 86, 3); }
   else if (ui.s === 'snd'){
     g.font = '400 15px ' + FM; g.fillStyle = '#6c7174'; spaced(g, 'SOUND SETTINGS', 36, 88, 3);
     [['m', 'MUSIC'], ['e', 'EFFECTS'], ['v', 'VOICE CHAT']].forEach((q, i) => { const y = 154 + i*92, v = SV[q[0]]; g.font = '500 26px ' + FS; g.fillStyle = '#e4e6e7'; spaced(g, q[1], 36, y, 3); g.fillStyle = '#1d2021'; rrect(g, 466, y - 6, 172, 12, 3); g.fill(); g.fillStyle = '#d6d9db'; rrect(g, 466, y - 6, Math.max(6, 172*v), 12, 3); g.fill(); g.font = '400 15px ' + FM; g.fillStyle = '#8b9093'; g.textAlign = 'right'; g.fillText(Math.round(v*100) + '%', 360, y); g.textAlign = 'left'; });
@@ -592,6 +593,7 @@ let mutedMe = false, kickedUntil = 0, banned = false;
 try { banned = localStorage.getItem('s09Ban') === '1'; } catch(e){}
 const modPeers = () => R ? R.peers().filter(p => !p.isMe && p.presence) : [];
 let ownerMods = [], modNames = new Set(); try { ownerMods = JSON.parse(localStorage.getItem('s09Mods') || '[]') || []; modNames = new Set(JSON.parse(localStorage.getItem('s09ModsSeen') || '[]') || []); } catch(e){}
+try { if (!localStorage.getItem('s09ModsSeed')){ ['MATT', 'PENGUINGT'].forEach(n => { if (ownerMods.indexOf(n) < 0) ownerMods.push(n); modNames.add(n); }); localStorage.setItem('s09Mods', JSON.stringify(ownerMods)); localStorage.setItem('s09ModsSeed', '1'); } } catch(e){}
 const isModName = n => !!n && modNames.has(String(n));
 const amMod = () => !isOwner && isModName(myName);
 /* the owner and moderators can't be kicked or silenced by a moderator */
@@ -687,7 +689,7 @@ function limbG(len, r0, r1){ if (len > .3) return monLimb(len, r0, r1); const k 
 function ell(m, sx, sy, sz, x, y, z){ const s = new THREE.Mesh(SPH, m); s.scale.set(sx, sy, sz); s.position.set(x || 0, y || 0, z || 0); return s; }
 /* fur: short strands, used as color and bump so the flashlight picks up texture */
 const FUR = mkTex(256, 256, (g, w, h) => {
-  g.fillStyle = '#909090'; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#e2e2e2'; g.fillRect(0, 0, w, h);
   for (let i=0;i<7000;i++){ const x = RR()*w, y = RR()*h, l = 3 + RR()*8, a = (RR() - .5)*.7, v = RR(); g.strokeStyle = v < .55 ? 'rgba(0,0,0,' + (.08 + RR()*.2) + ')' : 'rgba(255,255,255,' + (.05 + RR()*.14) + ')'; g.lineWidth = .8 + RR()*.9; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.sin(a)*l, y + Math.cos(a)*l); g.stroke(); }
 }); FUR.repeat.set(3, 2);
 const HIDE = mkTex(256, 256, (g, w, h) => {
@@ -2670,11 +2672,16 @@ function bmDz(a){
   meshes.forEach(x => { let m = x.material; if (m === a.mat || m === a.mat.userData.twin){ if (!m.userData.dz) dzPatch(m, U); return; } if (!cache.has(m)){ const c = m.clone(); dzPatch(c, U); cache.set(m, c); } x.material = cache.get(m); });
   a.head.rotation.order = 'YXZ'; a.dz = U; return U;
 }
-function bmCreature(li){
+function bmCreature(li, special){
   const c = makeCreature({sc:1}, li), U = dzU(), cache = new Map(); c.dz = U; c.fing = [];
   c.g.traverse(x => { if (x.isMesh){ const m = x.material; if (!cache.has(m)){ const k = m.clone(); dzPatch(k, U); cache.set(m, k); } x.material = cache.get(m); } });
   c.arms.forEach(a => { a.el.children.forEach(h => { if (h.isGroup) h.children.forEach(f => { if (f.isGroup) c.fing.push(f); }); }); });
-  c.eyeM = cache.get(c.mats[2]); c.g.visible = false; scene.add(c.g); return c;
+  c.eyeM = cache.get(c.mats[2]);
+  if (special){ const sk = cache.get(c.mats[0]) || c.mats[0], th = cache.get(c.mats[3]) || c.mats[3]; sk.color.setHex(0x2b2624); sk.roughness = .32; sk.emissive = new THREE.Color(0x1a0f02); th.color.setHex(0xe2b33a); th.metalness = .7; th.roughness = .25; if (c.eyeM) c.eyeM.color.setHex(0xffc23a); c.special = true;
+    const cr = makeCrown(); cr.scale.setScalar(1.25); cr.position.set(0, .245, -.01); cr.rotation.x = .12; c.head.add(cr);
+    [-1, 1].forEach(s => { for (let k=0;k<3;k++){ const h = new THREE.Mesh(CONE, GOLD); h.scale.set(.024 - k*.006, .07, .024 - k*.006); h.position.set(s*(.075 + k*.028), .19 + k*.045, -.04 - k*.02); h.rotation.set(-.4, 0, -s*(.4 + k*.35)); c.head.add(h); } });
+    c.spine.traverse(o => { if (o.isMesh && o.geometry === CYL) o.material = GOLD; }); }
+  c.g.visible = false; scene.add(c.g); return c;
 }
 /* ghost and x-ray looks: bright rim, see-through middle */
 const RIMV = 'varying vec3 vN; varying vec3 vV; void main(){ vec4 mv = modelViewMatrix*vec4(position, 1.); vN = normalize(normalMatrix*normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix*mv; }';
@@ -2849,7 +2856,7 @@ function bmRoarFx(T, pos){
 
 /* ---------- the monster player's own body and the HUD bits ---------- */
 let selfCr = null;
-function selfCreature(){ if (!selfCr){ selfCr = bmCreature(lvIdx); selfCr.neck.visible = false; } return selfCr; }
+function selfCreature(){ if (!selfCr){ selfCr = bmCreature(lvIdx, isOwner || amMod()); selfCr.neck.visible = false; } return selfCr; }
 /* camera-locked banner for countdowns (works the same in VR and on screen) */
 const BNC = cv(1024, 192), BNG = BNC.getContext('2d'), BNT = new THREE.CanvasTexture(BNC);
 const bnr = new THREE.Mesh(new THREE.PlaneGeometry(.8, .15), new THREE.MeshBasicMaterial({map:BNT, transparent:true, depthTest:false, depthWrite:false, fog:false})); bnr.position.set(0, .2, -1); bnr.renderOrder = 1001; bnr.visible = false; camera.add(bnr);
@@ -2941,7 +2948,7 @@ function poseCreature(c, x, z, yaw, pitch, hl, hr, dt, t, B){
   const spd = Math.hypot(p.x - ox, p.z - oz)/Math.max(dt, 1e-3); B.spd = (B.spd || 0) + (spd - (B.spd || 0))*Math.min(1, dt*6);
   const st = animCreature(c, dt, B.spd, t, .18, false); if (st && B.spd > 1.2 && !B.silent && ac) stepAt(p.x, .1, p.z, Math.min(.5, .15 + B.spd*.06), true);
   c.head.rotation.x = Math.max(-.7, Math.min(.8, -pitch*.85)); c.neck.rotation.y = 0;
-  if (hl && hr){ c.g.updateWorldMatrix(true, true); const fm = {T:{sc:c.g.scale.x}, g:c.g}; reachTo(fm, c.arms[0], hl, -1); reachTo(fm, c.arms[1], hr, 1); }
+  if (hl && hr){ c.g.updateWorldMatrix(true, true); const fm = {T:{sc:c.g.scale.x}, g:c.g}; reachTo(fm, c.arms[1], hl, 1); reachTo(fm, c.arms[0], hr, -1); }
 }
 /* transformation and roar, on a gorilla avatar 'a' paired with creature 'c'; el is seconds since the round started */
 function transformPose(a, c, base, el, T, dt, t, sfx){
@@ -3106,7 +3113,7 @@ function bmTick(dt, t, hw){
   /* the monster, as everyone else sees it */
   const mA = monP && avs.get(monP.peer);
   if (mA){
-    const pr = monP.presence; let B = mA.bm; if (!B){ B = mA.bm = {a:mA, c:bmCreature(lvIdx)}; BMX.crs.add(B); }
+    const pr = monP.presence; let B = mA.bm; if (!B){ B = mA.bm = {a:mA, c:bmCreature(lvIdx, pr.o === 1 || isModName(pr.n))}; if (B.c.special && el < T.tf0 + 1) say((pr.n || 'The monster') + ' is a moderator. Their monster is special.', 4); BMX.crs.add(B); }
     const cur = bmRx(pr), p = pr.p || [0, 1, 0], yaw = +pr.r || 0;
     if (!B.base) B.base = {x:p[0], z:p[2], yaw:yaw};
     if (bmK && bmK.c === B.c){ [mA.head, mA.torso].concat(...mA.arms.map(m => [m.u, m.f, m.e, m.h])).forEach(o => { o.visible = false; }); }
@@ -3151,7 +3158,7 @@ function bmTick(dt, t, hw){
       const u = clamp01((el - T.tf0)/(T.tf1 - T.tf0)), eyeH = hw.y - rig.position.y, s = Math.max(.6, Math.min(1.25, (eyeH - .1)/1.82)) * (.8 + .2*ease((u - .42)/.46));
       sc.g.visible = true; sc.g.scale.setScalar(s); sc.dz.uT.value = t; sc.dz.uD.value = BMX.ab && BMX.ab.k === 'i' ? .55 : 1 - ease((u - .36)/.42); sc.dz.uEdge.value.setRGB(BMX.ab && BMX.ab.k === 'i' ? .35 : 1, BMX.ab && BMX.ab.k === 'i' ? .8 : .3, BMX.ab && BMX.ab.k === 'i' ? 1 : .06);
       fxV3.set(-Math.sin(yw), 0, -Math.cos(yw)); sc.g.position.set(hw.x - fxV3.x*.26, rig.position.y, hw.z - fxV3.z*.26); sc.g.rotation.y = yw + Math.PI; animCreature(sc, dt, BMX.released ? Math.min(4, vel.length()) : 0, t, .12, false);
-      sc.g.updateWorldMatrix(true, true); const fm = {T:{sc:s}, g:sc.g}; if (hl) reachTo(fm, sc.arms[0], hl, -1); if (hr) reachTo(fm, sc.arms[1], hr, 1);
+      sc.g.updateWorldMatrix(true, true); const fm = {T:{sc:s}, g:sc.g}; if (hl) reachTo(fm, sc.arms[1], hl, 1); if (hr) reachTo(fm, sc.arms[0], hr, -1);
       if (!vrv && el >= T.tf1 + T.rd) sc.g.visible = false;
     } else sc.g.visible = false;
     /* how the change feels from inside: red pulses with a heartbeat, the controllers kick */
@@ -3208,16 +3215,16 @@ addEventListener('keydown', e => {
 function bmSpd(){ return isBM() && amMon ? (BMX.ab && BMX.ab.k === 'g' ? 1.5 : 1.12) : 1; }
 
 /* ======================= COINS, COSMETICS, THE COSMETICS HALLWAY, THE OWNER STATUE, THE MIRROR ======================= */
-let coins = 0, ownedCos = new Set(), myCos = {hat:'', face:'', neck:''};
+let coins = 0, ownedCos = new Set(), myCos = {hat:'', face:'', neck:'', hand:''};
 try { coins = Math.max(0, +localStorage.getItem('s09Coins') || 0); ownedCos = new Set(JSON.parse(localStorage.getItem('s09Own') || '[]') || []); Object.assign(myCos, JSON.parse(localStorage.getItem('s09Cos') || '{}') || {}); } catch(e){}
 function saveCos(){ try { localStorage.setItem('s09Coins', String(coins)); localStorage.setItem('s09Own', JSON.stringify([...ownedCos])); localStorage.setItem('s09Cos', JSON.stringify(myCos)); } catch(e){} }
-const myCosArr = () => [myCos.hat || '', myCos.face || '', myCos.neck || ''];
+const myCosArr = () => [myCos.hat || '', myCos.face || '', myCos.neck || '', myCos.hand || ''];
 function addCoins(n, why, quiet){ coins += n; saveCos(); if (!playS('coin', {vol:.8})) beep(1320, .12, 'square', .05); if (!quiet) say('+' + n + ' coins' + (why ? '. ' + why : '.'), 3); cosDirty = true; drawTerm(); }
 const COS = [
   {id:'party', n:'PARTY HAT', s:'hat', p:25}, {id:'tie', n:'TIE', s:'neck', p:20}, {id:'hard', n:'HARD HAT', s:'hat', p:35}, {id:'shades', n:'SUNGLASSES', s:'face', p:40}, {id:'tophat', n:'TOP HAT', s:'hat', p:60},
-  {id:'phones', n:'HEADPHONES', s:'hat', p:70}, {id:'horns', n:'DEVIL HORNS', s:'hat', p:90}, {id:'chain', n:'GOLD CHAIN', s:'neck', p:100}, {id:'eyes', n:'RED EYES', s:'face', p:120}, {id:'halo', n:'HALO', s:'hat', p:150}];
+  {id:'phones', n:'HEADPHONES', s:'hat', p:70}, {id:'horns', n:'DEVIL HORNS', s:'hat', p:90}, {id:'chain', n:'GOLD CHAIN', s:'neck', p:100}, {id:'eyes', n:'RED EYES', s:'face', p:120}, {id:'halo', n:'HALO', s:'hat', p:150}, {id:'penguin', n:'PENGUIN', s:'hand', p:0, only:'PENGUINGT'}];
 const cosById = id => COS.find(c => c.id === id);
-const hasCos = id => isOwner || ownedCos.has(id);
+const hasCos = id => { const c = cosById(id); if (c && c.only) return isOwner || myName === c.only; return isOwner || amMod() || ownedCos.has(id); };
 /* the items themselves, sized for the gorilla head (faces -z) and torso */
 const CM = {
   black:new THREE.MeshStandardMaterial({color:0x111214, roughness:.5}), red:new THREE.MeshStandardMaterial({color:0x9a1218, roughness:.45}), yel:new THREE.MeshStandardMaterial({color:0xf0b81c, roughness:.4}),
@@ -3236,6 +3243,14 @@ function cosMesh(id){
   else if (id === 'shades'){ [-1, 1].forEach(s => { const l = M(new THREE.SphereGeometry(.034, 14, 10), CM.lens, s*.058, .02, -.145); l.scale.set(1.15, .8, .35); }); M(new THREE.BoxGeometry(.04, .008, .008), CM.black, 0, .03, -.158); [-1, 1].forEach(s => M(new THREE.BoxGeometry(.008, .008, .12), CM.black, s*.1, .03, -.09)); }
   else if (id === 'eyes'){ [-1, 1].forEach(s => { const e = M(new THREE.SphereGeometry(.018, 12, 8), CM.glowR, s*.059, .018, -.138); e.scale.z = .6; }); }
   else if (id === 'chain'){ const c = M(new THREE.TorusGeometry(.15, .011, 8, 30), CM.gold, 0, .19, -.06); c.rotation.x = 1.25; M(new THREE.CylinderGeometry(.03, .03, .01, 16), CM.gold, 0, .1, -.23).rotation.x = Math.PI/2; }
+  else if (id === 'penguin'){ const P = new THREE.Group(); g.add(P); P.position.set(0, .035, -.075);
+    const bl = CM.pb || (CM.pb = new THREE.MeshStandardMaterial({color:0x15171b, roughness:.45})), wh = CM.pw || (CM.pw = new THREE.MeshStandardMaterial({color:0xf3f3ef, roughness:.5})), or = CM.po || (CM.po = new THREE.MeshStandardMaterial({color:0xf29a1c, roughness:.45})); [bl, wh, or].forEach(m => { m.userData.keep = true; });
+    const e = (m, sx, sy, sz, x, y, z) => { const o = ell(m, sx, sy, sz, x, y, z); P.add(o); return o; };
+    e(bl, .062, .088, .056, 0, .09, 0); e(wh, .048, .07, .03, 0, .082, -.03); e(bl, .046, .044, .044, 0, .19, 0); e(wh, .022, .018, .012, -.017, .195, -.036); e(wh, .022, .018, .012, .017, .195, -.036);
+    e(PUP, .007, .008, .005, -.016, .198, -.046); e(PUP, .007, .008, .005, .016, .198, -.046); e(GLINT, .002, .002, .001, -.014, .201, -.0505); e(GLINT, .002, .002, .001, .018, .201, -.0505);
+    const bk = new THREE.Mesh(CONE, or); bk.scale.set(.012, .034, .012); bk.rotation.x = -Math.PI/2; bk.position.set(0, .182, -.056); P.add(bk);
+    [-1, 1].forEach(s => { const fl = e(bl, .012, .055, .03, s*.064, .1, .005); fl.rotation.z = s*.35; e(or, .022, .007, .03, s*.024, .008, -.018); });
+    g.userData.pen = P; }
   else if (id === 'tie'){ M(new THREE.BoxGeometry(.04, .035, .02), CM.red, 0, .25, -.2); const b = M(new THREE.BoxGeometry(.05, .2, .012), CM.red, 0, .13, -.225); b.rotation.x = .2; }
   return g;
 }
@@ -3243,12 +3258,13 @@ function cosMesh(id){
 function cosApply(a, cs){
   if (!a.cos) a.cos = {}; const want = new Set(Array.isArray(cs) ? cs.filter(id => cosById(id)) : []);
   if (a.crown && a.crown.visible) COS.forEach(c => { if (c.s === 'hat') want.delete(c.id); });
-  for (const id of want){ if (!a.cos[id]){ const m = cosMesh(id); (cosById(id).s === 'neck' ? a.torso : a.head).add(m); a.cos[id] = m; } }
-  for (const id in a.cos){ a.cos[id].visible = want.has(id); const b = a.cos[id].userData.bob; if (b && a.cos[id].visible) b.position.y = .34 + Math.sin(performance.now()*.003)*.008; }
+  for (const id of want){ if (!a.cos[id]){ const m = cosMesh(id), sl = cosById(id).s; (sl === 'neck' ? a.torso : sl === 'hand' ? a.hr : a.head).add(m); a.cos[id] = m; } }
+  for (const id in a.cos){ a.cos[id].visible = want.has(id); const b = a.cos[id].userData.bob; if (b && a.cos[id].visible) b.position.y = .34 + Math.sin(performance.now()*.003)*.008; const pn = a.cos[id].userData.pen; if (pn && a.cos[id].visible) pn.rotation.z = Math.sin(performance.now()*.004)*.12; }
 }
 function equip(id){ const c = cosById(id); if (!c) return; myCos[c.s] = myCos[c.s] === id ? '' : id; saveCos(); cosDirty = true; pub({cs:myCosArr()}); }
 function buyOrWear(id){
   const c = cosById(id); if (!c) return;
+  if (c.only && !hasCos(id)){ if (!playS('ui_deny', {vol:.6})) beep(180, .12, 'square', .06); say('Only ' + c.only + ' can hold the penguin.', 2.5); return; }
   if (hasCos(id)){ equip(id); if (!playS('ui_conf', {vol:.7})) uiClick(); say(myCos[c.s] === id ? 'Wearing ' + c.n.toLowerCase() + '.' : 'Took off ' + c.n.toLowerCase() + '.', 2); return; }
   if (coins < c.p){ if (!playS('ui_deny', {vol:.6})) beep(180, .12, 'square', .06); say('You need ' + (c.p - coins) + ' more coins for that.', 2.5); return; }
   coins -= c.p; ownedCos.add(id); equip(id); playS('buy', {vol:.8}); playS('coin', {vol:.6}); say('Bought ' + c.n.toLowerCase() + '. You are wearing it now.', 3); [0, 1].forEach(i => pulse(i, .5, 80));
@@ -3284,9 +3300,9 @@ const hallMat = {wall:new THREE.MeshStandardMaterial({color:0x2a2b2d, roughness:
 /* displays: a small bust wearing the item, a sign and a button */
 const disp = [], BUST = new THREE.MeshStandardMaterial({color:0x8c8f93, roughness:.55}); BUST.userData.keep = true;
 COS.forEach((c, k) => {
-  const side = k%2 ? 1 : -1, z = HZ0 + 3 + Math.floor(k/2)*4.6, x = HX + side*(HW/2 - .55), g = new THREE.Group(); g.position.set(x, 0, z); cosG.add(g);
+  const side = k%2 ? 1 : -1, z = HZ0 + 3 + Math.floor(k/2)*3.6, x = HX + side*(HW/2 - .55), g = new THREE.Group(); g.position.set(x, 0, z); cosG.add(g);
   const ped = new THREE.Mesh(new THREE.CylinderGeometry(.32, .38, 1.05, 20), arMat.dark); ped.position.y = .525; g.add(ped); const top = new THREE.Mesh(new THREE.CylinderGeometry(.34, .34, .04, 20), CM.gold); top.position.y = 1.07; g.add(top);
-  const bust = new THREE.Group(); bust.position.y = 1.32; g.add(bust); const hd = new THREE.Mesh(GOR_HEAD, BUST); bust.add(hd); bust.add(cosMesh(c.id)); if (c.s === 'neck'){ bust.position.y = 1.62; const tr = new THREE.Mesh(GOR_TORSO, BUST); tr.position.y = -.45; bust.add(tr); hd.position.y = 0; bust.scale.setScalar(.8); bust.position.y = 1.55; }
+  const bust = new THREE.Group(); bust.position.y = 1.32; g.add(bust); const hd = new THREE.Mesh(GOR_HEAD, BUST); bust.add(hd); const cmh = cosMesh(c.id); bust.add(cmh); if (c.s === 'hand'){ hd.visible = false; bust.scale.setScalar(2.4); bust.position.y = 1.1; cmh.position.z = .075; } if (c.s === 'neck'){ bust.position.y = 1.62; const tr = new THREE.Mesh(GOR_TORSO, BUST); tr.position.y = -.45; bust.add(tr); hd.position.y = 0; bust.scale.setScalar(.8); bust.position.y = 1.55; }
   const glass = new THREE.Mesh(new THREE.CylinderGeometry(.33, .33, .9, 20, 1, true), arMat.glass); glass.position.y = 1.55; g.add(glass);
   const cvs = cv(512, 256), ctx = cvs.getContext('2d'), tex = new THREE.CanvasTexture(cvs); const sign = new THREE.Mesh(new THREE.PlaneGeometry(.9, .45), new THREE.MeshBasicMaterial({map:tex, transparent:true, fog:false})); sign.position.set(side*.5, 2.35, 0); sign.rotation.y = -side*Math.PI/2; g.add(sign);
   const btn = new THREE.Mesh(new THREE.CylinderGeometry(.09, .09, .05, 20), new THREE.MeshStandardMaterial({color:0x2aa84a, emissive:0x0c4018, roughness:.4})); btn.rotation.z = side*Math.PI/2; btn.position.set(-side*.36, .95, 0); g.add(btn);
@@ -3295,11 +3311,11 @@ COS.forEach((c, k) => {
 });
 let cosDirty = true;
 function drawDisp(d){
-  const c = d.c, wear = myCos[c.s] === c.id, own = hasCos(c.id), key = c.id + own + wear + coins; if (key === d.last) return; d.last = key; const g = d.ctx;
+  const c = d.c, wear = myCos[c.s] === c.id, own = hasCos(c.id), key = c.id + own + wear + coins + myName; if (key === d.last) return; d.last = key; const g = d.ctx;
   g.clearRect(0, 0, 512, 256); rrect(g, 6, 6, 500, 244, 14); g.fillStyle = 'rgba(10,10,11,.88)'; g.fill(); g.strokeStyle = wear ? '#f0c040' : 'rgba(240,192,64,.35)'; g.lineWidth = 4; g.stroke();
   g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#f1f2f3'; g.font = '600 52px ' + FS; spaced(g, c.n, 256, 70, 4);
-  g.font = '400 22px ' + FM; g.fillStyle = '#8b9093'; spaced(g, (c.s === 'hat' ? 'HEAD' : c.s === 'face' ? 'FACE' : 'NECK'), 256, 118, 4);
-  g.font = '600 40px ' + FS; g.fillStyle = wear ? '#f0c040' : own ? '#9fe0b0' : coins >= c.p ? '#f1f2f3' : '#d06060'; spaced(g, wear ? 'WEARING' : own ? 'OWNED  /  PRESS TO WEAR' : c.p + ' COINS', 256, 180, 3);
+  g.font = '400 22px ' + FM; g.fillStyle = '#8b9093'; spaced(g, c.only ? 'HOLD IT  /  ' + c.only + ' ONLY' : (c.s === 'hat' ? 'HEAD' : c.s === 'face' ? 'FACE' : 'NECK') + (amMod() ? '  /  FREE FOR MODS' : ''), 256, 118, 3);
+  g.font = '600 40px ' + FS; g.fillStyle = wear ? '#f0c040' : own ? '#9fe0b0' : coins >= c.p ? '#f1f2f3' : '#d06060'; spaced(g, wear ? (c.s === 'hand' ? 'HOLDING' : 'WEARING') : own ? (c.s === 'hand' ? 'PRESS TO HOLD' : 'OWNED  /  PRESS TO WEAR') : c.only ? 'LOCKED' : c.p + ' COINS', 256, 180, 3);
   d.tex.needsUpdate = true; d.btn.material.color.setHex(wear ? 0xd0a030 : own || coins >= c.p ? 0x2aa84a : 0x7a2020);
 }
 /* coin counter at the hallway entrance */
@@ -3362,6 +3378,20 @@ function cosTick(dt, t, hw){
     setAv(selfAv, {c:myColor, n:myName, o:isOwner ? 1 : 0, p:[hw.x, hw.y, hw.z], a:a, b:b, r:yw, cs:myCosArr()}, false); selfAv.tag.s.visible = false; selfAv.own.visible = false; if (selfAv.modB) selfAv.modB.visible = false; selfAv.head.visible = false;
     if (!(vr && (hands[0].has || hands[1].has))) selfAv.g.visible = false; }
 }
+/* ---------- wall of fame, beside the monster chamber window ---------- */
+(function(){
+  const g = new THREE.Group(); g.position.set(11.98, 0, 2.4); g.rotation.y = -Math.PI/2; lobbyG.add(g); const FAME = ['MATT', 'PENGUINGT'];
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(5.2, 3.3, .06), new THREE.MeshStandardMaterial({color:0x141416, roughness:.5})); panel.position.set(0, 2.75, -.03); g.add(panel);
+  [[0, 4.42, 5.36, .08], [0, 1.08, 5.36, .08], [-2.64, 2.75, .08, 3.42], [2.64, 2.75, .08, 3.42]].forEach(q => { const b = new THREE.Mesh(new THREE.BoxGeometry(q[2], q[3], .1), CM.gold); b.position.set(q[0], q[1], 0); g.add(b); });
+  const tt = new THREE.Mesh(new THREE.PlaneGeometry(3.6, .5), new THREE.MeshBasicMaterial({map:labelTex('WALL OF FAME', '#f0c040', 1024, 140, 100), transparent:true, fog:false})); tt.position.set(0, 4.02, .01); g.add(tt);
+  const BR = new THREE.MeshStandardMaterial({color:0x8a6a3c, roughness:.35, metalness:.6, emissive:0x1c1206});
+  FAME.forEach((n, k) => { const x = (k - (FAME.length - 1)/2)*2.3;
+    const sh = new THREE.Mesh(new THREE.BoxGeometry(1, .08, .45), CM.gold); sh.position.set(x, 2.05, .22); g.add(sh);
+    const b = new THREE.Group(); b.position.set(x, 2.42, .24); b.rotation.y = Math.PI; g.add(b); b.add(new THREE.Mesh(GOR_HEAD, BR)); const tr = new THREE.Mesh(GOR_TORSO, BR); tr.position.y = -.36; tr.scale.set(.8, .45, .8); b.add(tr); b.add(makeCrown()); b.scale.setScalar(1.35);
+    if (n === 'PENGUINGT'){ const pg = cosMesh('penguin'); pg.position.set(.22, -.28, -.05); b.add(pg); }
+    const pc = cv(512, 160), pg2 = pc.getContext('2d'); pg2.fillStyle = '#0c0c0d'; pg2.fillRect(0, 0, 512, 160); pg2.strokeStyle = '#e0ad3a'; pg2.lineWidth = 6; pg2.strokeRect(6, 6, 500, 148); pg2.textAlign = 'center'; pg2.textBaseline = 'middle'; pg2.fillStyle = '#f6f1e0'; pg2.font = '700 58px ' + FS; spaced(pg2, n, 256, 66, 5); pg2.fillStyle = '#e0ad3a'; pg2.font = '500 26px ' + FM; spaced(pg2, 'MODERATOR', 256, 122, 8);
+    const pl = new THREE.Mesh(new THREE.PlaneGeometry(1.4, .44), new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(pc), fog:false})); pl.position.set(x, 1.55, .01); g.add(pl); });
+})();
 /* click or tap a display button on screen */
 function cosClick(){ const hit = prc.intersectObjects(disp.map(d => d.btn).concat(disp.map(d => d.bust.children[0])))[0]; if (!hit || hit.distance > 4) return false; const dd = disp.find(d => d.btn === hit.object || d.bust.children[0] === hit.object); if (dd){ buyOrWear(dd.c.id); return true; } return false; }
 /* coins from Death Penalty: surviving each experiment, and winning */
