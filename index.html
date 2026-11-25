@@ -9,6 +9,7 @@
 <link rel="icon" href="icon-192.png">
 <script src="config.js"></script>
 <script src="net-ws.js"></script>
+<script src="net-p2p.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@400;500;600&display=swap" rel="stylesheet">
@@ -352,7 +353,7 @@ const LH = 7, lobbyFx = {cams:[], ring:null, flick:null, crea:null, slamT:6, sla
   box(K.dark, 0, .5, -7.85, 10.6, 1, .7); box(K.metal, 0, 1.03, -7.75, 10.8, .06, .95); box(K.dark, 0, 2.05, -7.98, 10.6, 2.1, .1); W(0, .55, -7.85, 10.8, 1.1, .8, K.dark);
   for (let k=0;k<22;k++){ glowCol(K.glow, LEDC[RR()*4|0], .9); box(K.glow, -5 + RR()*10, 1.07, -7.45, .04, .02, .04); }
   /* personnel terminal kiosk (left wall) */
-  box(K.metal, -11.9, 1.5, 2, .2, 2, 2.8); box(K.dark, -11.8, .3, 2, .4, .6, 1.6); box(K.metal, -11.62, .62, 2, .45, .04, 1.8);
+  box(K.metal, -11.9, 1.5, 2, .2, 2, 2.8); box(K.dark, -11.8, .3, 2, .4, .6, 1.6); box(K.metal, -11.62, .62, 2, .45, .04, 1.8); CB.push({min:V(-12, 0, .6), max:V(-11.4, .64, 3.4)});
   decal(K.decal, 10, -11.98, 3.1, 2, 1.4, 1.4, 1, 0, 0);
   /* lockers, benches, extras */
   P.lockers(K, CB, {x:-11.7, z:-9, ry:Math.PI/2}, 7); P.lockers(K, CB, {x:-11.7, z:9.5, ry:Math.PI/2}, 5);
@@ -394,7 +395,7 @@ function lobbyAnim(t, dt, hw){
 }
 
 /* ---------- Portals, vote boards ---------- */
-const portalFields = [];
+const portalFields = [], portalPosts = [];
 const PGEO = {post:new THREE.BoxGeometry(.22, 3.2, .3), head:new THREE.BoxGeometry(2.7, .3, .32), field:new THREE.PlaneGeometry(2.2, 2.9), back:new THREE.PlaneGeometry(2.3, 3)}; Object.values(PGEO).forEach(g => { g.userData.keep = true; });
 const PMAT = {frame:new THREE.MeshStandardMaterial({color:0x50565c, roughness:.5, metalness:.6}), haz:new THREE.MeshStandardMaterial({map:TX.haz, roughness:.8}), back:new THREE.MeshBasicMaterial({color:0x020304})}; Object.values(PMAT).forEach(m => { m.userData.keep = true; });
 function mkPortal(parent, m, text, col, x, y, z){
@@ -405,10 +406,14 @@ function mkPortal(parent, m, text, col, x, y, z){
   const fm = new THREE.MeshBasicMaterial({color:col, transparent:true, opacity:.4, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide, fog:false}), f = new THREE.Mesh(PGEO.field, fm); f.position.y = 1.5; g.add(f); portalFields.push(fm);
   const strip = new THREE.Mesh(new THREE.BoxGeometry(2.4, .05, .05), new THREE.MeshBasicMaterial({color:col, fog:false})); strip.position.set(0, 3.03, .17); g.add(strip);
   const s = sprite(text, '#' + ('000000' + col.toString(16)).slice(-6)); s.position.y = 3.85; s.scale.set(2.2, .55, 1); g.add(s); parent.add(g);
+  parent.updateMatrixWorld(true); const wp = new THREE.Vector3(); g.getWorldPosition(wp);
+  [-1.25, 1.25].forEach(px => portalPosts.push({min:V(wp.x + px - .11, 0, wp.z - .15), max:V(wp.x + px + .11, 3.2, wp.z + .15)}));
   return {m:m, pos:V(x, y, z), g:g};
 }
 const PM = [['c','CLASSIC',0xd6d9dc],['h','HIDE & SEEK',0xa7acb0],['b','BE THE MONSTER',0x7a8085]];
+portalPosts.length = 0;
 const lobbyPortals = PM.map((p, i) => mkPortal(lobbyG, p[0], p[1], p[2], (i-1)*6, 1.3, -15.5));
+portalPosts.forEach(b => lobbyBoxes.push(b));
 const LV = [
   {n:'Sector A: Intake', fog:0x06090a, dens:.05, hemi:.2, mon:3, sp:2.6, frz:true, sc:1, st:'★☆☆'},
   {n:'Sector B: Containment', fog:0x0b0606, dens:.058, hemi:.15, mon:4, sp:3.7, frz:false, sc:1.08, st:'★★☆'},
@@ -666,7 +671,8 @@ function setAv(a, pr, rev){
   a.tag.s.position.set(a.head.position.x, a.head.position.y + .38, a.head.position.z); a.own.visible = pr.o === 1; if (a.own.visible) a.own.position.set(a.head.position.x, a.head.position.y + .55, a.head.position.z); a.beam.visible = rev; if (rev) a.beam.position.set(a.head.position.x, a.head.position.y + 19, a.head.position.z);
 }
 
-const avs = new Map(), prev = makeAvatar();
+const avs = new Map(), prev = makeAvatar(), selfAv = makeAvatar();
+selfAv.head.visible = false; selfAv.tag.s.visible = false; selfAv.beam.visible = false; selfAv.g.visible = false;
 
 /* ---------- Levels: facility generator ---------- */
 let lvGroup = null, lvBoxes = [], lvSafe = null, lvPortals = [], lvExit = null, lvIdx = 0, lvNav = null, lvFlick = [];
@@ -800,7 +806,7 @@ function buildLevel(i){
   /* safe-room markers, portals, exit */
   lvSafe = new THREE.Group(); lvSafe.position.set(0, 0, 32);
   const sr = new THREE.Mesh(new THREE.RingGeometry(8.8, 9, 64), new THREE.MeshBasicMaterial({color:0xcfd3d6, side:THREE.DoubleSide, fog:false})); sr.rotation.x = -Math.PI/2; sr.position.y = .03; lvSafe.add(sr);
-  gp.add(lvSafe); PM.forEach((p, k) => lvPortals.push(mkPortal(lvSafe, p[0], p[1], p[2], (k - 1)*5, 1.3, -5))); lvPortals.forEach(p => { p.pos.z += 32; });
+  gp.add(lvSafe); portalPosts.length = 0; PM.forEach((p, k) => lvPortals.push(mkPortal(lvSafe, p[0], p[1], p[2], (k - 1)*5, 1.3, -5))); lvPortals.forEach(p => { p.pos.z += 32; }); portalPosts.forEach(b => CB.push(b));
   lvExit = new THREE.Group(); lvExit.position.set(0, 1.6, -92);
   const ef = new THREE.Mesh(new THREE.CircleGeometry(1.5, 32), new THREE.MeshBasicMaterial({color:0xcfd3d6, transparent:true, opacity:.35, blending:THREE.AdditiveBlending, depthWrite:false, fog:false})); ef.rotation.x = -Math.PI/2; ef.position.y = -1.5; lvExit.add(ef); portalFields.push(ef.material);
   const es = sprite(i < 2 ? 'LIFT  DOWN' : 'LIFT  SURFACE', '#d9dcde'); es.position.y = 2.6; lvExit.add(es); gp.add(lvExit);
@@ -837,7 +843,7 @@ function renderFeeds(){
 
 /* ---------- HUD ---------- */
 const hcv = cv(512, 160), hg = hcv.getContext('2d'), hTex = new THREE.CanvasTexture(hcv);
-const hudM = new THREE.Mesh(new THREE.PlaneGeometry(.8, .25), new THREE.MeshBasicMaterial({map:hTex, transparent:true, depthTest:false, fog:false})); hudM.position.set(0, -.3, -1); hudM.renderOrder = 998; camera.add(hudM);
+const hudM = new THREE.Mesh(new THREE.PlaneGeometry(.8, .25), new THREE.MeshBasicMaterial({map:hTex, transparent:true, depthTest:false, fog:false})); hudM.position.set(0, -.42, -1); hudM.scale.setScalar(.85); hudM.renderOrder = 998; camera.add(hudM);
 const flash = new THREE.Mesh(new THREE.PlaneGeometry(3, 3), new THREE.MeshBasicMaterial({color:0xdadddf, transparent:true, opacity:0, depthTest:false, fog:false})); flash.position.z = -.3; flash.renderOrder = 999; camera.add(flash);
 let msg = '', msgT = 0, hudT = 0;
 const fmt = s => Math.floor(Math.max(0, s)/60) + ':' + ('0' + Math.floor(Math.max(0, s)%60)).slice(-2);
@@ -957,23 +963,33 @@ function ejectSafe(){
 }
 
 /* ---------- Locomotion ---------- */
-const mv = V(), fv = V(), tmp = V(), tmp2 = V(), dirv = V(), samp = V(), fwd = V(), mc = V();
+const mv = V(), fv = V(), tmp = V(), tmp2 = V(), dirv = V(), samp = V(), fwd = V(), mc = V(), nrm = V(); let slide = 0;
 function locomote(dt){
-  mv.set(0,0,0); let cnt = 0;
+  mv.set(0,0,0); let cnt = 0, floor = false;
   for (let i=0;i<2;i++){
     const grip = renderer.xr.getControllerGrip(i), h = hands[i];
     if (!grip.visible || !conn[i]){ h.has = false; h.mesh.visible = false; continue; }
-    tmp.set(0, 0, -.04).applyMatrix4(grip.matrix); h.vis.copy(tmp).applyQuaternion(rig.quaternion).add(rig.position); const t = collide(h.vis, HR, HR);
+    tmp.set(0, 0, -.04).applyMatrix4(grip.matrix); h.vis.copy(tmp).applyQuaternion(rig.quaternion).add(rig.position); nrm.copy(h.vis); const t = collide(h.vis, HR, HR); nrm.subVectors(h.vis, nrm); const nl = nrm.length(); if (nl > 1e-6) nrm.divideScalar(nl); else nrm.set(0, 1, 0);
     if (t && !h.touch && h.has){ const sp = tmp2.copy(tmp).sub(h.prev).length()/dt; pulse(i, Math.min(.9, .12 + sp*.14), 30 + Math.min(40, sp*10)); if (sp > .6) beep(85 + Math.random()*40, .07, 'triangle', Math.min(.12, .02 + sp*.025)); } h.touch = t;
-    if (t && h.has){ mv.add(tmp2.copy(tmp).sub(h.prev).applyQuaternion(rig.quaternion)); cnt++; }
+    if (t && h.has){
+      tmp2.copy(tmp).sub(h.prev).applyQuaternion(rig.quaternion);
+      if (nrm.y > .55){ mv.add(tmp2); floor = true; }
+      else { const into = tmp2.dot(nrm); mv.addScaledVector(nrm, into).addScaledVector(tmp2.addScaledVector(nrm, -into), .25); }
+      cnt++;
+    }
     h.prev.copy(tmp); h.has = true; h.mesh.visible = true; h.mesh.position.copy(h.vis);
   }
   if (cnt){
     mv.divideScalar(cnt); rig.position.sub(mv); hist.push(fv.copy(mv).divideScalar(-dt).clone()); if (hist.length > 4) hist.shift();
+    if (floor) slide = 0; else { slide = Math.min(slide + G*dt, 2.2); rig.position.y -= slide*dt; }
     vel.set(0,0,0); hist.forEach(v => vel.add(v)); vel.divideScalar(hist.length);
     if (amMon && round && round.m === 'b') vel.multiplyScalar(1.3);
     const sp = vel.length(); if (sp > 11) vel.multiplyScalar(11/sp);
-  } else { hist.length = 0; rig.position.addScaledVector(vel, dt); vel.y -= G*dt; vel.multiplyScalar(1 - .2*dt); }
+  } else {
+    hist.length = 0; slide = 0; vel.y -= G*dt; vel.multiplyScalar(1 - .2*dt);
+    const steps = Math.max(1, Math.ceil(vel.length()*dt/.1));
+    for (let k=0;k<steps;k++){ rig.position.addScaledVector(vel, dt/steps); headFix(dt/steps); }
+  }
   headFix(dt);
 }
 function headFix(dt){
@@ -984,6 +1000,7 @@ function desktop(dt){
   const typing = state === 'lobby' && (ui.s === 'name' || ui.s === 'code'), f = typing ? 0 : (keys.KeyW||0) - (keys.KeyS||0), r = typing ? 0 : (keys.KeyD||0) - (keys.KeyA||0), s = Math.sin(yaw), c = Math.cos(yaw);
   rig.position.x += (-s*f + c*r)*3.5*dt; rig.position.z += (-c*f - s*r)*3.5*dt; rig.position.y = terrain ? terrain(rig.position.x, rig.position.z) : 0; camera.position.y = 1;
   const hw = headW(), b = hw.clone(); collide(hw, HEAD_R, HEAD_MIN); rig.position.x += hw.x - b.x; rig.position.z += hw.z - b.z;
+  for (const y of [.25, .6]){ tmp.set(rig.position.x + camera.position.x, y, rig.position.z + camera.position.z); tmp2.copy(tmp); collide(tmp, .28, 0); rig.position.x += tmp.x - tmp2.x; rig.position.z += tmp.z - tmp2.z; }
 }
 renderer.domElement.addEventListener('pointermove', e => { if (e.buttons && !renderer.xr.isPresenting){ yaw -= e.movementX*.004; pitch = Math.max(-1.3, Math.min(1.3, pitch - e.movementY*.004)); camera.rotation.set(pitch, yaw, 0); } });
 const prc = new THREE.Raycaster(), pn = new THREE.Vector2();
@@ -1086,6 +1103,9 @@ renderer.setAnimationLoop(() => {
     const seenIds = new Set();
     zonePeers().forEach(p => { if (p.presence.d) return; seenIds.add(p.peer); let a = avs.get(p.peer); if (!a){ a = makeAvatar(); avs.set(p.peer, a); } a.g.visible = true; setAv(a, p.presence, reveal); });
     avs.forEach((a, k) => { if (!seenIds.has(k)){ scene.remove(a.g); avs.delete(k); } });
+    const showSelf = renderer.xr.isPresenting && !dead && (hands[0].has || hands[1].has);
+    selfAv.g.visible = showSelf;
+    if (showSelf){ const hh = headW(), yy = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ').y + rig.rotation.y; setAv(selfAv, {c:myColor, n:'', o:0, p:[hh.x, hh.y, hh.z], a:(hands[0].has ? hands[0].vis : hh).toArray(), b:(hands[1].has ? hands[1].vis : hh).toArray(), r:yy}, false); selfAv.head.visible = false; selfAv.tag.s.visible = false; selfAv.own.visible = false; hands.forEach(h => { h.mesh.visible = false; }); }
     if (state === 'lobby'){ prev.g.visible = true; setAv(prev, {c:myColor, n:myName, o:isOwner ? 1 : 0, p:[9, 1.48, 2], a:[8.55 + Math.sin(t*1.3)*.05, .98, 2.15], b:[9.45, .98 + Math.sin(t*1.7)*.06, 2.15], r:-Math.PI/2 + Math.sin(t*.6)*.6}, false); } else prev.g.visible = false;
     if (dead) renderFeeds();
     portalFields.forEach((m, k) => { m.opacity = .3 + .14*Math.sin(t*3 + k); });
