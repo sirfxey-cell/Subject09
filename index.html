@@ -3222,7 +3222,7 @@ const myCosArr = () => [myCos.hat || '', myCos.face || '', myCos.neck || '', myC
 function addCoins(n, why, quiet){ coins += n; saveCos(); if (!playS('coin', {vol:.8})) beep(1320, .12, 'square', .05); if (!quiet) say('+' + n + ' coins' + (why ? '. ' + why : '.'), 3); cosDirty = true; drawTerm(); }
 const COS = [
   {id:'party', n:'PARTY HAT', s:'hat', p:25}, {id:'tie', n:'TIE', s:'neck', p:20}, {id:'hard', n:'HARD HAT', s:'hat', p:35}, {id:'shades', n:'SUNGLASSES', s:'face', p:40}, {id:'tophat', n:'TOP HAT', s:'hat', p:60},
-  {id:'phones', n:'HEADPHONES', s:'hat', p:70}, {id:'horns', n:'DEVIL HORNS', s:'hat', p:90}, {id:'chain', n:'GOLD CHAIN', s:'neck', p:100}, {id:'eyes', n:'RED EYES', s:'face', p:120}, {id:'halo', n:'HALO', s:'hat', p:150}, {id:'penguin', n:'PENGUIN', s:'hand', p:0, only:'PENGUINGT'}];
+  {id:'phones', n:'HEADPHONES', s:'hat', p:70}, {id:'horns', n:'DEVIL HORNS', s:'hat', p:90}, {id:'chain', n:'GOLD CHAIN', s:'neck', p:100}, {id:'eyes', n:'RED EYES', s:'face', p:120}, {id:'halo', n:'HALO', s:'hat', p:150}, {id:'penguin', n:'PENGUIN', s:'hand', p:0, only:'PENGUINGT'}, {id:'raccoon', n:'RACCOON', s:'hand', p:0, only:'MATT'}];
 const cosById = id => COS.find(c => c.id === id);
 const hasCos = id => { const c = cosById(id); if (c && c.only) return isOwner || myName === c.only; return isOwner || amMod() || ownedCos.has(id); };
 /* the items themselves, sized for the gorilla head (faces -z) and torso */
@@ -3251,6 +3251,15 @@ function cosMesh(id){
     const bk = new THREE.Mesh(CONE, or); bk.scale.set(.012, .034, .012); bk.rotation.x = -Math.PI/2; bk.position.set(0, .182, -.056); P.add(bk);
     [-1, 1].forEach(s => { const fl = e(bl, .012, .055, .03, s*.064, .1, .005); fl.rotation.z = s*.35; e(or, .022, .007, .03, s*.024, .008, -.018); });
     g.userData.pen = P; }
+  else if (id === 'raccoon'){ const P = new THREE.Group(); g.add(P); P.position.set(0, .035, -.075);
+    const gy = CM.rg || (CM.rg = new THREE.MeshStandardMaterial({color:0x7f7b76, roughness:.85, map:FUR})), lt = CM.rl || (CM.rl = new THREE.MeshStandardMaterial({color:0xd8d2c8, roughness:.8})), dk = CM.rd || (CM.rd = new THREE.MeshStandardMaterial({color:0x1d1c1b, roughness:.7})); [gy, lt, dk].forEach(m => { m.userData.keep = true; });
+    const e = (m, sx, sy, sz, x, y, z) => { const o = ell(m, sx, sy, sz, x, y, z); P.add(o); return o; };
+    e(gy, .058, .075, .055, 0, .08, 0); e(lt, .04, .055, .025, 0, .075, -.035);
+    e(gy, .052, .043, .046, 0, .172, -.005); e(lt, .024, .019, .032, 0, .16, -.048); e(dk, .009, .007, .007, 0, .165, -.08);
+    e(dk, .054, .015, .02, 0, .18, -.03); e(lt, .045, .009, .015, 0, .197, -.032);
+    [-1, 1].forEach(s => { e(PUP, .007, .007, .004, s*.02, .181, -.049); e(GLINT, .002, .002, .001, s*.02 + .002, .184, -.053); const ear = new THREE.Mesh(CONE, gy); ear.scale.set(.016, .026, .01); ear.position.set(s*.032, .215, 0); ear.rotation.z = -s*.3; P.add(ear); e(lt, .006, .012, .004, s*.032, .213, -.009); e(dk, .012, .02, .012, s*.035, .03, -.03); e(dk, .011, .018, .011, s*.045, .1, -.04); });
+    for (let k=0;k<7;k++){ const u = k/6, o = e(k%2 ? dk : lt, .028 - u*.008, .028 - u*.008, .03, 0, .03 + u*.13 + Math.sin(u*2.5)*.02, .05 + Math.sin(u*1.8)*.06); o.rotation.x = -u; }
+    g.userData.pen = P; }
   else if (id === 'tie'){ M(new THREE.BoxGeometry(.04, .035, .02), CM.red, 0, .25, -.2); const b = M(new THREE.BoxGeometry(.05, .2, .012), CM.red, 0, .13, -.225); b.rotation.x = .2; }
   return g;
 }
@@ -3264,7 +3273,7 @@ function cosApply(a, cs){
 function equip(id){ const c = cosById(id); if (!c) return; myCos[c.s] = myCos[c.s] === id ? '' : id; saveCos(); cosDirty = true; pub({cs:myCosArr()}); }
 function buyOrWear(id){
   const c = cosById(id); if (!c) return;
-  if (c.only && !hasCos(id)){ if (!playS('ui_deny', {vol:.6})) beep(180, .12, 'square', .06); say('Only ' + c.only + ' can hold the penguin.', 2.5); return; }
+  if (c.only && !hasCos(id)){ if (!playS('ui_deny', {vol:.6})) beep(180, .12, 'square', .06); say('Only ' + c.only + ' can hold the ' + c.n.toLowerCase() + '.', 2.5); return; }
   if (hasCos(id)){ equip(id); if (!playS('ui_conf', {vol:.7})) uiClick(); say(myCos[c.s] === id ? 'Wearing ' + c.n.toLowerCase() + '.' : 'Took off ' + c.n.toLowerCase() + '.', 2); return; }
   if (coins < c.p){ if (!playS('ui_deny', {vol:.6})) beep(180, .12, 'square', .06); say('You need ' + (c.p - coins) + ' more coins for that.', 2.5); return; }
   coins -= c.p; ownedCos.add(id); equip(id); playS('buy', {vol:.8}); playS('coin', {vol:.6}); say('Bought ' + c.n.toLowerCase() + '. You are wearing it now.', 3); [0, 1].forEach(i => pulse(i, .5, 80));
@@ -3388,7 +3397,7 @@ function cosTick(dt, t, hw){
   FAME.forEach((n, k) => { const x = (k - (FAME.length - 1)/2)*2.3;
     const sh = new THREE.Mesh(new THREE.BoxGeometry(1, .08, .45), CM.gold); sh.position.set(x, 2.05, .22); g.add(sh);
     const b = new THREE.Group(); b.position.set(x, 2.42, .24); b.rotation.y = Math.PI; g.add(b); b.add(new THREE.Mesh(GOR_HEAD, BR)); const tr = new THREE.Mesh(GOR_TORSO, BR); tr.position.y = -.36; tr.scale.set(.8, .45, .8); b.add(tr); b.add(makeCrown()); b.scale.setScalar(1.35);
-    if (n === 'PENGUINGT'){ const pg = cosMesh('penguin'); pg.position.set(.22, -.28, -.05); b.add(pg); }
+    if (n === 'PENGUINGT' || n === 'MATT'){ const pg = cosMesh(n === 'MATT' ? 'raccoon' : 'penguin'); pg.position.set(.22, -.28, -.05); b.add(pg); }
     const pc = cv(512, 160), pg2 = pc.getContext('2d'); pg2.fillStyle = '#0c0c0d'; pg2.fillRect(0, 0, 512, 160); pg2.strokeStyle = '#e0ad3a'; pg2.lineWidth = 6; pg2.strokeRect(6, 6, 500, 148); pg2.textAlign = 'center'; pg2.textBaseline = 'middle'; pg2.fillStyle = '#f6f1e0'; pg2.font = '700 58px ' + FS; spaced(pg2, n, 256, 66, 5); pg2.fillStyle = '#e0ad3a'; pg2.font = '500 26px ' + FM; spaced(pg2, 'MODERATOR', 256, 122, 8);
     const pl = new THREE.Mesh(new THREE.PlaneGeometry(1.4, .44), new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(pc), fog:false})); pl.position.set(x, 1.55, .01); g.add(pl); });
 })();
