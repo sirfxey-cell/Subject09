@@ -524,12 +524,13 @@ const term = new THREE.Mesh(new THREE.PlaneGeometry(TW, TH), new THREE.MeshBasic
 const ui = {s:'home', txt:'', msg:''};
 function rects(){
   const r = [], B = (x, y, w, h, l, a, o) => r.push(Object.assign({x:x, y:y, w:w, h:h, l:l, a:a}, o || {}));
-  if (ui.s === 'home'){ const rows = [['CHANGE NAME', 'name', '1 HR COOLDOWN'], ['COLOR', 'color', ''], ['PRIVATE CODE', 'code', ''], ['PUBLIC SERVER', 'pub', roomLabel === 'Public Server' ? 'CONNECTED' : ''], ['STICK MOVE', 'stk', stickMove ? 'ON' : 'OFF'], ['VOICE CHAT', 'mic', micLabel()], ['SOUND', 'snd', 'MUSIC ' + Math.round(SV.m*10) + '  FX ' + Math.round(SV.e*10) + '  VOICE ' + Math.round(SV.v*10)], ['MONSTER MODE', 'bm', 'HEAD START ' + BMS.esc + 'S  GORE ' + (BMS.gore ? 'ON' : 'OFF')]]; if (isOwner || amMod()) rows.push([isOwner ? 'OWNER CONTROLS' : 'MOD CONTROLS', 'mod', R ? (R.peers().length - 1) + ' PLAYERS' : 'OFFLINE']); const st = Math.floor(306/rows.length), hh = st - 6; rows.forEach((q, i) => B(36, 196 + i*st, 696, hh, q[0], q[1], {n:'0' + (i + 1), v:q[2], sw:q[1] === 'color'})); }
+  if (ui.s === 'home'){ const rows = [['CHANGE NAME', 'name', ''], ['COLOR', 'color', ''], ['PRIVATE CODE', 'code', ''], ['PUBLIC SERVER', 'pub', roomLabel === 'Public Server' ? 'CONNECTED' : ''], ['STICK MOVE', 'stk', stickMove ? 'ON' : 'OFF'], ['VOICE CHAT', 'mic', micLabel()], ['SOUND & GRAPHICS', 'snd', 'MUSIC ' + Math.round(SV.m*10) + '  FX ' + Math.round(SV.e*10) + '  VOICE ' + Math.round(SV.v*10)], ['FRIENDS', 'fr', (() => { const ids = new Set(modPeers().map(p => frOf(p.presence))), on = Object.keys(friends).filter(id => ids.has(id)).length, inc = modPeers().filter(p => frState(p.presence) === 'incoming').length; return Object.keys(friends).length + ' FRIENDS  ' + on + ' HERE' + (inc ? '  ' + inc + ' REQUEST' + (inc > 1 ? 'S' : '') : ''); })()], ['MONSTER MODE', 'bm', 'HEAD START ' + BMS.esc + 'S  GORE ' + (BMS.gore ? 'ON' : 'OFF')]]; if (isOwner || amMod()) rows.push([isOwner ? 'OWNER CONTROLS' : 'MOD CONTROLS', 'mod', R ? (R.peers().length - 1) + ' PLAYERS' : 'OFFLINE']); const st = Math.floor(306/rows.length), hh = st - 6; rows.forEach((q, i) => B(36, 196 + i*st, 696, hh, q[0], q[1], {n:'0' + (i + 1), v:q[2], sw:q[1] === 'color'})); }
+  else if (ui.s === 'fr') frRects(B);
   else if (ui.s === 'mod' && !isOwner){ modPeers().slice(0, 5).forEach((p, i) => { const y = 120 + i*58, id = p.peer, mu = muted.has(id); if (protectedPr(p.presence)) return; B(412, y, 92, 46, 'KICK', 'kick:' + id); B(512, y, 220, 46, mu ? 'UNMUTE' : 'SILENCE', 'mute:' + id, {pri:mu}); }); B(36, 420, 696, 52, 'BACK', 'back', {n:'<'}); }
   else if (ui.s === 'mod'){ modPeers().slice(0, 5).forEach((p, i) => { const y = 120 + i*58, id = p.peer, mu = muted.has(id); const md = isModName(p.presence.n); B(300, y, 104, 46, md ? 'UNMOD' : 'MOD', 'mod:' + id, {pri:md}); B(412, y, 92, 46, 'KICK', 'kick:' + id); B(512, y, 92, 46, 'BAN', 'ban:' + id); B(612, y, 120, 46, mu ? 'UNMUTE' : 'SILENCE', 'mute:' + id, {pri:mu}); }); B(36, 420, 696, 52, 'BACK', 'back', {n:'<'}); }
-  else if (ui.s === 'snd'){ [['m', 'MUSIC'], ['e', 'EFFECTS'], ['v', 'VOICE']].forEach((q, i) => { const y = 122 + i*92; B(372, y, 80, 64, '-', 'vol-' + q[0]); B(652, y, 80, 64, '+', 'vol+' + q[0]); }); B(36, 420, 696, 52, 'BACK', 'back', {n:'<'}); }
-  else if (ui.s === 'bm'){ [['g', 'GHOST'], ['i', 'INVISIBLE'], ['w', 'WALL SEE'], ['f', 'FINISHER']].forEach((q, i) => B(36, 100 + i*62, 330, 52, q[1], 'bk:' + q[0], {n:'0' + (i + 1), v:BMX.bind === q[0] ? '...' : keyName(BMS.keys[q[0]])}));
-    [['esc', 'HEAD START', BMS.esc + 'S'], ['cdk', 'COOLDOWNS', BM_CDN[BMS.cdk]], ['ad', 'ABILITY TIME', BMS.ad + 'S'], ['rv', 'ROAR VOLUME', Math.round(BMS.rv*100) + '%'], ['rd', 'ROAR LENGTH', BMS.rd + 'S'], ['gore', 'GORE', BMS.gore ? 'ON' : 'OFF']].forEach((q, i) => B(392, 100 + i*52, 340, 44, q[1], 'bs:' + q[0], {n:'0' + (i + 5), v:q[2]})); B(36, 420, 696, 52, 'BACK', 'back', {n:'<'}); }
+  else if (ui.s === 'snd'){ [['m', 'MUSIC'], ['e', 'EFFECTS'], ['v', 'VOICE']].forEach((q, i) => { const y = 122 + i*92; B(372, y, 80, 64, '-', 'vol-' + q[0]); B(652, y, 80, 64, '+', 'vol+' + q[0]); }); B(36, 376, 696, 38, 'GRAPHICS', 'gfx', {n:'04', v:GQ ? 'HIGH  (QUEST 3 / GOOD PC)' : 'NORMAL'}); B(36, 422, 696, 50, 'BACK', 'back', {n:'<'}); }
+  else if (ui.s === 'bm'){ [['g', 'GHOST'], ['i', 'INVISIBLE'], ['w', 'WALL SEE'], ['f', 'FINISHER']].filter(q => q[0] === 'f' || isOwner || amMod()).forEach((q, i) => B(36, 100 + i*62, 330, 52, q[1], 'bk:' + q[0], {n:'0' + (i + 1), v:BMX.bind === q[0] ? '...' : keyName(BMS.keys[q[0]])}));
+    [['esc', 'HEAD START', BMS.esc + 'S'], ['cdk', 'COOLDOWNS', BM_CDN[BMS.cdk]], ['ad', 'ABILITY TIME', BMS.ad + 'S'], ['rv', 'ROAR VOLUME', Math.round(BMS.rv*100) + '%'], ['rd', 'ROAR LENGTH', BMS.rd + 'S'], ['gore', 'GORE', BMS.gore ? 'ON' : 'OFF']].concat(isOwner || amMod() ? [['mm', 'MY MONSTER', BMS.mm !== 0 ? 'MOD' : 'DEFAULT']] : []).forEach((q, i) => B(392, 96 + i*46, 340, 40, q[1], 'bs:' + q[0], {n:'0' + (i + 5), v:q[2]})); B(36, 420, 696, 52, 'BACK', 'back', {n:'<'}); }
   else if (ui.s === 'color'){ COLORS.forEach((c, i) => B(36 + (i%6)*116, 112 + (i/6|0)*72, 108, 62, '', 'col' + i, {f:c})); B(36, 412, 696, 50, 'BACK', 'back', {n:'<'}); }
   else {
     ['1234567890', 'QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'].forEach((row, ri) => { const x0 = (768 - (row.length*66 - 6))/2; row.split('').forEach((ch, i) => B(x0 + i*66, 196 + ri*54, 60, 48, ch, 'k')); });
@@ -552,6 +553,7 @@ function drawTerm(){
     g.font = '400 15px ' + FM; g.fillStyle = '#6c7174'; spaced(g, 'SOUND SETTINGS', 36, 88, 3);
     [['m', 'MUSIC'], ['e', 'EFFECTS'], ['v', 'VOICE CHAT']].forEach((q, i) => { const y = 154 + i*92, v = SV[q[0]]; g.font = '500 26px ' + FS; g.fillStyle = '#e4e6e7'; spaced(g, q[1], 36, y, 3); g.fillStyle = '#1d2021'; rrect(g, 466, y - 6, 172, 12, 3); g.fill(); g.fillStyle = '#d6d9db'; rrect(g, 466, y - 6, Math.max(6, 172*v), 12, 3); g.fill(); g.font = '400 15px ' + FM; g.fillStyle = '#8b9093'; g.textAlign = 'right'; g.fillText(Math.round(v*100) + '%', 360, y); g.textAlign = 'left'; });
   }
+  else if (ui.s === 'fr') frDraw(g);
   else if (ui.s === 'bm'){ g.font = '400 15px ' + FM; g.fillStyle = BMX.bind ? '#e4e6e7' : '#6c7174'; spaced(g, BMX.bind ? 'PRESS THE KEY YOU WANT ON YOUR KEYBOARD.  ESC TO CANCEL' : 'BE THE MONSTER  /  KEYS LEFT, ROUND SETTINGS RIGHT', 36, 78, 2); }
   else if (ui.s === 'mod'){
     g.font = '400 15px ' + FM; g.fillStyle = '#6c7174'; spaced(g, (isOwner ? 'OWNER CONTROLS' : 'MOD CONTROLS') + '  /  PLAYERS IN THIS ROOM', 36, 88, 3);
@@ -595,6 +597,61 @@ const modPeers = () => R ? R.peers().filter(p => !p.isMe && p.presence) : [];
 let ownerMods = [], modNames = new Set(); try { ownerMods = JSON.parse(localStorage.getItem('s09Mods') || '[]') || []; modNames = new Set(JSON.parse(localStorage.getItem('s09ModsSeen') || '[]') || []); } catch(e){}
 try { if (!localStorage.getItem('s09ModsSeed')){ ['MATT', 'PENGUINGT'].forEach(n => { if (ownerMods.indexOf(n) < 0) ownerMods.push(n); modNames.add(n); }); localStorage.setItem('s09Mods', JSON.stringify(ownerMods)); localStorage.setItem('s09ModsSeed', '1'); } } catch(e){}
 const isModName = n => !!n && modNames.has(String(n));
+/* ======================= FRIENDS: a lasting player id, requests both ways, a friends list on the lobby computer ======================= */
+let myPid = '', frWant = new Set(), friends = {}, frAsked = new Set(), frPage = 0;
+try { myPid = localStorage.getItem('s09Pid') || ''; if (!myPid){ myPid = Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6); localStorage.setItem('s09Pid', myPid); } frWant = new Set(JSON.parse(localStorage.getItem('s09FrW') || '[]') || []); friends = JSON.parse(localStorage.getItem('s09Fr') || '{}') || {}; } catch(e){ myPid = myPid || Math.random().toString(36).slice(2, 12); }
+function frSave(){ try { localStorage.setItem('s09FrW', JSON.stringify([...frWant])); localStorage.setItem('s09Fr', JSON.stringify(friends)); } catch(e){} }
+const frOf = pr => pr && typeof pr.id === 'string' ? pr.id : '';
+const isFriendPr = pr => !!friends[frOf(pr)];
+/* where a friend is, in words */
+function frWhere(pr){ const z = pr && pr.z || ''; return z === 'L' ? 'IN THE LOBBY' : z === 'A' || z[0] === 'a' ? 'IN DEATH PENALTY' : z[0] === 'r' ? 'IN A ROUND' : z[0] === 'n' ? 'ON FLOOR ' + ((+z.slice(1) || 0) + 1) : 'ONLINE'; }
+function frState(pr){ const id = frOf(pr); if (!id) return 'none'; if (friends[id]) return 'friend'; const them = Array.isArray(pr.fq) && pr.fq.indexOf(myPid) >= 0; return frWant.has(id) ? 'sent' : them ? 'incoming' : 'none'; }
+/* runs on every presence update: friendships form when both sides want them, and end when either side stops */
+function frCheck(peers){
+  let ch = false;
+  for (const p of peers){ if (p.isMe || !p.presence) continue; const pr = p.presence, id = frOf(pr); if (!id) continue; const them = Array.isArray(pr.fq) && pr.fq.indexOf(myPid) >= 0;
+    if (frWant.has(id) && them && !friends[id]){ friends[id] = {n:String(pr.n || 'Player'), at:Date.now()}; ch = true; say('You and ' + friends[id].n + ' are now friends.', 4); playS('coin', {vol:.6}); }
+    if (friends[id] && !them && !frWant.has(id)){ delete friends[id]; ch = true; }
+    if (friends[id] && !them && frWant.has(id) && (!friends[id].at || Date.now() - friends[id].at > 4000)){ delete friends[id]; frWant.delete(id); ch = true; }
+    if (friends[id]){ friends[id].n = String(pr.n || friends[id].n); friends[id].seen = Date.now(); }
+    if (them && !frWant.has(id) && !friends[id] && !frAsked.has(id)){ frAsked.add(id); say(String(pr.n || 'Someone') + ' wants to be your friend. Accept it on the lobby computer, under Friends.', 6); }
+  }
+  if (ch){ frSave(); pub(); drawTerm(); }
+}
+function frAct(id){
+  const p = modPeers().find(q => frOf(q.presence) === id), st = p ? frState(p.presence) : friends[id] ? 'friend' : 'none';
+  if (st === 'friend'){ delete friends[id]; frWant.delete(id); ui.msg = 'Removed friend.'; }
+  else if (st === 'sent'){ frWant.delete(id); ui.msg = 'Request cancelled.'; }
+  else { frWant.add(id); if (st === 'incoming' && p){ friends[id] = {n:String(p.presence.n || 'Player'), at:Date.now(), seen:Date.now()}; ui.msg = 'You and ' + friends[id].n + ' are now friends.'; } else ui.msg = 'Friend request sent.'; }
+  frSave(); pub(); drawTerm();
+}
+/* the list: people in this room first, then friends who are elsewhere */
+function frRows(){
+  const here = modPeers().filter(p => frOf(p.presence)), ids = new Set(here.map(p => frOf(p.presence)));
+  const rows = here.map(p => ({id:frOf(p.presence), n:String(p.presence.n || 'Player'), st:frState(p.presence), on:true, pr:p.presence}));
+  rows.sort((a, b) => (b.st === 'friend') - (a.st === 'friend') || (b.st === 'incoming') - (a.st === 'incoming'));
+  Object.keys(friends).forEach(id => { if (!ids.has(id)) rows.push({id:id, n:friends[id].n, st:'friend', on:false, seen:friends[id].seen}); });
+  return rows;
+}
+const FRB = {friend:['REMOVE', false], sent:['CANCEL', false], incoming:['ACCEPT', true], none:['ADD FRIEND', true]};
+function frRects(B){ const rows = frRows(), pg = Math.max(0, Math.min(frPage, Math.ceil(rows.length/5) - 1)); rows.slice(pg*5, pg*5 + 5).forEach((r, i) => { const b = FRB[r.st]; B(520, 120 + i*58, 212, 46, b[0], 'fr:' + r.id, {pri:b[1]}); }); if (rows.length > 5) B(36, 420, 160, 52, 'MORE', 'frpg'); B(rows.length > 5 ? 208 : 36, 420, rows.length > 5 ? 524 : 696, 52, 'BACK', 'back', {n:'<'}); }
+function frDraw(g){
+  const rows = frRows(), pg = Math.max(0, Math.min(frPage, Math.ceil(rows.length/5) - 1)), nf = Object.keys(friends).length;
+  g.font = '400 15px ' + FM; g.fillStyle = '#6c7174'; spaced(g, 'FRIENDS  /  ' + nf + (nf === 1 ? ' FRIEND' : ' FRIENDS') + '  /  YOU CAN ADD ANYONE IN THIS ROOM', 36, 88, 2);
+  if (!rows.length){ g.fillStyle = '#8b9093'; g.font = '400 16px ' + FM; spaced(g, 'NOBODY ELSE IS HERE RIGHT NOW', 36, 150, 2); }
+  rows.slice(pg*5, pg*5 + 5).forEach((r, i) => { const y = 135 + i*58; g.font = '500 24px ' + FS; g.fillStyle = r.st === 'friend' ? '#9fe0b0' : '#e4e6e7'; spaced(g, r.n.toUpperCase().slice(0, 14), 36, y, 2);
+    g.font = '400 14px ' + FM; g.fillStyle = r.st === 'incoming' ? '#f0c040' : '#8b9093'; const sub = r.st === 'friend' ? (r.on ? 'FRIEND  /  ' + frWhere(r.pr) : 'FRIEND  /  NOT HERE' + (r.seen ? '  /  SEEN ' + frAgo(r.seen) : '')) : r.st === 'incoming' ? 'WANTS TO BE YOUR FRIEND' : r.st === 'sent' ? 'REQUEST SENT' : frWhere(r.pr); spaced(g, sub, 36, y + 22, 1); });
+  if (ui.msg){ g.font = '400 15px ' + FM; g.fillStyle = '#c4c7c9'; g.textAlign = 'right'; spaced(g, ui.msg.toUpperCase(), 732, 108, 1); g.textAlign = 'left'; }
+}
+function frAgo(t){ const m = Math.max(1, Math.round((Date.now() - t)/60000)); return m < 60 ? m + ' MIN AGO' : m < 1440 ? Math.round(m/60) + ' HR AGO' : Math.round(m/1440) + ' DAYS AGO'; }
+/* a green FRIEND badge over friends' heads */
+let frTexC = null;
+function frTex(){ if (frTexC) return frTexC; const c = cv(256, 64), g = c.getContext('2d'); frTexC = new THREE.CanvasTexture(c); const draw = () => { g.clearRect(0, 0, 256, 64); rrect(g, 58, 12, 140, 40, 4); g.fillStyle = 'rgba(70,190,110,.95)'; g.fill(); g.fillStyle = '#06200f'; g.font = '700 22px ' + FS; g.textAlign = 'center'; g.textBaseline = 'middle'; spaced(g, 'FRIEND', 128, 33, 5); frTexC.needsUpdate = true; }; draw(); LABELS.push(draw); return frTexC; }
+function frBadge(a, pr){
+  const on = isFriendPr(pr) && a !== selfAv && a !== prev; if (on && !a.frB){ a.frB = new THREE.Sprite(new THREE.SpriteMaterial({map:frTex(), transparent:true, depthTest:false, fog:false})); a.frB.scale.set(.44, .11, 1); a.frB.renderOrder = 5; a.g.add(a.frB); }
+  if (a.frB){ a.frB.visible = on && a.head.visible && a.tag.s.visible !== false; if (a.frB.visible){ const up = (a.own && a.own.visible) || (a.modB && a.modB.visible) ? .68 : .55; a.frB.position.set(a.head.position.x, a.head.position.y + up, a.head.position.z); } }
+}
+
 const amMod = () => !isOwner && isModName(myName);
 /* the owner and moderators can't be kicked or silenced by a moderator */
 const protectedPr = pr => !pr || pr.o === 1 || isModName(pr.n);
@@ -609,6 +666,7 @@ function modAction(kind, id){
   pub({m:modLog.slice()});
 }
 function checkMod(peers){
+  frCheck(peers);
   const me = myId();
   for (const p of peers){
     const pr = p.presence; if (!p.isMe && pr && pr.o === 1 && Array.isArray(pr.md) && pr.md.join('\n') !== [...modNames].join('\n')) setMods(pr.md);
@@ -636,10 +694,14 @@ function press(r){
   else if (r.a === 'back'){ ui.s = 'home'; if (typeof BMX !== 'undefined') BMX.bind = ''; }
   else if (r.a === 'stk') stickMove = !stickMove;
   else if (r.a === 'snd') ui.s = 'snd';
+  else if (r.a === 'fr'){ ui.s = 'fr'; frPage = 0; }
+  else if (r.a === 'frpg'){ frPage = (frPage + 1) % Math.max(1, Math.ceil(frRows().length/5)); }
+  else if (r.a.indexOf('fr:') === 0) frAct(r.a.slice(3));
+  else if (r.a === 'gfx'){ GQ = GQ ? 0 : 1; try { localStorage.setItem('s09Gfx', String(GQ)); } catch(e){} gfxApply(); ui.msg = GQ ? 'High graphics. In VR it starts next time you enter.' : 'Normal graphics.'; }
   else if (r.a === 'bm'){ ui.s = 'bm'; BMX.bind = ''; }
   else if (r.a.indexOf('bk:') === 0) BMX.bind = r.a.slice(3);
   else if (r.a.indexOf('bs:') === 0){ const k = r.a.slice(3), cyc = (L, v) => L[(L.indexOf(v) + 1) % L.length];
-    if (k === 'esc') BMS.esc = cyc([15, 20, 30, 45, 60], BMS.esc); else if (k === 'cdk') BMS.cdk = cyc(['s', 'n', 'l'], BMS.cdk); else if (k === 'ad') BMS.ad = cyc([3, 4, 5], BMS.ad); else if (k === 'rv') BMS.rv = cyc([.5, .75, 1, 1.25], BMS.rv); else if (k === 'rd') BMS.rd = cyc([3, 4, 5, 6, 7], BMS.rd); else if (k === 'gore') BMS.gore = BMS.gore ? 0 : 1; bmSave(); }
+    if (k === 'esc') BMS.esc = cyc([15, 20, 30, 45, 60], BMS.esc); else if (k === 'cdk') BMS.cdk = cyc(['s', 'n', 'l'], BMS.cdk); else if (k === 'ad') BMS.ad = cyc([3, 4, 5], BMS.ad); else if (k === 'rv') BMS.rv = cyc([.5, .75, 1, 1.25], BMS.rv); else if (k === 'rd') BMS.rd = cyc([3, 4, 5, 6, 7], BMS.rd); else if (k === 'gore') BMS.gore = BMS.gore ? 0 : 1; else if (k === 'mm') BMS.mm = BMS.mm !== 0 ? 0 : 1; bmSave(); }
   else if (r.a.slice(0, 3) === 'vol'){ const k = r.a[4], d = r.a[3] === '+' ? .1 : -.1; SV[k] = Math.round(Math.max(0, Math.min(1, SV[k] + d))*10)/10; saveVol(); if (k === 'e') beep(660, .08, 'sine', .12); }
   else if (r.a === 'mic'){ if (!mic){ micOn = true; askMic(); ui.msg = 'Allow the microphone in the browser prompt.'; } else { micOn = !micOn; micApply(); ui.msg = micOn ? 'Microphone on.' : 'Microphone off.'; } }
   else if (r.a === 'mod'){ if (isOwner || amMod()) ui.s = 'mod'; }
@@ -660,10 +722,10 @@ function press(r){
       });
     }
     else {
-      const left = 3600000 - (Date.now() - lastNameAt);
-      if (left > 0) ui.msg = 'Name locked. ' + Math.ceil(left/60000) + ' min left.';
-      else if (taken(ui.txt)) ui.msg = 'That name is in use right now.';
-      else { myName = ui.txt; nameAuto = false; lastNameAt = Date.now(); try { localStorage.setItem('s09Name', myName); localStorage.setItem('s09NameAt', lastNameAt); } catch(e){} ui.s = 'home'; ui.msg = 'Name set. Locked for 1 hour.'; pub(); }
+      const flat = ui.txt.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (!isOwner && /BADGORIL+A/.test(flat)) ui.msg = 'That name belongs to the owner.';
+      else if (!isOwner && myName !== ui.txt && isModName(ui.txt)) ui.msg = 'That name belongs to a moderator.';
+      else { myName = ui.txt; nameAuto = false; try { localStorage.setItem('s09Name', myName); } catch(e){} ui.s = 'home'; ui.msg = 'Name set.'; pub(); }
     }
   }
   drawTerm();
@@ -864,7 +926,7 @@ function setAv(a, pr, rev){
   });
   const isMod = pr.o !== 1 && isModName(pr.mdn || pr.n); if (isMod && !a.crown){ a.crown = makeCrown(); a.head.add(a.crown); a.modB = new THREE.Sprite(new THREE.SpriteMaterial({map:modTex(), transparent:true, depthTest:false, fog:false})); a.modB.scale.set(.5, .125, 1); a.modB.renderOrder = 5; a.g.add(a.modB); }
   if (a.crown){ a.crown.visible = isMod; a.modB.visible = isMod && a.tag.s.visible !== false && a.head.visible; if (isMod) a.modB.position.set(a.head.position.x, a.head.position.y + .55, a.head.position.z); }
-  cosApply(a, pr.cs);
+  cosApply(a, pr.cs); frBadge(a, pr);
   a.tag.s.position.set(a.head.position.x, a.head.position.y + .38, a.head.position.z); a.own.visible = pr.o === 1; if (a.own.visible) a.own.position.set(a.head.position.x, a.head.position.y + .55, a.head.position.z); a.beam.visible = rev; if (rev) a.beam.position.set(a.head.position.x, a.head.position.y + 19, a.head.position.z);
 }
 
@@ -1175,7 +1237,7 @@ function myId(){ const m = R && R.peers().find(p => p.isMe); return m ? m.peer :
 const zonePeers = () => R ? R.peers().filter(p => !p.isMe && p.presence && p.presence.z === zone) : [];
 function pub(extra){
   if (!R) return; const h = headW(), f = a => [+a.x.toFixed(2), +a.y.toFixed(2), +a.z.toFixed(2)], e = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
-  R.presence(bmPub(Object.assign({n:myName, c:myColor, z:zone, v:myVote, o:isOwner ? 1 : 0, m:isOwner || amMod() ? modLog.slice() : null, md:isOwner ? ownerMods.slice() : null, cs:myCosArr(), d:dead ? 1 : 0, t:talking, r:+(e.y + rig.rotation.y).toFixed(2), p:f(h), a:f(hands[HL()].has ? hands[HL()].vis : keys.KeyH ? h.clone().setY(h.y + .4) : h), b:f(hands[1 - HL()].has ? hands[1 - HL()].vis : keys.KeyH ? h.clone().setY(h.y + .4) : h), dp:dpIsHost() ? dpSnap() : null, di:state === 'arena' ? DI : null}, extra || {}))).catch(() => {});
+  R.presence(bmPub(Object.assign({n:myName, c:myColor, z:zone, v:myVote, o:isOwner ? 1 : 0, m:isOwner || amMod() ? modLog.slice() : null, md:isOwner ? ownerMods.slice() : null, cs:myCosArr(), id:myPid, fq:[...frWant], d:dead ? 1 : 0, t:talking, r:+(e.y + rig.rotation.y).toFixed(2), p:f(h), a:f(hands[HL()].has ? hands[HL()].vis : keys.KeyH ? h.clone().setY(h.y + .4) : h), b:f(hands[1 - HL()].has ? hands[1 - HL()].vis : keys.KeyH ? h.clone().setY(h.y + .4) : h), dp:dpIsHost() ? dpSnap() : null, di:state === 'arena' ? DI : null}, extra || {}))).catch(() => {});
 }
 let unsub = null;
 async function joinRoom(name, label){
@@ -1184,7 +1246,6 @@ async function joinRoom(name, label){
   if (Date.now() < kickedUntil){ ui.msg = 'Kicked. Try again in ' + Math.ceil((kickedUntil - Date.now())/1000) + 's.'; drawTerm(); return; }
   try { if (unsub){ unsub(); unsub = null; } voices.forEach((v, k) => dropVoice(k)); if (R){ await R.leave(); R = null; } R = await roomCap.join(name); } catch(e){ R = null; roomLabel = 'Offline'; ui.msg = 'Could not join.'; drawTerm(); return; }
   roomLabel = label; unsub = R.onPeers(onPeers); if (R.voice){ R.voice.onStream(addVoice); R.voice.onGone(dropVoice); if (mic) R.voice.send(mic); } pub(); ui.msg = 'Joined ' + label + '.'; drawTerm();
-  setTimeout(() => { if (taken(myName)){ if (nameAuto){ do { myName = 'Subject ' + pad4(Math.random()*10000|0); } while (taken(myName)); pub(); } } }, 2000);
 }
 async function initNet(){
   try { roomCap = (window.claude && await window.claude.use('room')) || window.S09Net || null; } catch(e){ roomCap = null; }
@@ -2676,7 +2737,11 @@ function bmCreature(li, special){
   const c = makeCreature({sc:1}, li), U = dzU(), cache = new Map(); c.dz = U; c.fing = [];
   c.g.traverse(x => { if (x.isMesh){ const m = x.material; if (!cache.has(m)){ const k = m.clone(); dzPatch(k, U); cache.set(m, k); } x.material = cache.get(m); } });
   c.arms.forEach(a => { a.el.children.forEach(h => { if (h.isGroup) h.children.forEach(f => { if (f.isGroup) c.fing.push(f); }); }); });
-  c.eyeM = cache.get(c.mats[2]);
+  c.eyeM = cache.get(c.mats[2]); c.eyeBase = new THREE.Color(special ? 0xffc23a : 0xffffff);
+  if (!special){ const sk = cache.get(c.mats[0]) || c.mats[0], dk = cache.get(c.mats[1]) || c.mats[1], th = cache.get(c.mats[3]) || c.mats[3], gm = cache.get(c.mats[4]) || c.mats[4];
+    sk.color.setHex(0x050505); sk.roughness = .78; sk.map = null; sk.bumpMap = null; sk.needsUpdate = true; th.color.setHex(0x161616); gm.color.setHex(0x040404); dk.color.setHex(0x000000);
+    c.g.traverse(o => { if (o.isMesh && o.material === c.eyeM){ o.scale.multiplyScalar(2.4); o.position.z += .006; } });
+    c.head.updateMatrixWorld(true); [-1, 1].forEach(sd => { const gl = new THREE.Sprite(new THREE.SpriteMaterial({map:pTex, color:0xffffff, transparent:true, opacity:.75, depthWrite:false, blending:THREE.AdditiveBlending, fog:false})); gl.scale.set(.09, .07, 1); gl.position.set(sd*.046, .122, .12); c.head.add(gl); (c.glow = c.glow || []).push(gl); }); }
   if (special){ const sk = cache.get(c.mats[0]) || c.mats[0], th = cache.get(c.mats[3]) || c.mats[3]; sk.color.setHex(0x2b2624); sk.roughness = .32; sk.emissive = new THREE.Color(0x1a0f02); th.color.setHex(0xe2b33a); th.metalness = .7; th.roughness = .25; if (c.eyeM) c.eyeM.color.setHex(0xffc23a); c.special = true;
     const cr = makeCrown(); cr.scale.setScalar(1.25); cr.position.set(0, .245, -.01); cr.rotation.x = .12; c.head.add(cr);
     [-1, 1].forEach(s => { for (let k=0;k<3;k++){ const h = new THREE.Mesh(CONE, GOLD); h.scale.set(.024 - k*.006, .07, .024 - k*.006); h.position.set(s*(.075 + k*.028), .19 + k*.045, -.04 - k*.02); h.rotation.set(-.4, 0, -s*(.4 + k*.35)); c.head.add(h); } });
@@ -2856,7 +2921,7 @@ function bmRoarFx(T, pos){
 
 /* ---------- the monster player's own body and the HUD bits ---------- */
 let selfCr = null;
-function selfCreature(){ if (!selfCr){ selfCr = bmCreature(lvIdx, isOwner || amMod()); selfCr.neck.visible = false; } return selfCr; }
+function selfCreature(){ if (!selfCr){ selfCr = bmCreature(lvIdx, bmCanAb() && BMS.mm !== 0); selfCr.neck.visible = false; } return selfCr; }
 /* camera-locked banner for countdowns (works the same in VR and on screen) */
 const BNC = cv(1024, 192), BNG = BNC.getContext('2d'), BNT = new THREE.CanvasTexture(BNC);
 const bnr = new THREE.Mesh(new THREE.PlaneGeometry(.8, .15), new THREE.MeshBasicMaterial({map:BNT, transparent:true, depthTest:false, depthWrite:false, fog:false})); bnr.position.set(0, .2, -1); bnr.renderOrder = 1001; bnr.visible = false; camera.add(bnr);
@@ -2899,10 +2964,12 @@ function drawWrist(st){
 
 /* ---------- abilities: one system behind keys, screen buttons, controller buttons and the wrist panel ---------- */
 function deny(m){ if (!playS('ui_deny', {vol:.6})) beep(180, .12, 'square', .06); if (m) say(m, 1.6); }
+const bmCanAb = () => isOwner || amMod();
 function bmUse(k){
   if (!isBM() || !amMon || dead) return;
   if (k === 'f'){ BMX.fin = (BMX.fin + 1) % FIN.length; if (!playS('ui_conf', {vol:.6})) uiClick(); say('Finisher: ' + FIN[BMX.fin].n.toLowerCase() + '.', 1.6); pulse(0, .3, 40); pulse(1, .3, 40); return; }
   const T = bmT(), el = bmEl(), now = performance.now();
+  if (!bmCanAb()) return deny('Monster abilities are for moderators.');
   if (el < T.lock) return deny('Not yet. You are still locked in.');
   if (BMX.ab) return deny(BMX.ab.k === k ? '' : 'Finish the ability you are using first.');
   if (now < BMX.cdEnd[k]) return deny('Recharging. ' + Math.ceil((BMX.cdEnd[k] - now)/1000) + ' seconds.');
@@ -2924,8 +2991,8 @@ function bmEndAb(){
   [0, 1].forEach(i => pulse(i, .4, 80)); pub();
 }
 function bmPub(o){
-  if (!isBM() || !amMon){ o.ab = null; o.gp = null; o.gr = null; o.q = null; o.kv = null; return o; }
-  const e = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ'); o.q = +e.x.toFixed(2); o.ab = BMX.ab ? [BMX.ab.k, BMX.ab.seq] : null; o.gp = null; o.gr = null;
+  if (!isBM() || !amMon){ o.mm = null; o.ab = null; o.gp = null; o.gr = null; o.q = null; o.kv = null; return o; }
+  const e = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ'); o.q = +e.x.toFixed(2); o.ab = BMX.ab && bmCanAb() ? [BMX.ab.k, BMX.ab.seq] : null; o.mm = bmCanAb() && BMS.mm !== 0 ? 1 : 0; o.gp = null; o.gr = null;
   if (BMX.ab && BMX.ab.k === 'g' && BMX.body){ o.gp = o.p; o.gr = o.r; const B = BMX.body; o.p = B.p; o.a = B.a; o.b = B.b; o.r = B.r; o.q = B.q; }
   if (Date.now() - (round ? round.t0 : 0) < 2000) o.kv = null;
   return o;
@@ -2933,6 +3000,7 @@ function bmPub(o){
 /* what everyone else accepts from the monster: only abilities that fit the rules, never longer than allowed */
 function bmRx(pr){
   const X = BMX.rx, T = bmT(), now = performance.now(), ab = pr && pr.ab;
+  if (ab && !(pr.o === 1 || isModName(pr.n))) return null;
   if (ab && !X.done.has(ab[1]) && (!X.cur || X.cur.seq !== ab[1])){ const k = ab[0];
     X.done.add(ab[1]); if (!X.cur && 'giw'.indexOf(k) >= 0 && bmEl() >= T.lock - 1.5 && now >= (X.cd[k] || 0) - 2000) X.cur = {k:k, seq:ab[1], t0:now}; }
   if (X.cur && (!ab || ab[1] !== X.cur.seq || now - X.cur.t0 > T.ad*1000 + 350)){ X.cd[X.cur.k] = now + (T.cd[X.cur.k] || 20)*1000; X.cur.endT = now; X.last = X.cur; X.cur = null; }
@@ -2969,7 +3037,7 @@ function transformPose(a, c, base, el, T, dt, t, sfx){
     c.jaw.rotation.x = u > .72 ? .08 + Math.abs(Math.sin(t*2.2))*.28*clamp01((u - .72)/.15) + Math.max(0, Math.sin(t*13))*.05 : .04;
     c.arms.forEach((m, k) => { m.sh.rotation.x = -.15 + jerk(k + 5)*.35; m.sh.rotation.z = m.s*(.12 + Math.abs(jerk(k + 7))*.25); m.el.rotation.x = -.35 - Math.abs(jerk(k + 9))*.5; });
     c.fing.forEach((f, k) => { f.rotation.x = .35 + .5*Math.abs(Math.sin(t*(4 + k%3) + k)); });
-    if (c.eyeM) c.eyeM.color.setRGB(.05 + .95*clamp01((u - .8)/.2), .05 + .5*clamp01((u - .85)/.15), .04 + .45*clamp01((u - .85)/.15));
+    if (c.eyeM){ const k = clamp01((u - .8)/.2); c.eyeM.color.setRGB(.02 + (c.eyeBase.r - .02)*k, .02 + (c.eyeBase.g - .02)*k, .02 + (c.eyeBase.b - .02)*k); } if (c.glow) c.glow.forEach(gl => { gl.material.opacity = .75*clamp01((u - .82)/.18); });
   } else {
     /* the roar: head comes up slowly, the jaw drops, chest heaves, arms open wide, everything shakes */
     const up = ease(rz/.9), open = ease((rz - .55)/.4), hold = rz < T.rd - 1.1 ? 1 : clamp01((T.rd - rz)/1.1), rough = open*hold;
@@ -2979,7 +3047,7 @@ function transformPose(a, c, base, el, T, dt, t, sfx){
     c.chest.scale.set(.2*(1 + .12*rough), .25*(1 + .05*rough), .14*(1 + .2*rough));
     c.arms.forEach((m, k) => { m.sh.rotation.x = -.3 - .6*rough + Math.sin(t*29 + k)*.04*rough; m.sh.rotation.z = m.s*(.15 + 1.05*rough); m.el.rotation.x = -.5 - .7*rough; });
     c.fing.forEach((f, k) => { f.rotation.x = .35 + 1.0*rough + Math.sin(t*30 + k)*.06*rough; });
-    if (c.eyeM) c.eyeM.color.setRGB(1, .55, .5);
+    if (c.eyeM) c.eyeM.color.copy(c.eyeBase); if (c.glow) c.glow.forEach(gl => { gl.material.opacity = .75 + .25*rough; });
   }
   /* gorilla body: frozen in place, head sinking, arms twitching */
   if (show){ a.head.rotation.x = -.85*ease((u - .08)/.25) + jerk(1)*.07*clamp01(u/.1); a.head.rotation.z = jerk(2)*.12; a.torso.rotation.x = .25*ease((u - .2)/.3); }
@@ -3113,7 +3181,7 @@ function bmTick(dt, t, hw){
   /* the monster, as everyone else sees it */
   const mA = monP && avs.get(monP.peer);
   if (mA){
-    const pr = monP.presence; let B = mA.bm; if (!B){ B = mA.bm = {a:mA, c:bmCreature(lvIdx, pr.o === 1 || isModName(pr.n))}; if (B.c.special && el < T.tf0 + 1) say((pr.n || 'The monster') + ' is a moderator. Their monster is special.', 4); BMX.crs.add(B); }
+    const pr = monP.presence; let B = mA.bm; if (!B){ B = mA.bm = {a:mA, c:bmCreature(lvIdx, (pr.o === 1 || isModName(pr.n)) && pr.mm !== 0)}; if (B.c.special && el < T.tf0 + 1) say((pr.n || 'The monster') + ' is a moderator. Their monster is special.', 4); BMX.crs.add(B); }
     const cur = bmRx(pr), p = pr.p || [0, 1, 0], yaw = +pr.r || 0;
     if (!B.base) B.base = {x:p[0], z:p[2], yaw:yaw};
     if (bmK && bmK.c === B.c){ [mA.head, mA.torso].concat(...mA.arms.map(m => [m.u, m.f, m.e, m.h])).forEach(o => { o.visible = false; }); }
@@ -3121,7 +3189,7 @@ function bmTick(dt, t, hw){
     else if (el < T.tf1 + T.rd){ B.base.x = p[0]; B.base.z = p[2]; B.base.yaw = yaw; transformPose(mA, B.c, B.base, el, T, dt, t, true); }
     else {
       [mA.head, mA.torso].concat(...mA.arms.map(m => [m.u, m.f, m.e, m.h])).forEach(o => { o.visible = false; });
-      const c = B.c; c.g.visible = true; c.g.scale.setScalar(SC); if (c.eyeM) c.eyeM.color.setRGB(1, cur && cur.k === 'w' ? .2 : .55, cur && cur.k === 'w' ? .15 : .5);
+      const c = B.c; c.g.visible = true; c.g.scale.setScalar(SC); if (c.eyeM){ c.eyeM.color.copy(c.eyeBase); if (cur && cur.k === 'w') c.eyeM.color.setRGB(1, .2, .15); } if (c.glow) c.glow.forEach(gl => { gl.material.opacity = .55 + .2*Math.sin(t*1.7); gl.visible = c.dz.uD.value < .5; });
       const vr = pr.a && Math.hypot(pr.a[0] - p[0], pr.a[1] - p[1], pr.a[2] - p[2]) > .08;
       poseCreature(c, p[0], p[2], yaw, +pr.q || 0, vr ? V(pr.a[0], pr.a[1], pr.a[2]) : null, vr ? V(pr.b[0], pr.b[1], pr.b[2]) : null, dt, t, B);
       /* invisibility: dissolve out with a cold shimmer, back in when it ends */
@@ -3179,7 +3247,7 @@ function bmTick(dt, t, hw){
     const st = AB.map(a => { const on = BMX.ab && BMX.ab.k === a.k, cd = Math.max(0, (BMX.cdEnd[a.k] - now)/1000), lk = el < T.lock;
       return {k:a.k, on:on, cd:lk ? 1 : cd, txt:on ? ((BMX.ab.end - now)/1000).toFixed(1) : lk ? 'LOCKED' : cd > 0 ? Math.ceil(cd) + 's' : 'READY', p:on ? 1 - (BMX.ab.end - now)/(T.ad*1000) : lk ? 1 : cd/(T.cd[a.k] || 20), lbl:a.n, vr:a.vr, hold:BMX.hold[a.k] && !BMX.hold[a.k].fired ? Math.min(1, BMX.hold[a.k].t/.3) : 0}; });
     st.push({k:'f', on:false, cd:0, txt:FIN[BMX.fin].n, p:0, lbl:'FINISHER', vr:'B', hold:0});
-    const screen = !renderer.xr.isPresenting; bmHud.hidden = !screen;
+    const screen = !renderer.xr.isPresenting; bmHud.hidden = !screen; AB.forEach(a => { if (bmBtn[a.k]) bmBtn[a.k].hidden = !bmCanAb(); }); if (!bmCanAb()) st.splice(0, 3);
     if (screen) st.forEach(s => { const b = bmBtn[s.k]; if (!b) return; b.classList.toggle('on', !!s.on); b.classList.toggle('cd', s.cd > 0 && !s.on); b.querySelector('i').style.setProperty('--p', s.on ? 0 : Math.min(1, s.p)); b.querySelector('b').textContent = keyName(BMS.keys[s.k]); b.querySelector('em').textContent = s.on ? s.txt : s.cd > 0 && s.txt !== 'LOCKED' ? s.txt : ''; if (s.k === 'f') b.querySelector('span').textContent = FIN[BMX.fin].n; });
     if (renderer.xr.isPresenting){ let li = -1; for (let i=0;i<2;i++) if (conn[i] && hnd[i] === 'left') li = i; if (li >= 0){ const grip = renderer.xr.getControllerGrip(li); if (wristOn !== li){ if (wrist.parent) wrist.parent.remove(wrist); grip.add(wrist); wrist.position.set(0, .07, .06); wrist.rotation.set(-1.0, 0, 0); wristOn = li; } wrist.visible = true; wpT -= dt; if (wpT <= 0){ wpT = .1; drawWrist(st.map(s => Object.assign({}, s, {lbl:s.vr + '  ' + (s.k === 'f' ? 'KILL' : s.lbl.split(' ')[0]), txt:s.k === 'f' ? FIN[BMX.fin].n.split(' ')[0] : s.txt}))); } } }
     else wrist.visible = false;
@@ -3418,6 +3486,25 @@ function coinTick(){
   if (D.ph === 'win' && D.ws === n){ const k = D.id + ':w'; if (!dpPaid.has(k)){ dpPaid.add(k); addCoins(60, 'Final survivor'); } }
 }
 
+/* ======================= GRAPHICS: soft room reflections on players, monsters and metal; a HIGH quality option ======================= */
+let GQ = 0; try { GQ = +localStorage.getItem('s09Gfx') || 0; } catch(e){}
+const basePR = renderer.getPixelRatio();
+function envTex(k){
+  const es = new THREE.Scene(), C = (r, g, b) => new THREE.Color(r*k, g*k, b*k);
+  const room = new THREE.Mesh(new THREE.BoxGeometry(20, 8, 20), new THREE.MeshBasicMaterial({color:C(.05, .055, .065), side:THREE.BackSide})); room.position.y = 3; es.add(room);
+  [[0, 6.9, 0, 6, 1.5], [-6, 6.9, -5, 2, 4], [6, 6.9, 5, 2, 4], [-9.9, 3, 0, 4, 2]].forEach((q, i) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(q[3], q[4]), new THREE.MeshBasicMaterial({color:i === 3 ? C(.5, .35, .25) : C(1.6, 1.65, 1.75), side:THREE.DoubleSide})); if (i === 3) p.rotation.y = Math.PI/2; else p.rotation.x = Math.PI/2; p.position.set(q[0], q[1], q[2]); es.add(p); });
+  const fl = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshBasicMaterial({color:C(.09, .085, .08)})); fl.rotation.x = -Math.PI/2; fl.position.y = -.99; es.add(fl);
+  const pm = new THREE.PMREMGenerator(renderer), t = pm.fromScene(es, .04).texture; pm.dispose(); return t;
+}
+let ENV = null, ENVD = null; try { ENV = envTex(1); ENVD = envTex(.28); } catch(e){}
+function gfxTick(){ const want = state === 'lobby' || state === 'arena' || state === 'menu' ? ENV : GQ ? ENVD : null; if (scene.environment !== want) scene.environment = want; }
+function gfxApply(){
+  try { if (!renderer.xr.isPresenting){ renderer.xr.setFramebufferScaleFactor(GQ ? 1.25 : .9); renderer.xr.setFoveation(GQ ? .35 : 1); } } catch(e){}
+  try { renderer.setPixelRatio(GQ ? Math.min(devicePixelRatio, 2.5) : basePR); renderer.setSize(innerWidth, innerHeight); } catch(e){}
+  try { const mx = renderer.capabilities.getMaxAnisotropy(); scene.traverse(o => { const m = o.material; if (m && m.map && m.map.anisotropy !== undefined){ const a = GQ ? Math.min(16, mx) : 4; if (m.map.anisotropy !== a){ m.map.anisotropy = a; m.map.needsUpdate = true; } } }); } catch(e){}
+}
+gfxApply();
+
 /* ---------- Main loop ---------- */
 drawTerm(); drawHud(); initNet(); askMic();
 if (document.fonts) Promise.all([document.fonts.load('500 30px "IBM Plex Sans Condensed"'), document.fonts.load('400 16px "IBM Plex Mono"'), document.fonts.load('40px "Caveat"'), document.fonts.load('40px "Permanent Marker"'), document.fonts.load('24px "Special Elite"')]).then(() => { LABELS.forEach(f => f()); drawTerm(); drawHud(); boards.forEach(b => { b.last = ''; }); avs.forEach(a => { a.name = ''; }); prev.name = ''; }).catch(() => {});
@@ -3454,7 +3541,7 @@ renderer.setAnimationLoop(() => {
     if (state === 'lobby'){ prev.g.visible = true; setAv(prev, {c:myColor, n:myName, o:isOwner ? 1 : 0, cs:myCosArr(), p:[9, 1.48, 2], a:[8.55 + Math.sin(t*1.3)*.05, .98, 2.15], b:[9.45, .98 + Math.sin(t*1.7)*.06, 2.15], r:-Math.PI/2 + Math.sin(t*.6)*.6}, false); } else prev.g.visible = false;
     voiceTick(dt);
     loadTick(dt, t);
-    rosterTick(); deathTick(); fxTick(dt, t, hw); bmTick(dt, t, hw); coinTick(); cosTick(dt, t, hw);
+    rosterTick(); deathTick(); fxTick(dt, t, hw); bmTick(dt, t, hw); coinTick(); cosTick(dt, t, hw); gfxTick();
     if (dead){ renderFeeds(t); if (renderer.xr.isPresenting) for (let i=0;i<2;i++){ const grip = renderer.xr.getControllerGrip(i), h = hands[i]; h.has = !!(grip.visible && conn[i]); h.mesh.visible = h.has; if (h.has){ tmp.set(0, 0, -.04).applyMatrix4(grip.matrix); h.vis.copy(tmp).applyQuaternion(rig.quaternion).add(rig.position); h.mesh.position.copy(h.vis); } } retBtn.getWorldPosition(retWorld); if (near3(retWorld, .3)) leaveSpectate(); }
     portalFields.forEach((m, k) => { m.opacity = .3 + .14*Math.sin(t*3 + k); });
     if (state === 'level') lvFlick.forEach((m, k) => { m.visible = Math.sin(t*(9 + k) + k*7)*Math.sin(t*2.3 + k) < .55 || Math.random() < .2; });
