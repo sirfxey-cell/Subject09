@@ -2606,7 +2606,9 @@ const readables = [];
   /* wet floor sign and a mop bucket somebody left behind */
   const yl = new THREE.MeshStandardMaterial({color:0xc9a227, roughness:.55}), signT = mkTex(256, 384, (g, w, h) => { g.fillStyle = '#c9a227'; g.fillRect(0, 0, w, h); g.fillStyle = '#111'; g.font = '700 42px ' + FS; g.textAlign = 'center'; g.fillText('CAUTION', w/2, 70); g.font = '600 30px ' + FS; g.fillText('WET FLOOR', w/2, 330); g.beginPath(); g.arc(w/2, 190, 70, 0, 7); g.lineWidth = 8; g.strokeStyle = '#111'; g.stroke(); g.fillRect(w/2 - 6, 150, 12, 60); g.fillRect(w/2 - 6, 222, 12, 12); });
   const sg = new THREE.Group(); sg.position.set(2.6, 0, 3.4); sg.rotation.y = .5; G.add(sg);
-  [-1, 1].forEach(s => { const p = new THREE.Mesh(new THREE.PlaneGeometry(.32, .62), new THREE.MeshStandardMaterial({map:signT, roughness:.6, side:THREE.DoubleSide})); p.position.set(0, .3, s*.08); p.rotation.x = s*.26; sg.add(p); });
+  [-1, 1].forEach(s => { const p = new THREE.Mesh(new THREE.PlaneGeometry(.32, .62), new THREE.MeshStandardMaterial({map:signT, roughness:.6})); p.position.set(0, .3, s*.08); p.rotation.set(s*.26, s < 0 ? Math.PI : 0, 0); sg.add(p); const bkp = new THREE.Mesh(new THREE.PlaneGeometry(.32, .62), yl); bkp.position.set(0, .3, s*.078); bkp.rotation.set(s*.26, s < 0 ? 0 : Math.PI, 0); sg.add(bkp); });
+  /* the sign, bucket and mop are solid now */
+  CB.push({min:V(2.6 - .26, 0, 3.4 - .26), max:V(2.6 + .26, .64, 3.4 + .26)}, {min:V(3.25 - .23, 0, 3.9 - .23), max:V(3.25 + .23, 1.1, 3.9 + .23)});
   const bk = new THREE.Group(); bk.position.set(3.25, 0, 3.9); G.add(bk); bk.add(add(new THREE.Mesh(new THREE.CylinderGeometry(.2, .17, .32, 16, 1, true), yl), 0, .2, 0)); bk.add(add(new THREE.Mesh(new THREE.CircleGeometry(.19, 16), new THREE.MeshStandardMaterial({color:0x3a3a30, roughness:.2})), 0, .3, 0, 0, -Math.PI/2));
   const mop = new THREE.Mesh(new THREE.CylinderGeometry(.015, .015, 1.4, 6), new THREE.MeshStandardMaterial({color:0x7a6a4a})); mop.position.set(.05, .78, -.1); mop.rotation.set(.35, 0, .2); bk.add(mop);
   /* paperwork on the floor, a coffee cup on the terminal, sticky notes on its bezel */
@@ -2615,7 +2617,7 @@ const readables = [];
   const cup = new THREE.Mesh(new THREE.CylinderGeometry(.045, .038, .11, 14), white); cup.position.set(-.3, 2.005, .1); vg.add(cup);
   [['pw is NOT 1234', .78], ['the clock\nis wrong', .62]].forEach(q => { const m = new THREE.Mesh(new THREE.PlaneGeometry(.09, .09), paperMat(paperTex(q[0], {paper:'#efe48a', w:256, h:256, size:42}))); m.position.set(.33, q[1], .445); m.rotation.z = (Math.random() - .5)*.25; vg.add(m); });
   /* a chair someone knocked over and nobody picked up */
-  const ch = new THREE.Group(); ch.position.set(-5.2, .24, 8.2); ch.rotation.set(0, .7, Math.PI/2); G.add(ch); ch.add(add(new THREE.Mesh(new THREE.BoxGeometry(.45, .05, .45), dark), 0, .45, 0)); ch.add(add(new THREE.Mesh(new THREE.BoxGeometry(.45, .5, .05), dark), 0, .72, -.2)); [[-.2, -.2], [.2, -.2], [-.2, .2], [.2, .2]].forEach(q => ch.add(add(new THREE.Mesh(new THREE.CylinderGeometry(.015, .015, .45, 6), grey), q[0], .22, q[1])));
+  CB.push({min:V(-5.2 - .45, 0, 8.2 - .45), max:V(-5.2 + .45, .55, 8.2 + .45)}); const ch = new THREE.Group(); ch.position.set(-5.2, .24, 8.2); ch.rotation.set(0, .7, Math.PI/2); G.add(ch); ch.add(add(new THREE.Mesh(new THREE.BoxGeometry(.45, .05, .45), dark), 0, .45, 0)); ch.add(add(new THREE.Mesh(new THREE.BoxGeometry(.45, .5, .05), dark), 0, .72, -.2)); [[-.2, -.2], [.2, -.2], [-.2, .2], [.2, .2]].forEach(q => ch.add(add(new THREE.Mesh(new THREE.CylinderGeometry(.015, .015, .45, 6), grey), q[0], .22, q[1])));
   /* tally marks scratched by the window, at sitting height */
   add(new THREE.Mesh(new THREE.PlaneGeometry(.5, .25), decalMat(tallyTex(23))), 11.97, .95, -1.2, -Math.PI/2);
 })();
@@ -4345,7 +4347,7 @@ const statue = {piv:new THREE.Group(), av:null};
   const pc = cv(1024, 256), g = pc.getContext('2d'); g.fillStyle = '#0c0c0d'; g.fillRect(0, 0, 1024, 256); g.strokeStyle = '#e0ad3a'; g.lineWidth = 10; g.strokeRect(14, 14, 996, 228);
   g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#e0ad3a'; g.font = '600 54px ' + FS; spaced(g, 'OWNER', 512, 78, 18); g.fillStyle = '#f6f1e0'; g.font = '700 96px ' + FS; spaced(g, 'BADGORILLA', 512, 170, 10);
   const plaque = new THREE.Mesh(new THREE.PlaneGeometry(1.6, .4), new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(pc), fog:false})); plaque.position.set(HX, .55, z - .91); plaque.rotation.y = Math.PI; cosG.add(plaque);
-  statue.piv.position.set(HX, 1.1, z); cosG.add(statue.piv);
+  statue.piv.position.set(HX, 1.1, z); cosG.add(statue.piv); lobbyBoxes.push({min:V(HX - .95, 0, z - .95), max:V(HX + .95, 4.6, z + .95)});
   const a = makeAvatar(); scene.remove(a.g); statue.piv.add(a.g); a.g.scale.setScalar(2.1);
   const pose = {c:'#d8a838', n:'', o:1, p:[0, 1.45, 0], a:[-.52, 1.78, -.12], b:[.52, 1.78, -.12], r:0};
   for (let k=0;k<16;k++) setAv(a, pose, false); a.tag.s.visible = false; a.own.visible = false; a.beam.visible = false; a.vis.visible = true;
