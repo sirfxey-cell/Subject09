@@ -435,6 +435,7 @@ const P = {
 
 /* ---------- Lobby: Intake Hall ---------- */
 const lobbyG = new THREE.Group(); scene.add(lobbyG); const lobbyBoxes = [];
+let lobbyK = null, lobbyLights = [], lvK = null, lvLights = [], probeFor = '';
 const LH = 7, lobbyFx = {cams:[], ring:null, flick:null, crea:null, slamT:6, slam:0, glass:null};
 (function(){
   const K = kit({wall:0xb2b4b5, acc:'#5a5e62', floor:0x8a8b8a, ceil:0xabacab, metal:0x8f9396, fluid:0x9aa2a8}), CB = lobbyBoxes, lights = [];
@@ -485,7 +486,7 @@ const LH = 7, lobbyFx = {cams:[], ring:null, flick:null, crea:null, slamT:6, sla
   cyl(K.metal, 9, .25, 2, .85, .5, 20); cyl(K.dark, 9, .51, 2, .8, .02, 20); lobbyBoxes.push({min:V(8.2, 0, 1.2), max:V(9.8, .5, 2.8)});
   lights.push({x:9, y:4, z:2, r:.1, g:.4, b:.35, rad:4, room:0});
   [-6, 0, 6].forEach((x, i) => lights.push({x:x, y:2, z:-15, r:[.5, .38, .26][i], g:[.53, .4, .27][i], b:[.58, .44, .3][i], rad:4.5, room:0}));
-  finishKit(K, lobbyG, makeBake(lights, x => x > 12.1 ? 1 : x < -12.3 ? 2 : 0, () => true, [.03, .032, .036], LH));
+  finishKit(K, lobbyG, makeBake(lights, x => x > 12.1 ? 1 : x < -12.3 ? 2 : 0, () => true, [.03, .032, .036], LH)); lobbyK = K; lobbyLights = lights;
   const sign = new THREE.Mesh(new THREE.PlaneGeometry(8.6, 1.5), new THREE.MeshBasicMaterial({map:labelTex('SUBJECT 09', '#d9dcde', 1024, 180, 110), transparent:true, fog:false})); sign.position.set(0, 5.6, -15.9); lobbyG.add(sign);
   const vs = new THREE.Mesh(new THREE.PlaneGeometry(4, .5), new THREE.MeshBasicMaterial({map:labelTex('VOTE FOR A MAP', '#b9bdc0', 512, 64, 36), transparent:true, fog:false})); vs.position.set(0, 2.75, -7.9); lobbyG.add(vs);
   const ts = new THREE.Mesh(new THREE.PlaneGeometry(2.6, .4), new THREE.MeshBasicMaterial({map:labelTex('LOBBY COMPUTER', '#b9bdc0', 512, 80, 30), transparent:true, fog:false})); ts.position.set(-11.75, 2.65, 2); ts.rotation.y = Math.PI/2; lobbyG.add(ts);
@@ -850,10 +851,17 @@ function mergeStatic(root, keep){
   buckets.forEach(L => { if (L.length < 2) return; const g = mergeGeos(L.map(o => ({g:o.geometry, m:new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld)}))), m = new THREE.Mesh(g, L[0].material); m.renderOrder = L[0].renderOrder; L.forEach(o => { if (o.parent) o.parent.remove(o); }); root.add(m); });
 }
 /* fur: short strands, used as color and bump so the flashlight picks up texture */
-const FUR = mkTex(256, 256, (g, w, h) => {
-  g.fillStyle = '#e2e2e2'; g.fillRect(0, 0, w, h);
-  for (let i=0;i<7000;i++){ const x = RR()*w, y = RR()*h, l = 3 + RR()*8, a = (RR() - .5)*.7, v = RR(); g.strokeStyle = v < .55 ? 'rgba(0,0,0,' + (.08 + RR()*.2) + ')' : 'rgba(255,255,255,' + (.05 + RR()*.14) + ')'; g.lineWidth = .8 + RR()*.9; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.sin(a)*l, y + Math.cos(a)*l); g.stroke(); }
-}); FUR.repeat.set(3, 2);
+/* fur: a dark undercoat, then clumps of strands that flow the same way, with lighter tips */
+const FUR = mkTex(512, 512, (g, w, h) => {
+  g.fillStyle = '#c4c4c4'; g.fillRect(0, 0, w, h);
+  for (let i=0;i<2600;i++){ g.fillStyle = 'rgba(0,0,0,' + (.04 + RR()*.08) + ')'; g.fillRect(RR()*w, RR()*h, 2 + RR()*5, 2 + RR()*5); }
+  for (let c=0;c<900;c++){ const cx = RR()*w, cy = RR()*h, ang = (RR() - .5)*.5, n = 6 + (RR()*10|0), dark = RR() < .5;
+    for (let i=0;i<n;i++){ const x = cx + (RR() - .5)*7, y = cy + (RR() - .5)*4, l = 9 + RR()*13, a = ang + (RR() - .5)*.25, bend = (RR() - .5)*4;
+      g.strokeStyle = dark ? 'rgba(0,0,0,' + (.12 + RR()*.2) + ')' : 'rgba(255,255,255,' + (.08 + RR()*.16) + ')'; g.lineWidth = .7 + RR()*1.1; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + Math.sin(a)*l*.5 + bend, y + Math.cos(a)*l*.5, x + Math.sin(a)*l, y + Math.cos(a)*l); g.stroke();
+      if (!dark && RR() < .3){ g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(x + Math.sin(a)*l - .5, y + Math.cos(a)*l - .5, 1.2, 1.2); } } }
+}); FUR.repeat.set(3, 2); FUR.anisotropy = 4;
+/* soft sheen at the edges of fur, like light catching the hair tips; cheap, one extra line in the shader */
+function furShade(m){ m.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n{ float fr = 1.0 - saturate(dot(normalize(normal), normalize(vViewPosition))); reflectedLight.indirectDiffuse += diffuseColor.rgb * (0.32 * pow(fr, 2.4)); reflectedLight.directDiffuse *= 0.88 + 0.2 * fr; }'); }; m.customProgramCacheKey = () => 'fur2'; return m; }
 const HIDE = mkTex(256, 256, (g, w, h) => {
   g.fillStyle = '#8c8682'; g.fillRect(0, 0, w, h); speck(g, w, h, 5000, .16);
   for (let k=0;k<90;k++){ g.strokeStyle = 'rgba(0,0,0,' + (.08 + RR()*.12) + ')'; g.lineWidth = 1; g.beginPath(); const x = RR()*w, y = RR()*h; g.moveTo(x, y); g.quadraticCurveTo(x + (RR() - .5)*30, y + (RR() - .5)*8, x + (RR() - .5)*40, y + (RR() - .5)*6); g.stroke(); }
@@ -941,20 +949,34 @@ function makeCreature(T, li){
   mergeSiblings(g, new Set([chest]));
   return {g:g, hips:hips, hy:hy, spine:spine, chest:chest, neck:neck, head:head, jaw:jaw, arms:arms, legs:legs, ph:Math.random()*6, tw:0, step:0, mats:[sk, dk, ey, th, gum], glow:glow};
 }
+/* ---------- creature motion: stride matched to ground speed (no foot sliding), weight shifts, and a personality per monster ---------- */
+const STY = {heavy:{sp:.86, acc:1.6, dec:2.2, turn:2.4, stride:1.3, bob:.09, sway:.1, arm:.7, lean:0}, erratic:{sp:1.05, acc:7, dec:9, turn:10, stride:.95, bob:.05, sway:.05, arm:.5, lean:.08}, robot:{sp:1, acc:30, dec:30, turn:4.5, stride:1.05, bob:.03, sway:.02, arm:.35, lean:0}, animal:{sp:1.14, acc:4.5, dec:3.5, turn:7, stride:.82, bob:.06, sway:.06, arm:.9, lean:.35}, base:{sp:1, acc:5, dec:5, turn:6, stride:1, bob:.05, sway:.05, arm:.55, lean:0}};
 function animCreature(c, dt, spd, t, lean, close){
-  const w = Math.min(1, spd/1.6); c.ph += dt*(1.1 + spd*2.3); const s = Math.sin(c.ph), q = Math.cos(c.ph);
-  c.legs[0].hp.rotation.x = -s*.6*w; c.legs[1].hp.rotation.x = s*.6*w;
-  c.legs[0].kn.rotation.x = .12 + Math.max(0, q)*1.1*w; c.legs[1].kn.rotation.x = .12 + Math.max(0, -q)*1.1*w;
-  c.hips.position.y = c.hy - .04 + Math.abs(q)*.05*w; c.hips.rotation.y = s*.12*w;
-  c.spine.rotation.x = lean + Math.sin(c.ph*2)*.04*w + Math.sin(t*2.1)*.015; c.spine.rotation.z = s*.05*w;
-  c.chest.scale.set(.2*(1 + Math.sin(t*2.4)*.03), .25, .14*(1 + Math.sin(t*2.4)*.05));
-  c.arms.forEach((a, k) => { const sw = (k ? -s : s)*.55*w;
-    a.sh.rotation.x = close ? -1.25 + Math.sin(t*9 + k)*.15 : sw - lean*.8; a.sh.rotation.z = a.s*(.14 + Math.sin(t*1.3 + k)*.04);
-    a.el.rotation.x = close ? -.2 : -.25 - Math.max(0, (k ? s : -s))*.4*w; });
-  if (Math.random() < dt*.5) c.tw = (Math.random() - .5)*1.3;
+  const S = STY[c.sty] || STY.base, sc = c.g.scale.x || 1, w = Math.min(1, spd/(1.4*sc));
+  /* the legs cycle exactly as fast as the body travels, so the planted foot stays put */
+  c.ph += dt*(spd/Math.max(.25, S.stride*.95*sc))*Math.PI;
+  let ph = c.ph, tt = t; if (c.sty === 'robot'){ ph = Math.round(ph*3)/3; tt = Math.round(t*8)/8; }
+  const s = Math.sin(ph), q = Math.cos(ph);
+  c.legs[0].hp.rotation.x = -s*.62*w; c.legs[1].hp.rotation.x = s*.62*w;
+  c.legs[0].kn.rotation.x = .12 + Math.max(0, q)*1.15*w; c.legs[1].kn.rotation.x = .12 + Math.max(0, -q)*1.15*w;
+  /* weight: the hips drop on each landing and shift over the standing leg */
+  c.hips.position.y = c.hy - .04 - Math.abs(s)*S.bob*w + (1 - w)*Math.sin(tt*1.4)*.008; c.hips.position.x = q*S.sway*w*.5; c.hips.rotation.y = s*.12*w; c.hips.rotation.z = q*S.sway*w;
+  if (c.jk > 0) c.jk -= dt*3; if (c.sty === 'erratic' && Math.random() < dt*1.6){ c.jk = 1; c.jv = (Math.random() - .5)*.7; }
+  const jk = Math.max(0, c.jk || 0)*(c.jv || 0);
+  c.spine.rotation.x = lean + S.lean*(.5 + w*.5) + Math.sin(ph*2)*.04*w + Math.sin(tt*2.1)*.015 + jk*.3; c.spine.rotation.z = -q*.06*w + jk*.4;
+  c.chest.scale.set(.2*(1 + Math.sin(tt*2.4)*.03), .25, .14*(1 + Math.sin(tt*2.4)*.05));
+  c.arms.forEach((a, k) => { const sw = (k ? -s : s)*S.arm*w;
+    if (close) a.sh.rotation.x = -1.25 + Math.sin(tt*9 + k)*.15;
+    else if (c.sty === 'animal') a.sh.rotation.x = -.55 - S.lean - w*.5 + sw*.8;
+    else a.sh.rotation.x = sw - lean*.8 + jk*(k ? 1 : -1);
+    a.sh.rotation.z = a.s*(.14 + Math.sin(tt*1.3 + k)*.04 + (c.sty === 'heavy' ? .1 : 0));
+    a.el.rotation.x = close ? -.2 : c.sty === 'animal' ? -.15 - w*.25 : -.25 - Math.max(0, (k ? s : -s))*.4*w; });
+  if (Math.random() < dt*(c.sty === 'erratic' ? 2.4 : c.sty === 'robot' ? 0 : .5)) c.tw = (Math.random() - .5)*1.3;
   c.head.rotation.z += (c.tw - c.head.rotation.z)*Math.min(1, dt*14); c.tw *= 1 - Math.min(1, dt*2.5);
-  c.head.rotation.x = close ? -.35 : -lean*.7; c.jaw.rotation.x = close ? .5 + Math.sin(t*22)*.1 : .06 + Math.sin(t*1.7)*.03;
-  const st = Math.sign(s); if (st !== c.step){ c.step = st; return w > .3; } return false;
+  /* the head looks where the monster is paying attention */
+  if (c.lookYaw !== undefined){ const want = Math.max(-1, Math.min(1, c.lookYaw)); if (c.sty === 'robot'){ c.ly = c.ly || 0; c.lyT = (c.lyT || 0) - dt; if (c.lyT <= 0){ c.lyT = .35; c.ly = Math.round(want*4)/4; } c.head.rotation.y += (c.ly - c.head.rotation.y)*Math.min(1, dt*20); } else c.head.rotation.y += (want - c.head.rotation.y)*Math.min(1, dt*(c.sty === 'erratic' ? 12 : 4)); }
+  c.head.rotation.x = close ? -.35 : -lean*.7 + (c.lookPitch || 0); c.jaw.rotation.x = close ? .5 + Math.sin(tt*22)*.1 : .06 + Math.sin(tt*1.7)*.03;
+  const st = Math.sign(s); if (st !== c.step){ c.step = st; return w > .25; } return false;
 }
 /* ---------- Player avatars: gorilla body with arm IK ---------- */
 const FACE = new THREE.MeshStandardMaterial({color:0x3a3431, roughness:.62, map:HIDE, bumpMap:HIDE, bumpScale:.006}), EYEW = new THREE.MeshStandardMaterial({color:0x2a170c, roughness:.12, metalness:.1}), PUP = new THREE.MeshBasicMaterial({color:0x0c0a08}), GLINT = new THREE.MeshBasicMaterial({color:0xf2f4f5, fog:false});
@@ -975,16 +997,68 @@ function makeCrown(){ const g = new THREE.Group(), band = new THREE.Mesh(new THR
   const rim = new THREE.Mesh(new THREE.TorusGeometry(.094, .007, 6, 24), GOLD); rim.rotation.x = Math.PI/2; rim.position.y = -.026; g.add(rim); const rim2 = rim.clone(); rim2.position.y = .026; rim2.scale.setScalar(1.04); g.add(rim2);
   for (let k=0;k<6;k++){ const a = k/6*Math.PI*2, x = Math.sin(a)*.097, z = Math.cos(a)*.097; const sp = new THREE.Mesh(new THREE.ConeGeometry(.02, .07, 4), GOLD); sp.position.set(x, .06, z); sp.rotation.set(Math.cos(a)*.18, 0, -Math.sin(a)*.18); g.add(sp); const pl = new THREE.Mesh(new THREE.SphereGeometry(.009, 8, 6), PEARL); pl.position.set(x*1.08, .1, z*1.08); g.add(pl); const gem = new THREE.Mesh(new THREE.SphereGeometry(.012, 8, 6), k%2 ? RUBY : PEARL); gem.position.set(x*1.04, 0, z*1.04); gem.scale.z = .6; gem.lookAt(0, 0, 0); g.add(gem); }
   g.position.set(0, .2, .02); g.rotation.x = -.08; return g; }
+/* ---------- faces: eyes with lids that blink and look at the nearest person they can see; a mouth that moves with that player's real voice ---------- */
+const IRIS_T = mkTex(128, 128, (g, w, h) => { const c = w/2; const gr = g.createRadialGradient(c, c, 6, c, c, c); gr.addColorStop(0, '#120a05'); gr.addColorStop(.28, '#3a1f0c'); gr.addColorStop(.62, '#6b3d18'); gr.addColorStop(.86, '#3c220e'); gr.addColorStop(1, '#0a0604'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  for (let k=0;k<140;k++){ const a = RR()*Math.PI*2, r0 = 14 + RR()*10, r1 = 38 + RR()*24; g.strokeStyle = RR() < .5 ? 'rgba(160,100,40,' + (.15 + RR()*.25) + ')' : 'rgba(20,10,4,' + (.2 + RR()*.3) + ')'; g.lineWidth = .6 + RR(); g.beginPath(); g.moveTo(c + Math.cos(a)*r0, c + Math.sin(a)*r0); g.lineTo(c + Math.cos(a + (RR() - .5)*.2)*r1, c + Math.sin(a + (RR() - .5)*.2)*r1); g.stroke(); } });
+const EYEM = {sclera:new THREE.MeshStandardMaterial({color:0xcfc2ad, roughness:.16}), iris:new THREE.MeshStandardMaterial({map:IRIS_T, roughness:.06}), pupil:new THREE.MeshBasicMaterial({color:0x030202}), cornea:new THREE.MeshStandardMaterial({color:0xffffff, roughness:0, metalness:.2, transparent:true, opacity:.16, depthWrite:false}), mouth:new THREE.MeshStandardMaterial({color:0x2a0b0b, roughness:.55}), tongue:new THREE.MeshStandardMaterial({color:0x7a2a30, roughness:.4}), teeth:new THREE.MeshStandardMaterial({color:0xd8cfbc, roughness:.3})};
+Object.values(EYEM).forEach(m => { m.userData.keep = true; });
+const EG = {ball:new THREE.SphereGeometry(1, 20, 14), lidU:new THREE.SphereGeometry(.0176, 20, 8, 0, Math.PI*2, 0, Math.PI/2), lidL:new THREE.SphereGeometry(.0176, 20, 8, 0, Math.PI*2, Math.PI/2, Math.PI/2)};
+Object.values(EG).forEach(g => { g.userData = {keep:true}; });
+const LID_OPEN = .55, LID_SHUT = -.28, LID_LOW = -.62;
+function buildFace(head, lidM){
+  const F = {eyes:[], skip:[], blinkT:1 + Math.random()*3, bl:0, blPh:0, gx:0, gy:0, tx:0, ty:0, idleT:0, look:null, lookT:0, open:0, wide:0, last:performance.now()};
+  [-1, 1].forEach(s => { const e = new THREE.Group(); e.position.set(s*.059, .018, -.139); e.rotation.order = 'YXZ'; head.add(e);
+    const ball = new THREE.Mesh(EG.ball, EYEM.sclera); ball.scale.setScalar(.0155); e.add(ball);
+    const iris = new THREE.Mesh(EG.ball, EYEM.iris); iris.scale.set(.0108, .0108, .0042); iris.position.z = -.0127; e.add(iris);
+    const pup = new THREE.Mesh(EG.ball, EYEM.pupil); pup.scale.set(.0047, .0047, .003); pup.position.z = -.0152; e.add(pup);
+    const cor = new THREE.Mesh(EG.ball, EYEM.cornea); cor.scale.set(.0112, .0112, .0058); cor.position.z = -.0128; e.add(cor);
+    const gl = new THREE.Mesh(EG.ball, GLINT); gl.scale.setScalar(.0019); gl.position.set(.0042, .0046, -.0168); e.add(gl);
+    const up = new THREE.Mesh(EG.lidU, lidM || FACE), lo = new THREE.Mesh(EG.lidL, lidM || FACE); up.position.copy(e.position); lo.position.copy(e.position); up.rotation.x = LID_OPEN; lo.rotation.x = LID_LOW; head.add(up, lo); F.skip.push(up, lo);
+    F.eyes.push({e:e, up:up, lo:lo, s:s}); });
+  /* mouth: dark inside, teeth, tongue, and a lower lip that drops with the jaw */
+  const m = new THREE.Group(); m.position.set(0, -.104, -.19); head.add(m);
+  const cav = new THREE.Mesh(EG.ball, EYEM.mouth); cav.scale.set(.03, .003, .011); m.add(cav);
+  const teeth = new THREE.Mesh(EG.ball, EYEM.teeth); teeth.scale.set(.024, .0035, .006); teeth.position.set(0, .002, -.004); teeth.visible = false; m.add(teeth);
+  const tongue = new THREE.Mesh(EG.ball, EYEM.tongue); tongue.scale.set(.018, .004, .009); tongue.position.set(0, -.006, .001); m.add(tongue);
+  const lip = new THREE.Mesh(EG.ball, FACE); lip.scale.set(.042, .011, .016); lip.position.set(0, -.009, .003); m.add(lip);
+  F.mouth = {g:m, cav:cav, teeth:teeth, tongue:tongue, lip:lip};
+  return F;
+}
+const _fw = V(), _ft = V(), _fq = new THREE.Quaternion();
+function faceTick(a, vid){
+  const F = a.face; if (!F) return; const now = performance.now(), dt = Math.min(.1, (now - F.last)/1000); F.last = now; if (dt <= 0) return;
+  /* who to look at: the closest head within 6 m in front of this face that is not behind a wall (checked a few times a second) */
+  F.lookT -= dt; if (F.lookT <= 0){ F.lookT = .3 + Math.random()*.15; a.head.getWorldPosition(_fw); _fq.copy(a.head.getWorldQuaternion(_fq)); const fwd2 = V(0, 0, -1).applyQuaternion(_fq); let best = null, bd = 6;
+    const cand = []; if (a !== selfAv && state !== 'menu' && !dead) cand.push(headW()); avs.forEach(o => { if (o !== a && o.g.visible) cand.push(o.head.getWorldPosition(V())); });
+    cand.forEach(p => { const d = p.distanceTo(_fw); if (d < .25 || d >= bd) return; _ft.subVectors(p, _fw).divideScalar(d); if (_ft.dot(fwd2) < .25) return; if (pathBlocked(_fw, p)) return; bd = d; best = p; });
+    F.look = best; }
+  if (F.look){ a.head.updateMatrixWorld(); _ft.copy(F.look); a.head.worldToLocal(_ft); _ft.sub(F.eyes[0].e.position.clone().add(F.eyes[1].e.position).multiplyScalar(.5)); F.tx = Math.max(-.5, Math.min(.5, Math.atan2(-_ft.x, -_ft.z))); F.ty = Math.max(-.32, Math.min(.32, Math.atan2(_ft.y, Math.hypot(_ft.x, _ft.z)))); }
+  else { F.idleT -= dt; if (F.idleT <= 0){ F.idleT = 1.2 + Math.random()*2.4; F.tx = (Math.random() - .5)*.35; F.ty = (Math.random() - .5)*.16 - .03; } }
+  const k = Math.min(1, dt*16); F.gx += (F.tx - F.gx)*k; F.gy += (F.ty - F.gy)*k;
+  /* blinking: quick close, slower open, now and then twice */
+  F.blinkT -= dt; if (F.blinkT <= 0 && !F.blPh){ F.blPh = 1e-4; } if (F.blPh){ F.blPh += dt; const p = F.blPh; F.bl = p < .06 ? p/.06 : p < .16 ? 1 - (p - .06)/.1 : 0; if (p >= .16){ F.blPh = 0; F.bl = 0; F.blinkT = Math.random() < .15 ? .12 : 2 + Math.random()*4.5; } }
+  F.eyes.forEach(E => { E.e.rotation.y = F.gx; E.e.rotation.x = F.gy; const open = LID_OPEN - F.gy*.45; E.up.rotation.x = open + (LID_SHUT - open)*F.bl; E.lo.rotation.x = LID_LOW - F.gy*.25 + F.bl*.18; });
+  /* mouth from voice: how loud opens the jaw, the sound's brightness spreads or rounds the lips */
+  let lv = 0, br = 0; if (a === selfAv){ lv = micMouth.lv; br = micMouth.br; } else if (vid != null){ const v = voices.get(vid); if (v && v.mo){ lv = v.mo.lv; br = v.mo.br; } }
+  const tgtO = Math.max(0, Math.min(1, (lv - .018)*11)); F.open += (tgtO - F.open)*Math.min(1, dt*(tgtO > F.open ? 26 : 13)); F.wide += (br - F.wide)*Math.min(1, dt*10);
+  const M = F.mouth, o = F.open, w = F.wide; M.cav.scale.set(.026*(1 + w*.3 - Math.max(0, -w)*.25), .003 + o*.017, .011); M.cav.position.y = -o*.008; M.lip.position.y = -.009 - o*.02; M.lip.scale.x = .042*(1 + w*.12 - Math.max(0, -w)*.18); M.tongue.position.y = -.006 - o*.012; M.teeth.visible = o > .08;
+}
+/* voice analysis, done on each player's own computer (nothing extra is sent over the network) */
+const micMouth = {lv:0, br:0}; let micFreq = null;
+function voiceShape(an, td, fd, out){
+  an.getByteTimeDomainData(td); let s = 0; for (let k=0;k<td.length;k+=2){ const v = (td[k] - 128)/128; s += v*v; } const rms = Math.sqrt(s/(td.length/2));
+  an.getByteFrequencyData(fd); let num = 0, den = 0; const hz = ac.sampleRate/2/fd.length; for (let k=2;k<fd.length;k++){ num += fd[k]*k*hz; den += fd[k]; } const cen = den > 0 ? num/den : 0;
+  out.lv += (rms - out.lv)*.5; out.br += (Math.max(-1, Math.min(1, (cen - 1500)/1400)) - out.br)*.3;
+}
 function makeAvatar(){
-  const g = new THREE.Group(), mat = new THREE.MeshStandardMaterial({color:0x999999, roughness:.93, map:FUR, bumpMap:FUR, bumpScale:.018});
+  const g = new THREE.Group(), mat = furShade(new THREE.MeshStandardMaterial({color:0x999999, roughness:.93, map:FUR, bumpMap:FUR, bumpScale:.02}));
   const head = new THREE.Group(); head.rotation.order = 'YXZ';
   /* skull and crest */
-  const skin = new THREE.MeshStandardMaterial({color:0x999999, roughness:.85, map:FUR, bumpMap:FUR, bumpScale:.012, vertexColors:true});
+  const skin = furShade(new THREE.MeshStandardMaterial({color:0x999999, roughness:.85, map:FUR, bumpMap:FUR, bumpScale:.014, vertexColors:true}));
   head.add(new THREE.Mesh(GOR_HEAD, skin)); head.userData.skin = skin;
-  head.add(ell(PUP, .05, .005, .012, 0, -.098, -.158));
   [-1, 1].forEach(s => {
     head.add(ell(PUP, .013, .009, .008, s*.026, -.04, -.214));
-    head.add(ell(PUP, .024, .019, .012, s*.059, .018, -.126), ell(EYEW, .016, .015, .01, s*.059, .018, -.13), ell(GLINT, .004, .004, .002, s*.059 + .005, .024, -.1425));
+    head.add(ell(PUP, .026, .022, .012, s*.059, .018, -.132));
     head.add(ell(FACE, .022, .032, .013, s*.16, -.01, .005));
   });
   const vis = new THREE.Group(); vis.visible = false;
@@ -1008,13 +1082,14 @@ function makeAvatar(){
   const own = new THREE.Sprite(new THREE.SpriteMaterial({map:ownerTex(), transparent:true, depthTest:false, fog:false})); own.scale.set(.5, .125, 1); own.renderOrder = 5; own.visible = false;
   g.add(head, torso, tag.s, beam, own); scene.add(g);
   mat.userData.twin = skin;
-  mergeSiblings(head, new Set([head.children[0]]));
-  return {g:g, mat:mat, head:head, torso:torso, arms:arms, hl:arms[0].h, hr:arms[1].h, vis:vis, tag:tag, beam:beam, own:own, name:'', init:false};
+  const face = buildFace(head, mat); mergeSiblings(head, new Set([head.children[0]].concat(face.skip)));
+  return {face:face, g:g, mat:mat, head:head, torso:torso, arms:arms, hl:arms[0].h, hr:arms[1].h, vis:vis, tag:tag, beam:beam, own:own, name:'', init:false};
 }
 const tv = V(), _sA = V(), _eA = V(), _dA = V(), _bA = V();
 function segTo(m, a, b, r){ _dA.subVectors(b, a); const l = _dA.length() || .001; m.position.addVectors(a, b).multiplyScalar(.5); m.quaternion.setFromUnitVectors(UPV, _dA.divideScalar(l)); m.scale.set(r, l, r); }
 const _hQ = new THREE.Quaternion();
 function setAv(a, pr, rev){
+  faceTick(a, a.vid);
   if (a.col !== pr.c){ a.col = pr.c; a.mat.color.set(pr.c || '#999999'); if (a.mat.userData.twin) a.mat.userData.twin.color.copy(a.mat.color); }
   a.vis.visible = pr.o === 1; const tk = pr.t === 1; if (a.name !== pr.n || a.tk !== tk){ a.name = pr.n; a.tk = tk; a.tag.draw(String(pr.n || '').slice(0, 14), tk); }
   const p = pr.p || [0, 1, 0], yaw = +pr.r || 0; tv.set(p[0], p[1], p[2]);
@@ -1208,7 +1283,7 @@ function buildLevel(i){
   { const ex = 0, ez = -92; [[-1.7, -1.7], [1.7, -1.7], [-1.7, 1.7], [1.7, 1.7]].forEach(q => { box(K.haz, ex + q[0], 1.7, ez + q[1], .2, 3.4, .2); CB.push({min:V(ex + q[0] - .1, 0, ez + q[1] - .1), max:V(ex + q[0] + .1, 3.4, ez + q[1] + .1)}); });
     box(K.metal, ex, 3.5, ez, 3.8, .2, 3.8); box(K.metal, ex, .05, ez, 3.6, .1, 3.6); for (let k=0;k<4;k++) cyl(K.metal, ex + (k%2 ? 1.5 : -1.5), (3.6 + CH)/2, ez + (k < 2 ? 1.5 : -1.5), .03, CH - 3.6, 6);
     lights.push({x:ex, y:3, z:ez, r:.85, g:.9, b:.98, rad:7, room:EXIT}); decal(K.decal, 10, ex, 4.6, Z0 + .22, 2.4, 2.4, 0, 0, 1); }
-  finishKit(K, gp, makeBake(lights, (x, z) => { const c = cellAt(x, z); return c < 0 ? -1 : room[c]; }, linked, pal.amb, CH));
+  finishKit(K, gp, makeBake(lights, (x, z) => { const c = cellAt(x, z); return c < 0 ? -1 : room[c]; }, linked, pal.amb, CH)); lvK = K; lvLights = lights;
   /* safe-room markers, portals, exit */
   lvSafe = new THREE.Group(); lvSafe.position.set(0, 0, 32);
   const sr = new THREE.Mesh(new THREE.RingGeometry(8.8, 9, 64), new THREE.MeshBasicMaterial({color:0xcfd3d6, side:THREE.DoubleSide, fog:false})); sr.rotation.x = -Math.PI/2; sr.position.y = .03; lvSafe.add(sr);
@@ -1375,6 +1450,7 @@ function drawHud(){
 function say(m, s){ msg = m; msgT = s; drawHud(); }
 
 /* ---------- State / networking ---------- */
+function beamTick(){ const on = lamp.visible && lamp.intensity > .1 && (state === 'level' || state === 'arena'); beamM.opacity += ((on ? .035 : 0) - beamM.opacity)*.2; beam.visible = beamM.opacity > .002; }
 let state = 'menu', zone = 'L', dead = false, deadAt = 0, lampOn = false, round = null, amMon = false, caught = [], lastRid = '', reveal = false, warned = false, portalLock = 0, pubT = 0, hbT = 1, yaw = 0, pitch = 0;
 const vel = V(), hist = [], hands = [0,1].map(() => ({vis:V(), prev:V(), has:false, pr:false, mesh:null})), clock = new THREE.Clock();
 const hMat = new THREE.MeshStandardMaterial({color:0x2a3a34, emissive:0x1d6a55, emissiveIntensity:.9}), hGeo = new THREE.SphereGeometry(1, 14, 10);
@@ -1435,9 +1511,9 @@ function addVoice(stream, id){
   dropVoice(id);
   const el = new Audio(); el.autoplay = true; el.playsInline = true; el.volume = 0; el.srcObject = stream;
   el.play().catch(() => {});
-  voices.set(id, {el:el, vol:0});
+  const v = {el:el, vol:0, mo:{lv:0, br:0}}; try { if (ac){ v.an = ac.createAnalyser(); v.an.fftSize = 256; v.an.smoothingTimeConstant = .4; v.td = new Uint8Array(v.an.fftSize); v.fd = new Uint8Array(v.an.frequencyBinCount); v.src = ac.createMediaStreamSource(stream); v.src.connect(v.an); } } catch(e){ v.an = null; } voices.set(id, v);
 }
-function dropVoice(id){ const v = voices.get(id); if (!v) return; try { v.el.pause(); v.el.srcObject = null; } catch(e){} voices.delete(id); }
+function dropVoice(id){ const v = voices.get(id); if (!v) return; try { v.el.pause(); v.el.srcObject = null; if (v.src) v.src.disconnect(); } catch(e){} voices.delete(id); }
 function wakeVoices(){ voices.forEach(v => { if (v.el.paused) v.el.play().catch(() => {}); }); }
 addEventListener('pointerdown', wakeVoices); addEventListener('keydown', wakeVoices);
 function micLevel(dt){
@@ -1446,12 +1522,14 @@ function micLevel(dt){
   micAn.getByteTimeDomainData(micBuf); let s = 0; for (let k=0;k<micBuf.length;k+=4){ const v = (micBuf[k] - 128)/128; s += v*v; }
   const rms = Math.sqrt(s/(micBuf.length/4));
   if (rms > .035 && micOn && !mutedMe) talkHold = .35; else talkHold -= dt; talking = talkHold > 0 ? 1 : 0;
+  if (!micFreq) micFreq = new Uint8Array(micAn.frequencyBinCount); if (micOn && !mutedMe) voiceShape(micAn, micBuf, micFreq, micMouth); else { micMouth.lv *= .8; }
 }
 function voiceTick(dt){
   micLevel(dt);
   if (!voices.size) return;
   const h = headW(), by = new Map(); if (R) R.peers().forEach(p => { if (!p.isMe) by.set(p.peer, p.presence || {}); });
   voices.forEach((v, id) => {
+    if (v.an) voiceShape(v.an, v.td, v.fd, v.mo); else if (ac && v.el.srcObject){ try { v.an = ac.createAnalyser(); v.an.fftSize = 256; v.td = new Uint8Array(256); v.fd = new Uint8Array(128); v.src = ac.createMediaStreamSource(v.el.srcObject); v.src.connect(v.an); } catch(e){} }
     const pr = by.get(id); let vol = 0;
     if (pr && pr.p && !muted.has(id) && pr.z === zone){
       const d = Math.hypot(pr.p[0] - h.x, pr.p[1] - h.y, pr.p[2] - h.z);
@@ -1469,6 +1547,7 @@ function tally(){ const c = LV.map(() => 0); if (R) R.peers().forEach(p => { con
 const winVote = () => { const c = tally(); return c.indexOf(Math.max.apply(null, c)); };
 
 function enterLobby(m){
+  setTimeout(() => lookPass('lobby'), 60);
   if (typeof exitedGame !== 'undefined' && exitedGame && roomCap && !R && !banned){ exitedGame = false; joinRoom('pub-1', 'Public Server'); }
   if (typeof stopSpeech === 'function') stopSpeech(); dpBots = 0; waitSolo = 0; botAv.forEach(a => scene.remove(a.g)); botAv.clear();
   const wasDead = dead || !!kill; kill = null; tension = 0; fxL.power = 1; fxL.powerT0 = 0; spinners.length = 0; vents.length = 0; if (wasDead){ fadeIn(1.8); if (ac){ beep(220, 1.6, 'sine', .05); beep(330, 1.8, 'sine', .04, .3); } }
@@ -1498,7 +1577,7 @@ function enterLevelNow(i, kind, g){
   clearMonsters(); seed = 900 + i;
   if (round){ rig.rotation.y = 0; if (amMon) rig.position.set(0, 0, -27); else { const sp = lvSpot(3, Math.random); rig.position.set(sp[0], 0, sp[1]); } say(amMon ? 'You are the monster. Night vision on. Wait for the signal.' : 'Hide! Your flashlight is your only light.', 8); }
   else { rig.rotation.y = 0; rig.position.set(0, 0, 32); for (let k=0;k<T.mon;k++) addMonster(T); say(['Floor 1. Find the elevator. If something moves, keep looking at it.', 'Floor 2. It hunts by sound. Walk, and keep quiet.', 'Floor 3. Being quiet will not help. Find the elevator and run.', 'Level 0. You noclipped out of reality. Find the way out, and do not trust what you see.'][i] || T.n, 7); }
-  decorateLevel(); brBuild(); dressSector(i); levelIntro();
+  decorateLevel(); brBuild(); dressSector(i); levelIntro(); lookPass('lv');
   pub({k:null});
 }
 function announce(m){
@@ -2715,7 +2794,8 @@ function shadowsTick(){
 
 /* ---------- monster behaviour: roam, stop and listen, notice you, hunt, give up, and kill ---------- */
 let playerNoise = 0, lastHead = V(), tension = 0, revealDone = false;
-function monsterInit(m){ m.st = 'roam'; m.stT = 2 + Math.random()*3; m.lost = 0; m.look = 0; m.crouch = 0; m.gait = 0; m.wx = m.g.position.x; m.wz = m.g.position.z; m.alerted = false; m.lean = 0; }
+const STY_ORDER = ['heavy', 'animal', 'erratic', 'robot'];
+function monsterInit(m){ m.sty = STY_ORDER[(monsters.indexOf(m) + lvIdx)%4]; m.c.sty = m.sty; m.vs = 0; m.halt = 0; m.st = 'roam'; m.stT = 2 + Math.random()*3; m.lost = 0; m.look = 0; m.crouch = 0; m.gait = 0; m.wx = m.g.position.x; m.wz = m.g.position.z; m.alerted = false; m.lean = 0; }
 function pickWander(m){
   const p = m.g.position, c = cellAt(p.x, p.z); if (c < 0 || !lvNav.nbr[c]){ m.wx = p.x; m.wz = p.z; return; }
   const ns = lvNav.nbr[c].filter(e => !lvNav.safe[e[0]]); if (!ns.length){ const q = cellC(c); m.wx = q[0]; m.wz = q[1]; return; }
@@ -2745,16 +2825,25 @@ function monstersTick(dt, hw, t){
       else mtgt.copy(p);
       monsters.forEach((o, oi) => { if (oi !== mi){ const dx = p.x - o.g.position.x, dz = p.z - o.g.position.z, dd = dx*dx + dz*dz; if (dd < 1.2 && dd > 1e-4){ p.x += dx*dt*1.5; p.z += dz*dt*1.5; } } });
       dirv.set(mtgt.x - p.x, 0, mtgt.z - p.z); const dl = dirv.length();
-      if (dl > .15 && speedK > 0){ const step = Math.min(dl, m.T.sp*speedK*dt); dirv.divideScalar(dl); p.x += dirv.x*step; p.z += dirv.z*step; spd = step/dt; const ang = Math.atan2(dirv.x, dirv.z); let da = ang - m.g.rotation.y; da = Math.atan2(Math.sin(da), Math.cos(da)); m.g.rotation.y += da*Math.min(1, dt*(m.st === 'chase' ? 8 : 3)); }
+      const SM = STY[m.sty] || STY.base; if (m.sty === 'erratic'){ m.halt -= dt; if (m.halt < -2 && Math.random() < dt*.9) m.halt = .2 + Math.random()*.45; }
+      if (!(dl > .15 && speedK > 0)) m.vs += (0 - m.vs)*Math.min(1, dt*SM.dec);
+      if (dl > .15 && speedK > 0){ dirv.divideScalar(dl); const ang = Math.atan2(dirv.x, dirv.z); let da = ang - m.g.rotation.y; da = Math.atan2(Math.sin(da), Math.cos(da));
+        const tr = SM.turn*(m.st === 'chase' ? 1.4 : .6); if (m.sty === 'robot') m.g.rotation.y += Math.sign(da)*Math.min(Math.abs(da), dt*tr*.6); else m.g.rotation.y += da*Math.min(1, dt*tr);
+        const turnK = Math.max(.2, Math.cos(Math.min(Math.PI/2, Math.abs(da)))), want = m.halt > 0 ? 0 : m.T.sp*speedK*SM.sp*turnK*(m.sty === 'erratic' && m.st === 'chase' ? 1 + .35*Math.max(0, Math.sin(t*1.7 + mi)) : 1);
+        m.vs += (want - m.vs)*Math.min(1, dt*(want > m.vs ? SM.acc : SM.dec)); const step = Math.min(dl, m.vs*dt); p.x += dirv.x*step; p.z += dirv.z*step; spd = step/dt; }
       else if (m.st === 'alert'){ const ang = Math.atan2(hw.x - p.x, hw.z - p.z); let da = ang - m.g.rotation.y; da = Math.atan2(Math.sin(da), Math.cos(da)); m.g.rotation.y += da*Math.min(1, dt*6); }
       const sx = p.x, sz = p.z - 32, sd = Math.hypot(sx, sz); if (sd < 9.8){ p.x = sx/sd*9.8; p.z = 32 + sz/sd*9.8; }
       for (const yy of [.45, 1.3]){ mcol.set(p.x, yy*sc, p.z); const bx = mcol.x, bz = mcol.z; collide(mcol, .34*sc, 0); p.x += mcol.x - bx; p.z += mcol.z - bz; }
       p.y += (0 - p.y)*Math.min(1, 4*dt);
       const close = d < 3.2 && m.st === 'chase', run = m.st === 'chase';
       m.lean += ((([.15, .45, .7, .55][lvIdx] || .4) + (run ? .25 : m.st === 'alert' ? .3 : 0)) - m.lean)*Math.min(1, dt*3);
-      const foot = animCreature(m.c, dt, run ? spd*1.15 : spd, t, m.lean, close);
+      /* where it is looking: at you when it knows you are there, scanning while it searches */
+      if (m.st === 'chase' || m.st === 'alert'){ let ly = Math.atan2(hw.x - p.x, hw.z - p.z) - m.g.rotation.y; m.c.lookYaw = Math.atan2(Math.sin(ly), Math.cos(ly)); m.c.lookPitch = Math.max(-.3, Math.min(.3, -(hw.y - 1.9*sc)/Math.max(1, d)*.6)); }
+      else if (m.st === 'idle'){ m.lkT = (m.lkT || 0) - dt; if (m.lkT <= 0){ m.lkT = 1 + Math.random()*2.2; m.lkY = (Math.random() - .5)*1.8; } m.c.lookYaw = m.lkY; m.c.lookPitch = Math.sin(t*.7 + mi)*.12; }
+      else { m.c.lookYaw = Math.sin(t*.55 + mi*1.7)*.55; m.c.lookPitch = 0; }
+      const foot = animCreature(m.c, dt, spd, t, m.lean, close);
       monsterOverlay(m, dt, t, hw);
-      if (foot && d < 22) stepAt(p.x, .1, p.z, .14*(run ? 1.3 : .8), true);
+      if (foot && d < 24) stepAt(p.x, .1, p.z, .14*(run ? 1.3 : .8)*(m.sty === 'heavy' ? 1.7 : m.sty === 'robot' ? 1.15 : m.sty === 'animal' ? .75 : 1), true);
       if (close && !m.near){ m.near = true; screechAt(p.x, p.y + 1.6*sc, p.z, 1.1); pulse(0, .7, 180); pulse(1, .7, 180); } else if (!close && d > 6) m.near = false;
     }
     /* breathing you can hear before you see it */
@@ -2811,24 +2900,26 @@ function reachTo(m, a, target, side){
 function killTick(dt, t){
   if (!kill) return; const K = kill, m = K.m, c = m.c, hw = headW(); let el = (performance.now() - K.t0)/1000; const v = K.v;
   if (K.jsD && !K.jsDone){ if (el < K.jsD){ rig.position.copy(K.rig0); vel.set(0, 0, 0); jsIntro(K, el, t, hw); return; } K.jsDone = true; K.t0 += K.jsD*1000; el -= K.jsD; K.from.copy(m.g.position); m.g.rotation.z = 0; m.g.position.y = 0; fadeBlk.material.opacity = 0; }
-  /* the player is lifted slowly (no snapping, no forced turning; head tracking stays live) */
+  el *= 1.5; const xr = renderer.xr.isPresenting;
+  /* PC: the view shakes with the impacts (VR never moves your head for you) */
+  if (!xr){ if (!K.cb) K.cb = camera.position.clone(); K.shk = Math.max(0, (K.shk || 0) - dt*2.2); const a = K.shk*K.shk*.05; camera.position.set(K.cb.x + (Math.random() - .5)*a, K.cb.y + (Math.random() - .5)*a, K.cb.z); camera.rotation.z = Math.sin(t*31)*a*.6; }
   const lift = ease((el - .45)/.8)*v.lift; rig.position.set(K.rig0.x, K.rig0.y + lift, K.rig0.z); vel.set(0, 0, 0);
   if (el < 2.45){
     /* how far the hands reach, phase by phase: reach out, grip, pull to the face */
     const reach = el < .45 ? 1.15 : el < 1.25 ? 1.0 : 1.0 - ease((el - 1.25)/.55)*.42;
     const sc = m.T.sc, AL = lvIdx >= 2 ? 1.2 : 1, armL = (1.28*AL)*sc*reach, shY = (c.hy + .64)*sc*.95;
     const dy = hw.y - shY, h = Math.max(.35, Math.sqrt(Math.max(.01, armL*armL - dy*dy)));
-    const tx = hw.x - K.f.x*h, tz = hw.z - K.f.z*h, mv = ease(el/.45);
-    m.g.position.set(K.from.x + (tx - K.from.x)*mv, 0, K.from.z + (tz - K.from.z)*mv); m.g.rotation.y = Math.atan2(K.f.x, K.f.z);
+    const tx = hw.x - K.f.x*h, tz = hw.z - K.f.z*h, mv = ease(el/.45), ox = m.g.position.x, oz = m.g.position.z;
+    m.g.position.set(K.from.x + (tx - K.from.x)*mv, 0, K.from.z + (tz - K.from.z)*mv); animCreature(c, dt, Math.min(6, Math.hypot(m.g.position.x - ox, m.g.position.z - oz)/Math.max(dt, 1e-3)), t, .3, el > .35); m.g.rotation.y = Math.atan2(K.f.x, K.f.z);
     c.spine.rotation.x = .25 + ease((el - 1.2)/.6)*.35; c.hips.position.y = c.hy; c.neck.rotation.y = 0; c.head.rotation.set(-.2 - ease((el - 1.2)/.6)*.25, 0, Math.sin(t*3)*.06);
     c.jaw.rotation.x = el > 1.1 ? .55 + Math.sin(t*14)*.08 : .15;
     /* hand targets: reach toward the chest, then the shoulders, then both sides of the head */
     KRt.set(-K.f.z, 0, K.f.x);
     const side = el < 1.55 ? .26 : .26 - ease((el - 1.55)/.5)*.1, hy = el < .45 ? -.55 : el < 1.55 ? -.32 + ease((el - 1.2)/.35)*.3 : -.02;
-    const shake = el > 1.6 ? Math.sin(t*38)*.006 : 0;
+    const shake = el > 1.6 ? Math.sin(t*9)*.004 : 0;
     m.g.updateWorldMatrix(true, true);
     for (let k=0;k<2;k++){ const s = k ? 1 : -1; KA[k].copy(hw).addScaledVector(KRt, -s*side); KA[k].y += hy + shake; KA[k].addScaledVector(K.f, el < 1.55 ? -.12 : .02); reachTo(m, c.arms[k], KA[k], s); }
-    if (!K.s.grab && el > .45){ K.s.grab = 1; playS('cloth', {at:[hw.x, hw.y - .3, hw.z], vol:2.2}); playS('grunt', {at:[hw.x, hw.y, hw.z - .3], vol:1.3, rate:1.1}); const d = hasS('cloth') ? null : sfxAt(hw.x, hw.y - .4, hw.z); if (d){ noiseAt(d, .25, .5, 600, .8); toneAt(d, 70, .35, 'sine', .5, 40); } pulse(0, 1, 160); pulse(1, 1, 160); beep(140, .4, 'sawtooth', .08); }
+    if (!K.s.grab && el > .45){ K.s.grab = 1; K.shk = .8; playS('cloth', {at:[hw.x, hw.y - .3, hw.z], vol:2.2}); playS('grunt', {at:[hw.x, hw.y, hw.z - .3], vol:1.3, rate:1.1}); const d = hasS('cloth') ? null : sfxAt(hw.x, hw.y - .4, hw.z); if (d){ noiseAt(d, .25, .5, 600, .8); toneAt(d, 70, .35, 'sine', .5, 40); } pulse(0, 1, 160); pulse(1, 1, 160); beep(140, .4, 'sawtooth', .08); }
     if (!K.s.lift && el > .6){ K.s.lift = 1; playS('cloth', {at:[hw.x, hw.y - .5, hw.z], vol:1.8, rate:.8}); }
     if (!K.s.growl && el > 1.15){ K.s.growl = 1; c.head.getWorldPosition(fxV4); playS('creatureverb', {at:fxV4, vol:1.6, rate:.85}); const d = hasS('creatureverb') ? null : sfxAt(fxV4.x, fxV4.y, fxV4.z); if (d){ toneAt(d, 82, 1.2, 'sawtooth', .3, 60); noiseAt(d, 1.2, .25, 700, 1.5); } }
     if (!K.s.hold && el > 1.8){ K.s.hold = 1; pulse(0, .8, 600); pulse(1, .8, 600); playS('breath', {at:[hw.x, hw.y, hw.z - .4], vol:2, rate:.5}); }
@@ -2842,7 +2933,7 @@ function killTick(dt, t){
       reachTo(m, c.arms[k], KA[k], s); }
     c.spine.rotation.x = .6 - u*.4; c.head.rotation.x = -.45 + u*.3;
     if (K.tear){ if (!K.s.tearT){ K.s.tearT = el; tearFx.visible = true; tearFx.scale.set(.02, 1, 1); tearFx.rotation.z = (Math.random() - .5)*.3; playS('tear', {vol:2.4}); playS('growl', {vol:2.2, rate:.55}); } tearFx.scale.x = .02 + ease((el - K.s.tearT)/.28)*3.2; }
-    if (!K.s.rip){ K.s.rip = 1; playS('crack', {at:[hw.x, hw.y, hw.z], vol:2.4}); playS('bones', {at:[hw.x, hw.y - .1, hw.z], vol:2, delay:.05}); const d = hasS('crack') ? null : sfxAt(hw.x, hw.y, hw.z); if (d){ noiseAt(d, .14, .9, 3000, .7); toneAt(d, 60, .5, 'sine', .9, 30); noiseAt(d, .3, .5, 500, .5, .02); } pulse(0, 1, 250); pulse(1, 1, 250); flash.material.color.setHex(0x5a0000); flash.material.opacity = .55; }
+    if (!K.s.rip){ K.s.rip = 1; K.shk = 1.4; playS('crack', {at:[hw.x, hw.y, hw.z], vol:2.4}); playS('bones', {at:[hw.x, hw.y - .1, hw.z], vol:2, delay:.05}); const d = hasS('crack') ? null : sfxAt(hw.x, hw.y, hw.z); if (d){ noiseAt(d, .14, .9, 3000, .7); toneAt(d, 60, .5, 'sine', .9, 30); noiseAt(d, .3, .5, 500, .5, .02); } pulse(0, 1, 250); pulse(1, 1, 250); flash.material.color.setHex(0x5a0000); flash.material.opacity = .55; }
     if (u > .6 && !K.s.black){ K.s.black = 1; fadeBlk.material.opacity = 1; fadeK = 0; muffle(true, 120); playS('hit', {vol:1.4, rate:.8}); const d = sfxAt(hw.x, hw.y, hw.z); if (d) toneAt(d, 3100, 2.4, 'sine', .05); beep(40, 2, 'sine', .25); }
   } else {
     fadeBlk.material.opacity = 1;
@@ -2850,7 +2941,7 @@ function killTick(dt, t){
   }
 }
 /* ---------- each floor's monster has its own jumpscare before the kill ---------- */
-const JS_D = [1.0, 1.4, 1.45];
+const JS_D = [.75, 1.25, 1.15];
 const tearTex = mkTex(256, 512, (g) => { const pts = []; for (let y=0;y<=512;y+=16) pts.push([128 + (Math.random() - .5)*46, y]);
   g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p[0] - 30 - Math.random()*8, p[1]) : g.moveTo(p[0] - 30, p[1])); for (let i=pts.length-1;i>=0;i--) g.lineTo(pts[i][0] + 30 + Math.random()*8, pts[i][1]); g.closePath(); g.fillStyle = '#000'; g.fill();
   g.shadowColor = '#ff1a0a'; g.shadowBlur = 18; g.strokeStyle = '#ff2a10'; g.lineWidth = 5; g.stroke(); g.shadowBlur = 0; g.strokeStyle = '#ffb08a'; g.lineWidth = 1.5; g.stroke(); });
@@ -2958,8 +3049,53 @@ function staticTick(dt, hw){
   if (ac){ if (!stAu){ const n = ac.sampleRate*2, b = ac.createBuffer(1, n, ac.sampleRate), ch = b.getChannelData(0); for (let i=0;i<n;i++) ch[i] = Math.random()*2 - 1; const s = ac.createBufferSource(); s.buffer = b; s.loop = true; const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2600; f.Q.value = .6; const g = ac.createGain(); g.gain.value = 0; s.connect(f); f.connect(g); g.connect(sfxBus()); s.start(); stAu = g; }
     stAu.gain.setTargetAtTime(stK*.07*SV.e, ac.currentTime, .08); }
 }
+function lookPass(w){
+  try {
+    if (w === 'lobby'){ if (!lobbyK || !lobbyG.visible) return; if (probeFor !== 'lobby'){ probeFor = 'lobby'; probeCapture(V(0, 1.7, -1), V(-12.2, 0, -16.2), V(12.2, 7, 14.2)); }
+      if (!lobbyK.done){ lobbyK.done = 1; probeMat(lobbyK.floor.mat, .22, 1.6, true); probeMat(lobbyK.metal.mat, .35, .6, true); probeMat(lobbyK.haz.mat, .12, 1.4, true); probeMat(lobbyK.glass.mat, .9, 0, true); probeMat(lobbyK.dark.mat, .1, 1.2, true); addShafts(lobbyG, lobbyLights, LH, 30, 1.8); } }
+    else if (lvK && lvGroup){ probeFor = 'lv' + lvIdx; probeCapture(V(0, 1.7, 30)); const br = lvIdx === 3; probeMat(lvK.floor.mat, br ? .03 : .07, 3, false); probeMat(lvK.metal.mat, .22, 1.4, false); probeMat(lvK.haz.mat, .1, 2, false); probeMat(lvK.glass.mat, .7, .3, false); if (!br) addShafts(lvGroup, lvLights, CH, 70, 2); }
+  } catch(e){ console.warn('look pass', e); }
+}
+/* ---------- reflection probes: each map takes one 360-degree snapshot of itself when it loads; floors, metal and glass reflect it.
+   In the lobby the reflection is fitted to the room's box so it lines up with the real walls and lights. ---------- */
+const PROBE = {rt:new THREE.WebGLCubeRenderTarget(256, {generateMipmaps:true, minFilter:THREE.LinearMipmapLinearFilter}), pos:V(), min:V(-1e4, -1e4, -1e4), max:V(1e4, 1e4, 1e4)};
+PROBE.cam = new THREE.CubeCamera(.1, 160, PROBE.rt); PROBE.rt.texture.userData = {keep:true};
+const ENVFRAG = `#ifdef USE_ENVMAP
+  vec3 pcf = normalize(vWorldPosition - cameraPosition), pwn = inverseTransformDirection(normal, viewMatrix), prv = reflect(pcf, pwn);
+  if (pBox > .5){ vec3 a = (pMax - vWorldPosition)/prv, b = (pMin - vWorldPosition)/prv; vec3 f = vec3(prv.x > 0.0 ? a.x : b.x, prv.y > 0.0 ? a.y : b.y, prv.z > 0.0 ? a.z : b.z); float d = min(min(f.x, f.y), f.z); prv = vWorldPosition + prv*d - pPos; }
+  vec4 envColor = textureCube(envMap, vec3(flipEnvMap*prv.x, prv.yz), pBias);
+  float pfr = .04 + .96*pow(1.0 - max(dot(-pcf, pwn), 0.0), 5.0);
+  outgoingLight += envColor.rgb*specularStrength*reflectivity*(.3 + pfr*1.4);
+#endif`;
+function probeMat(m, k, bias, box){
+  if (!m || !m.isMeshPhongMaterial) return; m.envMap = PROBE.rt.texture; m.reflectivity = k; m.combine = THREE.AddOperation;
+  if (!m.userData.probe){ m.userData.probe = 1; const prev = m.onBeforeCompile && m.onBeforeCompile !== THREE.Material.prototype.onBeforeCompile ? m.onBeforeCompile : null, key = prev ? prev.toString().length + ':' + prev.toString().slice(0, 60) : 'none';
+    m.onBeforeCompile = (s, r) => { if (prev) prev(s, r); s.uniforms.pPos = {value:PROBE.pos}; s.uniforms.pMin = {value:PROBE.min}; s.uniforms.pMax = {value:PROBE.max}; s.uniforms.pBias = {value:bias}; s.uniforms.pBox = {value:box ? 1 : 0};
+      s.fragmentShader = 'uniform vec3 pPos;\nuniform vec3 pMin;\nuniform vec3 pMax;\nuniform float pBias;\nuniform float pBox;\n' + s.fragmentShader.replace('#include <envmap_fragment>', ENVFRAG); };
+    m.customProgramCacheKey = () => 'probe|' + key + '|' + bias + '|' + (box ? 1 : 0); }
+  m.needsUpdate = true;
+}
+function probeCapture(at, min, max){
+  PROBE.pos.copy(at); if (min){ PROBE.min.copy(min); PROBE.max.copy(max); } else { PROBE.min.set(-1e4, -1e4, -1e4); PROBE.max.set(1e4, 1e4, 1e4); }
+  const hide = []; avs.forEach(a => { if (a.g.visible){ hide.push(a.g); a.g.visible = false; } }); [selfAv.g, prev.g].forEach(g => { if (g.visible){ hide.push(g); g.visible = false; } }); monsters.forEach(m => { if (m.g.visible){ hide.push(m.g); m.g.visible = false; } });
+  const xr = renderer.xr.enabled, rt = renderer.getRenderTarget(); renderer.xr.enabled = false; PROBE.cam.position.copy(at); scene.add(PROBE.cam);
+  try { PROBE.cam.update(renderer, scene); } catch(e){} scene.remove(PROBE.cam); renderer.setRenderTarget(rt); renderer.xr.enabled = xr; hide.forEach(g => { g.visible = true; });
+}
+/* light you can see in the air: soft cones under working ceiling lights, all drawn as one mesh */
+const SHAFT_T = mkTex(16, 128, (g, w, h) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(.55, 'rgba(255,255,255,.35)'); gr.addColorStop(.92, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
+SHAFT_T.userData = {keep:true};
+const SHAFT_M = new THREE.MeshBasicMaterial({map:SHAFT_T, vertexColors:true, transparent:true, opacity:.055, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide}); SHAFT_M.userData.keep = true;
+function addShafts(gp, lights, ceil, maxN, rBot){
+  const g = new THREE.Group(), L = lights.filter(l => l.rad > 3 && (l.r + l.g + l.b) > .45).slice(0, maxN); if (!L.length) return;
+  L.forEach(l => { const h = Math.max(1.5, l.y - .05), geo = new THREE.CylinderGeometry(.32, rBot, h, 14, 1, true), c = new THREE.Color(Math.min(1, l.r*.8), Math.min(1, l.g*.8), Math.min(1, l.b*.8)), n = geo.attributes.position.count, col = new Float32Array(n*3);
+    for (let i=0;i<n;i++){ col[i*3] = c.r; col[i*3 + 1] = c.g; col[i*3 + 2] = c.b; } geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); const m = new THREE.Mesh(geo, SHAFT_M); m.position.set(l.x, l.y - h/2 - .02, l.z); g.add(m); });
+  gp.add(g); mergeStatic(g, null); g.children.forEach(o => { o.renderOrder = 2; });
+}
+/* the flashlight's beam shows faintly in the dusty air */
+const beamM = new THREE.MeshBasicMaterial({map:SHAFT_T, color:0xfff0d8, transparent:true, opacity:0, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide});
+const beam = new THREE.Mesh(new THREE.CylinderGeometry(.04, 1.5, 7, 16, 1, true), beamM); beam.rotation.x = -Math.PI/2; beam.position.set(0, .02, -3.6); beam.renderOrder = 3; camera.add(beam);
 function finishKill(){
-  const K = kill; if (!K) return; kill = null; tearFx.visible = false; flash.material.color.setHex(0xdadddf); flash.material.opacity = 0;
+  const K = kill; if (!K) return; kill = null; tearFx.visible = false; if (K.cb){ camera.position.copy(K.cb); camera.rotation.z = 0; } flash.material.color.setHex(0xdadddf); flash.material.opacity = 0;
   if (K.m){ K.m.st = 'roam'; K.m.stT = 6; K.m.g.position.copy(K.from).add(fxV1.set(Math.random()*4 - 2, 0, Math.random()*4 - 2)); }
   setTimeout(() => muffle(false, 2500), 400); fadeIn(.5);
   die('A monster got you.', K.tear ? 'IT TORE YOU APART' : K.v.sub);
@@ -2984,7 +3120,7 @@ function fxTick(dt, t, hw){
   AU.wetT = state === 'arena' ? .45 : state === 'lobby' ? .32 : dead ? .12 : .26;
   vig.style.opacity = String(Math.min(1, .35 + tension*.65));
   if (kill) killTick(dt, t);
-  readablesTick(dt, hw); brTick(dt, t, hw); staticTick(dt, hw);
+  readablesTick(dt, hw); brTick(dt, t, hw); staticTick(dt, hw); beamTick();
 }
 function levelIntro(){ revealDone = false; tension = 0; fxL.powerT0 = performance.now() + 700; fxL.power = 0; setTimeout(() => { if (!ac) return; beep(55, 2.2, 'sawtooth', .07); [0, 450, 900, 1500].forEach(d => setTimeout(() => { noiseBurst(.25, .12, 300); thud(.35); }, d)); }, 900); monsters.forEach(monsterInit); }
 
@@ -4388,7 +4524,7 @@ renderer.setAnimationLoop(() => {
     msgT -= dt; if (msgT <= 0 && msg){ msg = ''; drawHud(); } hudT += dt; if (hudT > .5){ hudT = 0; drawHud(); }
     pubT += dt; if (pubT > (state === 'arena' && R && R.peers().length > 10 ? .2 : .1)){ pubT = 0; pub(); }
     const seenIds = new Set();
-    zonePeers().forEach(p => { if (p.presence.d) return; seenIds.add(p.peer); let a = avs.get(p.peer); if (!a){ a = makeAvatar(); avs.set(p.peer, a); } a.g.visible = true; setAv(a, state === 'arena' ? dpTag(p) : p.presence, reveal); });
+    zonePeers().forEach(p => { if (p.presence.d) return; seenIds.add(p.peer); let a = avs.get(p.peer); if (!a){ a = makeAvatar(); avs.set(p.peer, a); } a.vid = p.peer; a.g.visible = true; setAv(a, state === 'arena' ? dpTag(p) : p.presence, reveal); });
     avs.forEach((a, k) => { if (!seenIds.has(k)){ scene.remove(a.g); avs.delete(k); } });
     const showSelf = renderer.xr.isPresenting && !dead && (hands[0].has || hands[1].has);
     selfAv.g.visible = showSelf;
