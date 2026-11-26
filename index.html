@@ -3647,6 +3647,12 @@ function laserClick(i){
   return false;
 }
 
+/* name tags and badges only show in the lobby and in normal mode: Be the Monster, Hide and Seek and Death Penalty hide them */
+function tagRule(){
+  const hide = (state === 'level' && !!round) || state === 'arena';
+  const apply = a => { if (hide){ a.tag.s.visible = false; a.own.visible = false; if (a.modB) a.modB.visible = false; if (a.frB) a.frB.visible = false; } else if (!opDark()) a.tag.s.visible = true; };
+  avs.forEach(apply); if (typeof botAv !== 'undefined') botAv.forEach(apply);
+}
 /* ======================= COINS, COSMETICS, THE COSMETICS HALLWAY, THE OWNER STATUE, THE MIRROR ======================= */
 let coins = 0, ownedCos = new Set(), myCos = {hat:'', face:'', neck:'', hand:''};
 try { coins = Math.max(0, +localStorage.getItem('s09Coins') || 0); ownedCos = new Set(JSON.parse(localStorage.getItem('s09Own') || '[]') || []); Object.assign(myCos, JSON.parse(localStorage.getItem('s09Cos') || '{}') || {}); } catch(e){}
@@ -3945,7 +3951,7 @@ renderer.setAnimationLoop(() => {
     portalFields.forEach((m, k) => { m.opacity = .3 + .14*Math.sin(t*3 + k); });
     if (state === 'level') lvFlick.forEach((m, k) => { m.visible = Math.sin(t*(9 + k) + k*7)*Math.sin(t*2.3 + k) < .55 || Math.random() < .2; });
   }
-  lobbyMusicTick(); touchUiTick(); lamp.intensity = lampOn && !opDark() ? 2.4 : 0; fillL.intensity = (state === 'lobby' ? .7 : lampOn ? .25 : .12)*(opDark() ? 0 : 1); renderer.render(scene, camera);
+  tagRule(); lobbyMusicTick(); touchUiTick(); lamp.intensity = lampOn && !opDark() ? 2.4 : 0; fillL.intensity = (state === 'lobby' ? .7 : lampOn ? .25 : .12)*(opDark() ? 0 : 1); renderer.render(scene, camera);
 });
 })();
 </script>
