@@ -545,7 +545,7 @@ function rects(){
 }
 function drawTerm(){
   const g = tg; g.fillStyle = '#0f1011'; g.fillRect(0, 0, 768, 512); for (let y=0;y<512;y+=3){ g.fillStyle = 'rgba(255,255,255,.016)'; g.fillRect(0, y, 768, 1); }
-  g.textBaseline = 'middle'; g.font = '400 16px ' + FM; g.fillStyle = '#6c7174'; g.textAlign = 'left'; spaced(g, 'SUBJECT 09 / LOBBY', 36, 32, 3); g.textAlign = 'right'; spaced(g, 'TERMINAL 04', 732, 32, 3);
+  g.textBaseline = 'middle'; g.font = '400 16px ' + FM; g.fillStyle = '#6c7174'; g.textAlign = 'left'; spaced(g, 'SUBJECT 09 / LOBBY', 36, 32, 3); g.textAlign = 'right'; spaced(g, typeof devMode !== 'function' ? 'TERMINAL 04' : devMode() === 'vr' ? 'POINT + PULL TRIGGER, OR TOUCH' : devMode() === 'touch' ? 'TAP TO USE' : 'CLICK TO USE', 732, 32, 2);
   g.fillStyle = '#2b2e30'; g.fillRect(36, 56, 696, 1); g.textAlign = 'left';
   const peers = R ? R.peers().length : 1;
   if (ui.s === 'home'){
@@ -1514,7 +1514,7 @@ addEventListener('resize', fitView); fitView();
 for (let i=0;i<2;i++){
   const c = renderer.xr.getController(i);
   c.addEventListener('connected', e => { gps[i] = e.data.gamepad; hnd[i] = e.data.handedness; conn[i] = true; hands[i].has = false; hands[i].touch = false; hist.length = 0; }); c.addEventListener('disconnected', () => { conn[i] = false; });
-  c.addEventListener('selectstart', () => { initAudio(); wakeVoices(); if (dead) leaveSpectate(); if (cut.on && performance.now() - cut.t0 > 2500) endCut(); });
+  c.addEventListener('selectstart', () => { initAudio(); wakeVoices(); if (typeof laserClick === 'function' && laserClick(i)) return; if (dead) leaveSpectate(); if (cut.on && performance.now() - cut.t0 > 2500) endCut(); });
   c.addEventListener('squeezestart', () => { if (state === 'level' && !dead && !(isBM() && amMon)){ lampOn = !lampOn; } });
   scene.add(c); scene.add(renderer.xr.getControllerGrip(i));
 }
@@ -3623,6 +3623,30 @@ function hsTick(dt, t, hw){
   opTick(dt, t, hw, monP);
 }
 
+/* ======================= VR LASER POINTER: aim at screens and buttons, pull the trigger ======================= */
+function devMode(){ return renderer.xr.isPresenting ? 'vr' : isTouch ? 'touch' : 'pc'; }
+const LZM = new THREE.LineBasicMaterial({color:0xffffff, transparent:true, opacity:.55}); LZM.userData.keep = true;
+const laser = [0, 1].map(() => { const g = new THREE.BufferGeometry().setFromPoints([V(), V(0, 0, -1)]), l = new THREE.Line(g, LZM); l.visible = false; l.frustumCulled = false; scene.add(l);
+  const d = new THREE.Mesh(new THREE.SphereGeometry(.014, 10, 8), new THREE.MeshBasicMaterial({color:0xff3a2a, depthTest:false})); d.renderOrder = 999; d.visible = false; scene.add(d); return {l:l, d:d, hit:null}; });
+const LRC = new THREE.Raycaster(), LZX = new THREE.Matrix4(), LZO = V(), LZD = V(); let lzDev = '';
+function laserTargets(){ if (state === 'lobby') return [term].concat(disp.map(d => d.btn)); if (state === 'arena') return ibtns.map(b => b.m); if (dead) return [retBtn, retSign, retRing]; return []; }
+function laserTick(){
+  const dm = devMode(); if (dm !== lzDev){ lzDev = dm; drawTerm(); }
+  const vr = dm === 'vr', T = vr ? laserTargets() : []; rig.updateMatrixWorld(true);
+  laser.forEach((L, i) => { L.hit = null; L.l.visible = L.d.visible = false; if (!vr || !conn[i] || !T.length) return;
+    LZX.multiplyMatrices(rig.matrixWorld, renderer.xr.getController(i).matrix); LZO.setFromMatrixPosition(LZX); LZD.set(0, 0, -1).transformDirection(LZX);
+    LRC.set(LZO, LZD); LRC.far = 9; const h = LRC.intersectObjects(T, false)[0]; if (!h) return; L.hit = h;
+    const pa = L.l.geometry.attributes.position; pa.setXYZ(0, LZO.x, LZO.y, LZO.z); pa.setXYZ(1, h.point.x, h.point.y, h.point.z); pa.needsUpdate = true; L.l.visible = true; L.d.position.copy(h.point); L.d.visible = true; });
+}
+function laserClick(i){
+  const L = laser[i]; if (!L || !L.hit) return false; const o = L.hit.object; pulse(i, .4, 40);
+  if (o === term && L.hit.uv){ termHit(L.hit.uv.x*768, (1 - L.hit.uv.y)*512); return true; }
+  const dd = disp.find(d => d.btn === o); if (dd){ buyOrWear(dd.c.id); return true; }
+  const b = ibtns.find(q => q.m === o); if (b){ dpPress(b.id); return true; }
+  if (o === retBtn || o === retSign || o === retRing){ leaveSpectate(); return true; }
+  return false;
+}
+
 /* ======================= COINS, COSMETICS, THE COSMETICS HALLWAY, THE OWNER STATUE, THE MIRROR ======================= */
 let coins = 0, ownedCos = new Set(), myCos = {hat:'', face:'', neck:'', hand:''};
 try { coins = Math.max(0, +localStorage.getItem('s09Coins') || 0); ownedCos = new Set(JSON.parse(localStorage.getItem('s09Own') || '[]') || []); Object.assign(myCos, JSON.parse(localStorage.getItem('s09Cos') || '{}') || {}); } catch(e){}
@@ -3916,7 +3940,7 @@ renderer.setAnimationLoop(() => {
     if (state === 'lobby'){ prev.g.visible = true; setAv(prev, {c:myColor, n:myName, o:isOwner ? 1 : 0, cs:myCosArr(), p:[9, 1.48, 2], a:[8.55 + Math.sin(t*1.3)*.05, .98, 2.15], b:[9.45, .98 + Math.sin(t*1.7)*.06, 2.15], r:-Math.PI/2 + Math.sin(t*.6)*.6}, false); } else prev.g.visible = false;
     voiceTick(dt);
     loadTick(dt, t);
-    rosterTick(); deathTick(); fxTick(dt, t, hw); bmTick(dt, t, hw); coinTick(); cosTick(dt, t, hw); gfxTick(); exitTick(dt, hw); ownerHandTick(dt);
+    rosterTick(); deathTick(); fxTick(dt, t, hw); bmTick(dt, t, hw); coinTick(); cosTick(dt, t, hw); gfxTick(); exitTick(dt, hw); ownerHandTick(dt); laserTick();
     if (dead){ renderFeeds(t); if (renderer.xr.isPresenting) for (let i=0;i<2;i++){ const grip = renderer.xr.getControllerGrip(i), h = hands[i]; h.has = !!(grip.visible && conn[i]); h.mesh.visible = h.has; if (h.has){ tmp.set(0, 0, -.04).applyMatrix4(grip.matrix); h.vis.copy(tmp).applyQuaternion(rig.quaternion).add(rig.position); h.mesh.position.copy(h.vis); } } retBtn.getWorldPosition(retWorld); if (near3(retWorld, .3)) leaveSpectate(); }
     portalFields.forEach((m, k) => { m.opacity = .3 + .14*Math.sin(t*3 + k); });
     if (state === 'level') lvFlick.forEach((m, k) => { m.visible = Math.sin(t*(9 + k) + k*7)*Math.sin(t*2.3 + k) < .55 || Math.random() < .2; });
