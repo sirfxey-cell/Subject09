@@ -531,11 +531,12 @@ function rects(){
   if (ui.s === 'home'){ const rows = [['CHANGE NAME', 'name', ''], ['COLOR', 'color', ''], ['PRIVATE CODE', 'code', ''], ['PUBLIC SERVER', 'pub', roomLabel === 'Public Server' ? 'CONNECTED' : ''], ['STICK MOVE', 'stk', stickMove ? 'ON' : 'OFF'], ['VOICE CHAT', 'mic', micLabel()], ['SOUND & GRAPHICS', 'snd', 'MUSIC ' + Math.round(SV.m*10) + '  FX ' + Math.round(SV.e*10) + '  VOICE ' + Math.round(SV.v*10)], ['FRIENDS', 'fr', (() => { const ids = new Set(modPeers().map(p => frOf(p.presence))), on = Object.keys(friends).filter(id => ids.has(id)).length, inc = modPeers().filter(p => frState(p.presence) === 'incoming').length; return Object.keys(friends).length + ' FRIENDS  ' + on + ' HERE' + (inc ? '  ' + inc + ' REQUEST' + (inc > 1 ? 'S' : '') : ''); })()], ['MONSTER MODE', 'bm', 'HEAD START ' + BMS.esc + 'S  GORE ' + (BMS.gore ? 'ON' : 'OFF')]]; if (isOwner || amMod()) rows.push([isOwner ? 'OWNER CONTROLS' : 'MOD CONTROLS', 'mod', R ? (R.peers().length - 1) + ' PLAYERS' : 'OFFLINE']); const st = Math.floor(306/rows.length), hh = st - 6; rows.forEach((q, i) => B(36, 196 + i*st, 696, hh, q[0], q[1], {n:'0' + (i + 1), v:q[2], sw:q[1] === 'color'})); }
   else if (ui.s === 'fr') frRects(B);
   else if (ui.s === 'mod' && !isOwner){ modPeers().slice(0, 5).forEach((p, i) => { const y = 120 + i*58, id = p.peer, mu = muted.has(id); if (protectedPr(p.presence)) return; B(412, y, 92, 46, 'KICK', 'kick:' + id); B(512, y, 220, 46, mu ? 'UNMUTE' : 'SILENCE', 'mute:' + id, {pri:mu}); }); B(36, 420, 696, 52, 'BACK', 'back', {n:'<'}); }
-  else if (ui.s === 'mod'){ modPeers().slice(0, 5).forEach((p, i) => { const y = 120 + i*58, id = p.peer, mu = muted.has(id); const md = isModPr(p.presence); B(300, y, 104, 46, md ? 'UNMOD' : 'MOD', 'mod:' + id, {pri:md}); B(412, y, 92, 46, 'KICK', 'kick:' + id); B(512, y, 92, 46, 'BAN', 'ban:' + id); B(612, y, 120, 46, mu ? 'UNMUTE' : 'SILENCE', 'mute:' + id, {pri:mu}); }); B(36, 420, 330, 52, 'BACK', 'back', {n:'<'}); B(378, 420, 354, 52, 'PICK MONSTER', 'pick', {pri:true}); }
+  else if (ui.s === 'mod'){ modPeers().slice(0, 5).forEach((p, i) => { const y = 120 + i*58, id = p.peer, mu = muted.has(id); const md = isModPr(p.presence); B(300, y, 104, 46, md ? 'UNMOD' : 'MOD', 'mod:' + id, {pri:md}); B(412, y, 92, 46, 'KICK', 'kick:' + id); B(512, y, 92, 46, 'BAN', 'ban:' + id); B(612, y, 120, 46, mu ? 'UNMUTE' : 'SILENCE', 'mute:' + id, {pri:mu}); }); B(36, 420, 200, 52, 'BACK', 'back', {n:'<'}); B(248, 420, 230, 52, 'PICK MONSTER', 'pick', {pri:true}); B(490, 420, 242, 52, 'MONSTER ACCESS', 'acc', {pri:true}); }
+  else if (ui.s === 'acc'){ modPeers().slice(0, 6).forEach((p, i) => { const on = isTrustedPr(p.presence); B(500, 104 + i*50, 232, 42, on ? 'TAKE BACK' : 'GIVE ACCESS', 'ac:' + p.peer, {pri:!on}); }); B(36, 420, 696, 52, 'BACK', 'back', {n:'<'}); }
   else if (ui.s === 'pick'){ pickRows().slice(0, 6).forEach((r, i) => { const on = ownerPickId === r.id; B(520, 104 + i*50, 212, 42, on ? 'PICKED' : 'PICK', 'pk:' + r.id, {pri:on}); }); B(36, 420, 330, 52, 'BACK', 'back', {n:'<'}); B(378, 420, 354, 52, ownerPickId ? 'RANDOM INSTEAD' : 'RANDOM (NOW)', 'pk:', {pri:!ownerPickId}); }
   else if (ui.s === 'snd'){ [['m', 'MUSIC'], ['e', 'EFFECTS'], ['v', 'VOICE']].forEach((q, i) => { const y = 122 + i*92; B(372, y, 80, 64, '-', 'vol-' + q[0]); B(652, y, 80, 64, '+', 'vol+' + q[0]); }); B(36, 376, 340, 38, 'MIC', 'micdev', {n:'04', v:micName()}); B(388, 376, 344, 38, 'GRAPHICS', 'gfx', {n:'05', v:GQ ? 'HIGH' : 'NORMAL'}); B(36, 422, 696, 50, 'BACK', 'back', {n:'<'}); }
   else if (ui.s === 'bm'){ B(36, 348, 330, 52, 'KILL MODE', 'bs:km', {n:'00', v:BMS.km === 'a' ? 'AUTO' : 'MANUAL'}); [['g', 'GHOST'], ['i', 'INVISIBLE'], ['w', 'WALL SEE'], ['f', 'FINISHER']].filter(q => q[0] === 'f' || isOwner || amMod()).forEach((q, i) => B(36, 100 + i*62, 330, 52, q[1], 'bk:' + q[0], {n:'0' + (i + 1), v:BMX.bind === q[0] ? '...' : keyName(BMS.keys[q[0]])}));
-    [['esc', 'HEAD START', BMS.esc + 'S'], ['cdk', 'COOLDOWNS', BM_CDN[BMS.cdk]], ['ad', 'ABILITY TIME', BMS.ad + 'S'], ['rv', 'ROAR VOLUME', Math.round(BMS.rv*100) + '%'], ['rd', 'ROAR LENGTH', BMS.rd + 'S'], ['gore', 'GORE', BMS.gore ? 'ON' : 'OFF']].concat(isOwner || amMod() ? [['mm', 'MY MONSTER', BMS.mm !== 0 ? (isOwner ? 'OWNER' : 'MOD') : 'DEFAULT']] : []).forEach((q, i) => B(392, 96 + i*46, 340, 40, q[1], 'bs:' + q[0], {n:'0' + (i + 5), v:q[2]})); B(36, 420, 696, 52, 'BACK', 'back', {n:'<'}); }
+    [['esc', 'HEAD START', BMS.esc + 'S'], ['cdk', 'COOLDOWNS', BM_CDN[BMS.cdk]], ['ad', 'ABILITY TIME', BMS.ad + 'S'], ['rv', 'ROAR VOLUME', Math.round(BMS.rv*100) + '%'], ['rd', 'ROAR LENGTH', BMS.rd + 'S'], ['gore', 'GORE', BMS.gore ? 'ON' : 'OFF']].concat(isOwner || amMod() || amTrusted() ? [['mm', 'MY MONSTER', BMS.mm !== 0 ? (powerUser() ? 'OWNER' : 'MOD') : 'DEFAULT']] : []).forEach((q, i) => B(392, 96 + i*46, 340, 40, q[1], 'bs:' + q[0], {n:'0' + (i + 5), v:q[2]})); B(36, 420, 696, 52, 'BACK', 'back', {n:'<'}); }
   else if (ui.s === 'color'){ COLORS.forEach((c, i) => B(36 + (i%6)*116, 112 + (i/6|0)*72, 108, 62, '', 'col' + i, {f:c})); B(36, 412, 696, 50, 'BACK', 'back', {n:'<'}); }
   else {
     ['1234567890', 'QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'].forEach((row, ri) => { const x0 = (768 - (row.length*66 - 6))/2; row.split('').forEach((ch, i) => B(x0 + i*66, 196 + ri*54, 60, 48, ch, 'k')); });
@@ -559,6 +560,7 @@ function drawTerm(){
     [['m', 'MUSIC'], ['e', 'EFFECTS'], ['v', 'VOICE CHAT']].forEach((q, i) => { const y = 154 + i*92, v = SV[q[0]]; g.font = '500 26px ' + FS; g.fillStyle = '#e4e6e7'; spaced(g, q[1], 36, y, 3); g.fillStyle = '#1d2021'; rrect(g, 466, y - 6, 172, 12, 3); g.fill(); g.fillStyle = '#d6d9db'; rrect(g, 466, y - 6, Math.max(6, 172*v), 12, 3); g.fill(); g.font = '400 15px ' + FM; g.fillStyle = '#8b9093'; g.textAlign = 'right'; g.fillText(Math.round(v*100) + '%', 360, y); g.textAlign = 'left'; });
   }
   else if (ui.s === 'fr') frDraw(g);
+  else if (ui.s === 'acc'){ g.font = '400 15px ' + FM; g.fillStyle = '#6c7174'; spaced(g, 'WHO CAN USE YOUR MONSTER AND POWER MENU', 36, 80, 2); if (!modPeers().length){ g.fillStyle = '#8b9093'; spaced(g, 'NOBODY ELSE IS HERE RIGHT NOW', 36, 130, 2); } modPeers().slice(0, 6).forEach((p, i) => { const on = isTrustedPr(p.presence); g.font = '500 24px ' + FS; g.fillStyle = on ? '#ff6a4a' : '#e4e6e7'; spaced(g, String(p.presence.n || 'PLAYER').toUpperCase().slice(0, 16), 36, 120 + i*50, 2); g.font = '400 13px ' + FM; g.fillStyle = '#8b9093'; spaced(g, on ? 'HAS YOUR MONSTER' : '', 36, 140 + i*50, 1); }); if (trust.n.length){ g.font = '400 13px ' + FM; g.fillStyle = '#8b9093'; spaced(g, 'ALL WITH ACCESS: ' + trust.n.join(', ').toUpperCase().slice(0, 70), 36, 404, 1); } }
   else if (ui.s === 'pick'){ g.font = '400 15px ' + FM; g.fillStyle = '#6c7174'; spaced(g, 'PICK WHO IS THE MONSTER IN THE NEXT ROUND', 36, 80, 2); pickRows().slice(0, 6).forEach((r, i) => { g.font = '500 24px ' + FS; g.fillStyle = ownerPickId === r.id ? '#ff6a4a' : '#e4e6e7'; spaced(g, r.n.toUpperCase().slice(0, 22), 36, 126 + i*50, 2); }); }
   else if (ui.s === 'bm'){ g.font = '400 15px ' + FM; g.fillStyle = BMX.bind ? '#e4e6e7' : '#6c7174'; spaced(g, BMX.bind ? 'PRESS THE KEY YOU WANT ON YOUR KEYBOARD.  ESC TO CANCEL' : 'BE THE MONSTER  /  KEYS LEFT, ROUND SETTINGS RIGHT', 36, 78, 2); }
   else if (ui.s === 'mod'){
@@ -608,6 +610,14 @@ function ownerPick(pool){ let id = isOwner ? ownerPickId : ''; if (!id && R) { c
 function pickRows(){ return [{id:myId(), n:myName + '  (YOU)'}].concat(modPeers().filter(p => p.presence.z === 'L').map(p => ({id:p.peer, n:String(p.presence.n || 'Player')}))); }
 /* moderators are also remembered by their device id, so they stay moderators under any name */
 let ownerModPids = [], modPids = new Set(); try { ownerModPids = JSON.parse(localStorage.getItem('s09ModPids') || '[]') || []; modPids = new Set(JSON.parse(localStorage.getItem('s09ModPidsSeen') || '[]') || []); } catch(e){}
+let trust = {n:[], p:[]}, trustSeen = {n:[], p:[]}; try { trust = JSON.parse(localStorage.getItem('s09Trust') || 'null') || trust; trustSeen = JSON.parse(localStorage.getItem('s09TrustSeen') || 'null') || trustSeen; } catch(e){}
+const isTrustedPr = pr => !!pr && pr.o !== 1 && ((pr.id && trustSeen.p.indexOf(pr.id) >= 0) || (pr.n && trustSeen.n.indexOf(String(pr.mdn || pr.n)) >= 0));
+const amTrusted = () => !isOwner && ((typeof myPid !== 'undefined' && trustSeen.p.indexOf(myPid) >= 0) || trustSeen.n.indexOf(myName) >= 0);
+const powerUser = () => isOwner || amTrusted();
+function setTrustSeen(t){ const was = amTrusted(); trustSeen = {n:(t.n || []).map(String), p:(t.p || []).map(String)}; try { localStorage.setItem('s09TrustSeen', JSON.stringify(trustSeen)); } catch(e){} const now = amTrusted(); if (now !== was) say(now ? 'BADGORILLA gave you his monster and his power menu. When you are the monster, press X.' : 'BADGORILLA took back his monster and power menu.', 6); }
+function toggleTrust(id){ const p = modPeers().find(q => q.peer === id); if (!p) return; const nm = String(p.presence.n || ''), pid = p.presence.id || '', has = isTrustedPr(p.presence);
+  if (has){ trust.n = trust.n.filter(x => x !== nm); trust.p = trust.p.filter(x => x !== pid); } else { if (nm && trust.n.indexOf(nm) < 0) trust.n.push(nm); if (pid && trust.p.indexOf(pid) < 0) trust.p.push(pid); }
+  try { localStorage.setItem('s09Trust', JSON.stringify(trust)); } catch(e){} trustSeen = {n:trust.n.slice(), p:trust.p.slice()}; ui.msg = (has ? 'Took back access from ' : 'Gave your monster to ') + nm; pub({tr:{n:trust.n.slice(), p:trust.p.slice()}}); drawTerm(); }
 const isModPr = pr => !!pr && (isModName(pr.mdn || pr.n) || (typeof pr.id === 'string' && modPids.has(pr.id)));
 /* ======================= FRIENDS: a lasting player id, requests both ways, a friends list on the lobby computer ======================= */
 let myPid = '', frWant = new Set(), friends = {}, frAsked = new Set(), frPage = 0;
@@ -683,7 +693,8 @@ function checkMod(peers){
   frCheck(peers);
   const me = myId();
   for (const p of peers){
-    const pr = p.presence; if (!p.isMe && pr && pr.o === 1 && Array.isArray(pr.md) && pr.md.join('\n') + '|' + (pr.mp || []).join('\n') !== [...modNames].join('\n') + '|' + [...modPids].join('\n')) setMods(pr.md, Array.isArray(pr.mp) ? pr.mp : null);
+    const pr = p.presence; if (!p.isMe && pr && pr.o === 1 && pr.tr && JSON.stringify(pr.tr) !== JSON.stringify(trustSeen)) setTrustSeen(pr.tr);
+    if (!p.isMe && pr && pr.o === 1 && Array.isArray(pr.md) && pr.md.join('\n') + '|' + (pr.mp || []).join('\n') !== [...modNames].join('\n') + '|' + [...modPids].join('\n')) setMods(pr.md, Array.isArray(pr.mp) ? pr.mp : null);
     if (isOwner && !p.isMe && pr && typeof pr.id === 'string' && ownerMods.indexOf(pr.n) >= 0 && ownerModPids.indexOf(pr.id) < 0){ ownerModPids.push(pr.id); try { localStorage.setItem('s09ModPids', JSON.stringify(ownerModPids)); } catch(e){} setMods(ownerMods, ownerModPids); pub({mp:ownerModPids.slice()}); }
     if (p.isMe || !pr || !Array.isArray(pr.m)) continue;
     const own = pr.o === 1, byMod = !own && isModPr(pr), who = own ? 'the owner' : 'a moderator'; if (!own && !byMod) continue;
@@ -710,6 +721,8 @@ function press(r){
   else if (r.a === 'stk') stickMove = !stickMove;
   else if (r.a === 'snd') ui.s = 'snd';
   else if (r.a === 'pick'){ if (isOwner) ui.s = 'pick'; }
+  else if (r.a === 'acc'){ if (isOwner) ui.s = 'acc'; }
+  else if (r.a.indexOf('ac:') === 0){ if (isOwner) toggleTrust(r.a.slice(3)); }
   else if (r.a.indexOf('pk:') === 0){ if (isOwner) ownerSetPick(r.a.slice(3)); }
   else if (r.a === 'fr'){ ui.s = 'fr'; frPage = 0; }
   else if (r.a === 'frpg'){ frPage = (frPage + 1) % Math.max(1, Math.ceil(frRows().length/5)); }
@@ -1256,7 +1269,7 @@ function myId(){ const m = R && R.peers().find(p => p.isMe); return m ? m.peer :
 const zonePeers = () => R ? R.peers().filter(p => !p.isMe && p.presence && p.presence.z === zone) : [];
 function pub(extra){
   if (!R) return; const h = headW(), f = a => [+a.x.toFixed(2), +a.y.toFixed(2), +a.z.toFixed(2)], e = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
-  R.presence(bmPub(Object.assign({n:myName, c:myColor, z:zone, v:myVote, o:isOwner ? 1 : 0, m:isOwner || amMod() ? modLog.slice() : null, md:isOwner ? ownerMods.slice() : null, pm:isOwner && ownerPickId ? ownerPickId : null, mp:isOwner ? ownerModPids.slice() : null, cs:myCosArr(), id:myPid, fq:[...frWant], d:dead ? 1 : 0, t:talking, r:+(e.y + rig.rotation.y).toFixed(2), p:f(h), a:f(hands[HL()].has ? hands[HL()].vis : keys.KeyH ? h.clone().setY(h.y + .4) : h), b:f(hands[1 - HL()].has ? hands[1 - HL()].vis : keys.KeyH ? h.clone().setY(h.y + .4) : h), dp:dpIsHost() ? dpSnap() : null, di:state === 'arena' ? DI : null}, extra || {}))).catch(() => {});
+  R.presence(bmPub(Object.assign({n:myName, c:myColor, z:zone, v:myVote, o:isOwner ? 1 : 0, m:isOwner || amMod() ? modLog.slice() : null, md:isOwner ? ownerMods.slice() : null, tr:isOwner ? {n:trust.n.slice(), p:trust.p.slice()} : null, pm:isOwner && ownerPickId ? ownerPickId : null, mp:isOwner ? ownerModPids.slice() : null, cs:myCosArr(), id:myPid, fq:[...frWant], d:dead ? 1 : 0, t:talking, r:+(e.y + rig.rotation.y).toFixed(2), p:f(h), a:f(hands[HL()].has ? hands[HL()].vis : keys.KeyH ? h.clone().setY(h.y + .4) : h), b:f(hands[1 - HL()].has ? hands[1 - HL()].vis : keys.KeyH ? h.clone().setY(h.y + .4) : h), dp:dpIsHost() ? dpSnap() : null, di:state === 'arena' ? DI : null}, extra || {}))).catch(() => {});
 }
 let unsub = null;
 async function joinRoom(name, label){
@@ -1444,7 +1457,7 @@ function locomote(dt){
     mv.divideScalar(cnt); rig.position.sub(mv); hist.push(fv.copy(mv).divideScalar(-dt).clone()); if (hist.length > 4) hist.shift();
     if (floor) slide = 0; else { slide = Math.min(slide + G*dt, 2.2); rig.position.y -= slide*dt; }
     vel.set(0,0,0); hist.forEach(v => vel.add(v)); vel.divideScalar(hist.length);
-    if (amMon && round && round.m === 'b') vel.multiplyScalar((BMX.ab && BMX.ab.k === 'g' ? 1.5 : 1.3)*(isOwner && OP.spr ? 1.7 : 1));
+    if (amMon && round && round.m === 'b') vel.multiplyScalar((BMX.ab && BMX.ab.k === 'g' ? 1.5 : 1.3)*(powerUser() && OP.spr ? 1.7 : 1));
     if (sprintOn) vel.multiplyScalar(1.25); const sp = vel.length(), cap = sprintOn ? 13 : 11; if (sp > cap) vel.multiplyScalar(cap/sp);
   } else {
     hist.length = 0; slide = 0; vel.y -= G*dt; vel.multiplyScalar(1 - .2*dt);
@@ -2960,7 +2973,7 @@ function bmRoarFx(T, pos){
 
 /* ---------- the monster player's own body and the HUD bits ---------- */
 let selfCr = null;
-function selfCreature(){ if (!selfCr){ selfCr = bmCreature(lvIdx, BMS.mm !== 0 && (isOwner ? 'owner' : bmCanAb())); selfCr.neck.visible = false; } return selfCr; }
+function selfCreature(){ if (!selfCr){ selfCr = bmCreature(lvIdx, BMS.mm !== 0 && (powerUser() ? 'owner' : bmCanAb())); selfCr.neck.visible = false; } return selfCr; }
 /* camera-locked banner for countdowns (works the same in VR and on screen) */
 const BNC = cv(1024, 192), BNG = BNC.getContext('2d'), BNT = new THREE.CanvasTexture(BNC);
 const bnr = new THREE.Mesh(new THREE.PlaneGeometry(.8, .15), new THREE.MeshBasicMaterial({map:BNT, transparent:true, depthTest:false, depthWrite:false, fog:false})); bnr.position.set(0, .2, -1); bnr.renderOrder = 1001; bnr.visible = false; camera.add(bnr);
@@ -3003,7 +3016,7 @@ function drawWrist(st){
 
 /* ---------- abilities: one system behind keys, screen buttons, controller buttons and the wrist panel ---------- */
 function deny(m){ if (!playS('ui_deny', {vol:.6})) beep(180, .12, 'square', .06); if (m) say(m, 1.6); }
-const bmCanAb = () => isOwner || amMod();
+const bmCanAb = () => isOwner || amMod() || amTrusted();
 function bmUse(k){
   if (!isBM() || !amMon || dead) return;
   if (k === 'f'){ BMX.fin = (BMX.fin + 1) % FIN.length; if (!playS('ui_conf', {vol:.6})) uiClick(); say('Finisher: ' + FIN[BMX.fin].n.toLowerCase() + '.', 1.6); pulse(0, .3, 40); pulse(1, .3, 40); return; }
@@ -3011,7 +3024,7 @@ function bmUse(k){
   if (!bmCanAb()) return deny('Monster abilities are for moderators.');
   if (el < T.lock) return deny('Not yet. You are still locked in.');
   if (BMX.ab) return deny(BMX.ab.k === k ? '' : 'Finish the ability you are using first.');
-  if (!isOwner && now < BMX.cdEnd[k]) return deny('Recharging. ' + Math.ceil((BMX.cdEnd[k] - now)/1000) + ' seconds.');
+  if (!powerUser() && now < BMX.cdEnd[k]) return deny('Recharging. ' + Math.ceil((BMX.cdEnd[k] - now)/1000) + ' seconds.');
   if (now < BMX.lockUntil) return deny('');
   const A = BMX.ab = {k:k, t0:now, seq:++BMX.abSeq, end:now + T.ad*1000};
   [0, 1].forEach(i => pulse(i, .7, 120));
@@ -3023,7 +3036,7 @@ function bmUse(k){
   pub();
 }
 function bmEndAb(){
-  const A = BMX.ab; if (!A) return; const T = bmT(); BMX.ab = null; BMX.cdEnd[A.k] = isOwner ? 0 : performance.now() + (T.cd[A.k] || 20)*1000;
+  const A = BMX.ab; if (!A) return; const T = bmT(); BMX.ab = null; BMX.cdEnd[A.k] = powerUser() ? 0 : performance.now() + (T.cd[A.k] || 20)*1000;
   if (A.k === 'g' && BMX.body){ const hw = headW(), B = BMX.body; rig.position.x += B.h.x - hw.x; rig.position.z += B.h.z - hw.z; rig.position.y = B.rig.y; vel.set(0, 0, 0); hist.length = 0; BMX.body = null; fadeIn(.45); playS('whoosh', {vol:1, rate:1.3}); }
   if (A.k === 'i'){ playS('magic', {vol:.6, rate:.7}); }
   if (A.k === 'w'){ playS('ui_back', {vol:.5}); }
@@ -3042,9 +3055,9 @@ function bmPub(o){
 /* what everyone else accepts from the monster: only abilities that fit the rules, never longer than allowed */
 function bmRx(pr){
   const X = BMX.rx, T = bmT(), now = performance.now(), ab = pr && pr.ab;
-  if (ab && !(pr.o === 1 || isModPr(pr))) return null;
+  if (ab && !(pr.o === 1 || isModPr(pr) || isTrustedPr(pr))) return null;
   if (ab && !X.done.has(ab[1]) && (!X.cur || X.cur.seq !== ab[1])){ const k = ab[0];
-    X.done.add(ab[1]); if (!X.cur && 'giw'.indexOf(k) >= 0 && bmEl() >= T.lock - 1.5 && (pr.o === 1 || now >= (X.cd[k] || 0) - 2000)) X.cur = {k:k, seq:ab[1], t0:now}; }
+    X.done.add(ab[1]); if (!X.cur && 'giw'.indexOf(k) >= 0 && bmEl() >= T.lock - 1.5 && (pr.o === 1 || isTrustedPr(pr) || now >= (X.cd[k] || 0) - 2000)) X.cur = {k:k, seq:ab[1], t0:now}; }
   if (X.cur && (!ab || ab[1] !== X.cur.seq || now - X.cur.t0 > T.ad*1000 + 350)){ X.cd[X.cur.k] = now + (T.cd[X.cur.k] || 20)*1000; X.cur.endT = now; X.last = X.cur; X.cur = null; }
   return X.cur;
 }
@@ -3201,7 +3214,7 @@ function bmStart(){
   if (amMon){ bmDz(selfAv); selfCreature(); }
 }
 function bmVRButtons(dt){
-  if (!renderer.xr.isPresenting) return; const map = {left:{4:isOwner ? '' : 'g', 5:'i'}, right:{4:'w', 5:'f'}}, st = BMX.hold;
+  if (!renderer.xr.isPresenting) return; const map = {left:{4:powerUser() ? '' : 'g', 5:'i'}, right:{4:'w', 5:'f'}}, st = BMX.hold;
   for (let i=0;i<2;i++){ const gp = gps[i]; if (!conn[i] || !gp || !gp.buttons) continue; const m = map[hnd[i]]; if (!m) continue;
     for (const b in m){ const k = m[b]; if (!k) continue; const pr = gp.buttons[b] && gp.buttons[b].pressed, s = st[k] || (st[k] = {t:0, fired:false});
       if (pr){ s.t += dt; if ((k === 'f' || k === 'menu') && !s.fired){ s.fired = true; if (k === 'menu') opToggle(); else bmUse('f'); } else if (k !== 'f' && s.t > .3 && !s.fired){ s.fired = true; bmUse(k); } } else { s.t = 0; s.fired = false; } } }
@@ -3226,7 +3239,7 @@ function bmTick(dt, t, hw){
   /* the monster, as everyone else sees it */
   const mA = monP && avs.get(monP.peer);
   if (mA){
-    const pr = monP.presence; let B = mA.bm; if (!B){ B = mA.bm = {a:mA, c:bmCreature(lvIdx, pr.mm !== 0 && (pr.o === 1 ? 'owner' : isModPr(pr)))}; if (B.c.special && el < T.tf0 + 1) say(B.c.special === 'owner' ? 'BADGORILLA is the monster. Good luck.' : (pr.n || 'The monster') + ' is a moderator. Their monster is special.', 4); BMX.crs.add(B); }
+    const pr = monP.presence; let B = mA.bm; if (!B){ B = mA.bm = {a:mA, c:bmCreature(lvIdx, pr.mm !== 0 && (pr.o === 1 || isTrustedPr(pr) ? 'owner' : isModPr(pr)))}; if (B.c.special && el < T.tf0 + 1) say(B.c.special === 'owner' ? (pr.o === 1 ? 'BADGORILLA is the monster. Good luck.' : (pr.n || 'Someone') + ' has BADGORILLA\'s monster. Good luck.') : (pr.n || 'The monster') + ' is a moderator. Their monster is special.', 4); BMX.crs.add(B); }
     const cur = bmRx(pr), p = pr.p || [0, 1, 0], yaw = +pr.r || 0;
     if (!B.base) B.base = {x:p[0], z:p[2], yaw:yaw};
     if (bmK && bmK.c === B.c){ [mA.head, mA.torso].concat(...mA.arms.map(m => [m.u, m.f, m.e, m.h])).forEach(o => { o.visible = false; }); }
@@ -3327,7 +3340,7 @@ addEventListener('keydown', e => {
   if (e.repeat || !isBM() || !amMon || dead) return; if (kmManual()){ const m = {KeyG:'grab', Digit1:'rip', Digit2:'throw', Digit3:'snap', Digit4:'eat'}[e.code]; if (m){ mkPc(m); e.preventDefault(); return; } } for (const k in BMS.keys) if (BMS.keys[k] === e.code){ bmUse(k); e.preventDefault(); return; }
 });
 
-function bmSpd(){ return isBM() && amMon ? (BMX.ab && BMX.ab.k === 'g' ? 1.5 : 1.12)*(isOwner && OP.spr ? 2 : 1) : 1; }
+function bmSpd(){ return isBM() && amMon ? (BMX.ab && BMX.ab.k === 'g' ? 1.5 : 1.12)*(powerUser() && OP.spr ? 2 : 1) : 1; }
 
 /* ======================= MANUAL KILLS: grab a player, then throw them, pull them apart, snap the neck or eat them ======================= */
 const MK = {hold:null, seq:0, tw:null, twSeq:0, sq:[false, false], hp:[V(), V()], hv:[V(), V()], thrown:new Map(), held:null, heldT:0, fly:null, twSeen:0, sp:new Set()};
@@ -3446,12 +3459,12 @@ const POW = [
   {k:'sl', n:'SILENT STEPS', tog:1}, {k:'ce', n:'CEILING CRAWL', tog:1}, {k:'sp', n:'SPRINT', tog:1},
   {k:'g', n:'GHOST'}, {k:'i', n:'INVISIBLE'}, {k:'w', n:'WALL VISION'}];
 const OP = {menu:false, tgt:'*', seq:0, ev:[], seen:new Set(), sil:0, ceil:0, spr:0, cd:{}, boEnd:0, stEnd:0, pzEnd:0, monkeys:[], scare:null, noise:null, poke:0, hemi0:null, dirty:true};
-const opIsMe = () => isOwner && (isBM() || (round && round.m === 'h' && state === 'level')) && amMon && !dead;
+const opIsMe = () => powerUser() && (isBM() || (round && round.m === 'h' && state === 'level')) && amMon && !dead;
 const opDark = () => performance.now() < OP.boEnd && !amMon;
 const opPara = () => performance.now() < OP.pzEnd;
 function opTargets(){ return mkTargets ? mkTargets() : []; }
 function opTgtName(){ if (OP.tgt === '*') return 'EVERYONE'; const p = zonePeers().find(q => q.peer === OP.tgt); return p ? String(p.presence.n || 'PLAYER').toUpperCase().slice(0, 12) : 'EVERYONE'; }
-function opToggle(){ if (!isOwner || state === 'menu') return; OP.menu = !OP.menu; OP.dirty = true; if (!playS(OP.menu ? 'ui_open' : 'ui_back', {vol:.6})) uiClick(); [0, 1].forEach(i => pulse(i, .3, 40)); }
+function opToggle(){ if (!(isOwner || opIsMe()) || state === 'menu') return; OP.menu = !OP.menu; OP.dirty = true; if (!playS(OP.menu ? 'ui_open' : 'ui_back', {vol:.6})) uiClick(); [0, 1].forEach(i => pulse(i, .3, 40)); }
 function opUse(k){
   if (!opIsMe()) return; const now = performance.now(), P = POW.find(p => p.k === k); if (!P) return; OP.dirty = true;
   if (k === 'tg'){ const ids = ['*'].concat(opTargets().map(p => p.peer)), i = ids.indexOf(OP.tgt); OP.tgt = ids[(i + 1) % ids.length]; if (!playS('ui_conf', {vol:.5})) uiClick(); say('Target: ' + opTgtName().toLowerCase() + '.', 1.5); return; }
@@ -3471,7 +3484,7 @@ function opPub(o){ o.op = opIsMe() ? {s:OP.sil, c:OP.ceil, r:OP.spr, e:OP.ev.sli
 
 /* ---------- what the powers do to everyone else ---------- */
 function opRecv(pr){
-  const O = pr && pr.o === 1 && pr.op; if (!O || !Array.isArray(O.e)) return;
+  const O = pr && (pr.o === 1 || isTrustedPr(pr)) && pr.op; if (!O || !Array.isArray(O.e)) return;
   O.e.forEach(ev => { const key = ev[0] + ':' + ev[3]; if (OP.seen.has(key)) return; OP.seen.add(key); if (Math.abs(Date.now() - ev[3]) > 15000 || dead) return; const k = ev[1], mine = ev[2] === '*' || ev[2] === myId(), now = performance.now();
     if (k === 'bo'){ OP.boEnd = now + 10000; playS('poweroff', {vol:1}); playS('hum', {vol:.01}); say('', .1); }
     else if (k === 'st'){ OP.stEnd = now + 6000; playS('ebox', {vol:.8}); }
@@ -3616,7 +3629,7 @@ opMenu.addEventListener('pointerdown', e => { const b = e.target.closest && e.ta
 let opXPrev = false;
 function ownerHandTick(dt){
   const vr = renderer.xr.isPresenting;
-  if (!isOwner || state === 'menu'){ OP.menu = false; opMenu.hidden = true; opOpen.hidden = true; opPanel.visible = false; return; }
+  if (!(isOwner || opIsMe()) || state === 'menu'){ OP.menu = false; opMenu.hidden = true; opOpen.hidden = true; opPanel.visible = false; return; }
   if (vr){ let li = -1; for (let i=0;i<2;i++) if (conn[i] && hnd[i] === 'left') li = i; const gp = li >= 0 ? gps[li] : null, x = !!(gp && gp.buttons && gp.buttons[4] && gp.buttons[4].pressed); if (x && !opXPrev) opToggle(); opXPrev = x; }
   opOpen.hidden = vr; opOpen.textContent = (opIsMe() ? 'POWERS' : 'OWNER MENU') + (isTouch ? '' : ' (X)'); opMenu.hidden = !(OP.menu && !vr);
   if (!OP.menu){ opPanel.visible = false; return; }
@@ -3628,7 +3641,7 @@ function ownerHandTick(dt){
   OP.poke -= dt; const oh = hands[1 - li] && hands[1 - li].has ? hands[1 - li].vis : null;
   if (oh && OP.poke <= 0){ opPanel.updateWorldMatrix(true, false); const lp = opPanel.worldToLocal(fxV4.copy(oh)); if (Math.abs(lp.z) < .035 && Math.abs(lp.x) < .135 && Math.abs(lp.y) < .169){ const px = (lp.x/.27 + .5)*512, py = (.5 - lp.y/.3375)*640, col = Math.floor((px - 10)/166), row = Math.floor((py - 48)/118); if (col >= 0 && col < 3 && row >= 0){ const c = cells[row*3 + col]; if (c){ OP.poke = .7; pulse(1 - li, .6, 50); opCellUse(c); OP.dirty = true; } } } }
 }
-addEventListener('keydown', e => { if (e.code !== 'KeyX' || e.repeat || !isOwner || state === 'menu' || (state === 'lobby' && (ui.s === 'name' || ui.s === 'code'))) return; opToggle(); });
+addEventListener('keydown', e => { if (e.code !== 'KeyX' || e.repeat || !(isOwner || opIsMe()) || state === 'menu' || (state === 'lobby' && (ui.s === 'name' || ui.s === 'code'))) return; opToggle(); });
 /* Hide and Seek: the seeker is a monster too (yours, a mod's, or the black figure), and your powers work */
 const HS = {m:new Map(), rid:''};
 function hsClear(){ HS.m.forEach((B, a) => { scene.remove(B.c.g); [a.head, a.torso].concat(...a.arms.map(m => [m.u, m.f, m.e, m.h])).forEach(o => { o.visible = true; }); }); HS.m.clear(); lvGlow = []; BMX.evT = 0; BMX.roared = false; }
@@ -3636,7 +3649,7 @@ function hsTick(dt, t, hw){
   if (!isHS()){ if (HS.rid){ HS.rid = ''; hsClear(); opReset(); } return; }
   if (HS.rid !== round.id){ hsClear(); opReset(); HS.rid = round.id; lvGlow = []; if (lvGroup) lvGroup.traverse(o => { if (o.isMesh && o.material && o.material.isMeshBasicMaterial && o.material.vertexColors) lvGlow.push(o.material); }); }
   const monP = zonePeers().find(p => p.peer === round.mon), a = monP && avs.get(monP.peer);
-  if (a){ const pr = monP.presence; let B = HS.m.get(a); if (!B){ B = {a:a, c:bmCreature(lvIdx, pr.mm !== 0 && (pr.o === 1 ? 'owner' : isModPr(pr)))}; HS.m.set(a, B); }
+  if (a){ const pr = monP.presence; let B = HS.m.get(a); if (!B){ B = {a:a, c:bmCreature(lvIdx, pr.mm !== 0 && (pr.o === 1 || isTrustedPr(pr) ? 'owner' : isModPr(pr)))}; HS.m.set(a, B); }
     [a.head, a.torso].concat(...a.arms.map(m => [m.u, m.f, m.e, m.h])).forEach(o => { o.visible = false; });
     const c = B.c, p = pr.p || [0, 1, 0], vr = pr.a && Math.hypot(pr.a[0] - p[0], pr.a[1] - p[1], pr.a[2] - p[2]) > .08; c.g.visible = true; c.dz.uD.value = 0; c.g.scale.setScalar(SC*(c.big || 1)); if (c.eyeM) c.eyeM.color.copy(c.eyeBase);
     B.silent = !!(pr.op && pr.op.s); poseCreature(c, p[0], p[2], +pr.r || 0, +pr.q || 0, vr ? V(pr.a[0], pr.a[1], pr.a[2]) : null, vr ? V(pr.b[0], pr.b[1], pr.b[2]) : null, dt, t, B);
