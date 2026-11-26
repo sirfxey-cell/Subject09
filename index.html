@@ -1665,7 +1665,7 @@ function locomote(dt){
     if (floor) slide = 0; else { slide = Math.min(slide + G*dt, 2.2); rig.position.y -= slide*dt; }
     vel.set(0,0,0); hist.forEach(v => vel.add(v)); vel.divideScalar(hist.length);
     if (amMon && round && round.m === 'b') vel.multiplyScalar((BMX.ab && BMX.ab.k === 'g' ? 1.5 : 1.3)*(powerUser() && OP.spr ? 1.7 : 1));
-    if (sprintOn) vel.multiplyScalar(1.25); const sp = vel.length(), cap = sprintOn ? 13 : 11; if (sp > cap) vel.multiplyScalar(cap/sp);
+    const spr = sprintOn && !((isBM() || isHS()) && stamLock); if (spr) vel.multiplyScalar((isBM() || isHS()) ? 1.35 : 1.25); const sp = vel.length(), cap = spr ? ((isBM() || isHS()) ? 14.5 : 13) : 11; if (sp > cap) vel.multiplyScalar(cap/sp);
   } else {
     hist.length = 0; slide = 0; vel.y -= G*dt; vel.multiplyScalar(1 - .2*dt);
     const steps = Math.max(1, Math.ceil(vel.length()*dt/.1));
@@ -1691,14 +1691,14 @@ const isHeadset = /OculusBrowser|Quest|Pico|Wolvic/i.test(navigator.userAgent);
 const isPhone = isTouch && !isHeadset;
 const TM = {x:0, y:0, jump:0, low:0, id:null, run:0, edge:0};
 let sprintOn = false, lsPrev = false;
-function setSprint(on){ if (on === sprintOn) return; sprintOn = on; say(on ? 'Sprinting.' : 'Walking.', 1); [0, 1].forEach(i => pulse(i, .3, 40)); const b = document.querySelector('#tbtns [data-k=run]'); if (b) b.classList.toggle('on', on); }
+function setSprint(on){ if (on && stamLock && (isBM() || isHS())){ say('Out of breath.', 1); return; } if (on === sprintOn) return; sprintOn = on; say(on ? 'Sprinting.' : 'Walking.', 1); [0, 1].forEach(i => pulse(i, .3, 40)); const b = document.querySelector('#tbtns [data-k=run]'); if (b) b.classList.toggle('on', on); }
 let dvy = 0, wallPush = false;
 function desktop(dt){
   const typing = state === 'lobby' && (ui.s === 'name' || ui.s === 'code' || ui.s === 'famadd');
   let f = typing ? 0 : ((keys.KeyW || keys.ArrowUp) ? 1 : 0) - ((keys.KeyS || keys.ArrowDown) ? 1 : 0) + TM.y, r = typing ? 0 : (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0) + TM.x;
   const mm = Math.hypot(f, r); if (mm > 1){ f /= mm; r /= mm; }
   const turn = typing ? 0 : (keys.ArrowLeft ? 1 : 0) - (keys.ArrowRight ? 1 : 0); if (turn){ yaw += turn*2.4*dt; camera.rotation.set(pitch, yaw, 0); }
-  const sp = ((keys.ShiftLeft || keys.ShiftRight || sprintOn || TM.edge) ? 6.2 : 3.6)*bmSpd(), s = Math.sin(yaw), c = Math.cos(yaw);
+  const sprintNow = (keys.ShiftLeft || keys.ShiftRight || sprintOn || TM.edge) && !((isBM() || isHS()) && stamLock), sp = (sprintNow ? ((isBM() || isHS()) ? 7.2 : 6.2) : 3.6)*bmSpd(), s = Math.sin(yaw), c = Math.cos(yaw);
   { const n = Math.max(1, Math.ceil(Math.hypot(f, r)*sp*dt/.06)); for (let k=0;k<n;k++){ rig.position.x += (-s*f + c*r)*sp*dt/n; rig.position.z += (-c*f - s*r)*sp*dt/n; if (n > 1){ const hw = headW(), b = hw.clone(); collide(hw, HEAD_R, HEAD_MIN); rig.position.x += hw.x - b.x; rig.position.z += hw.z - b.z; } } }
   const low = keys.KeyC || TM.low; camera.position.y = (low ? .55 : 1)*(1 + (eyeK - 1)*2.9);
   if (terrain) rig.position.y = terrain(rig.position.x, rig.position.z);
@@ -1776,7 +1776,7 @@ function sticks(dt){
   const rs = stick('right'), ls = stick('left');
   let lp = false; for (let i=0;i<2;i++) if (conn[i] && hnd[i] === 'left' && gps[i] && gps[i].buttons && gps[i].buttons[3] && gps[i].buttons[3].pressed) lp = true; if (lp && !lsPrev) setSprint(!sprintOn); lsPrev = lp;
   if (rs){ const x = rs[2] || 0; if (Math.abs(x) > .7 && !turned){ turned = true; const before = headW(); rig.rotation.y -= Math.sign(x)*Math.PI/6; rig.position.add(before.sub(headW())); } else if (Math.abs(x) < .3) turned = false; }
-  const monStk = amMon && (isBM() || isHS()); if ((stickMove || monStk) && ls){ const sx = ls[2] || 0, sy = ls[3] || 0; if (Math.hypot(sx, sy) > .2){ fwd.set(0,0,-1).applyQuaternion(camera.quaternion).applyQuaternion(rig.quaternion); fwd.y = 0; fwd.normalize(); tmp.set(-fwd.z, 0, fwd.x); const ws = 2.6*(sprintOn ? 2 : 1)*(monStk ? 1.45 : 1), n = Math.max(1, Math.ceil(Math.hypot(sx, sy)*ws*dt/.06)); for (let k=0;k<n;k++){ rig.position.addScaledVector(fwd, -sy*ws*dt/n).addScaledVector(tmp, sx*ws*dt/n); headFix(dt/n); } } }
+  const monStk = amMon && (isBM() || isHS()); if ((stickMove || monStk) && ls){ const sx = ls[2] || 0, sy = ls[3] || 0; if (Math.hypot(sx, sy) > .2){ fwd.set(0,0,-1).applyQuaternion(camera.quaternion).applyQuaternion(rig.quaternion); fwd.y = 0; fwd.normalize(); tmp.set(-fwd.z, 0, fwd.x); stickVec = [sx, sy]; const ws = 2.6*(sprintOn && !((isBM() || isHS()) && stamLock) ? ((isBM() || isHS()) ? 2.3 : 2) : 1)*(monStk ? 1.45 : 1), n = Math.max(1, Math.ceil(Math.hypot(sx, sy)*ws*dt/.06)); for (let k=0;k<n;k++){ rig.position.addScaledVector(fwd, -sy*ws*dt/n).addScaledVector(tmp, sx*ws*dt/n); headFix(dt/n); } } }
 }
 
 /* ---------- Normal-mode monsters ---------- */
@@ -2813,6 +2813,7 @@ function monstersTick(dt, hw, t){
     m.stT -= dt;
     if (m.st === 'roam' || m.st === 'idle'){ if (aware){ m.st = 'alert'; m.stT = .85; m.alerted = true; screechAt(p.x, p.y + 1.6*sc, p.z, ([1, .9, .75, .8][lvIdx] || .9)); pulse(0, .5, 120); pulse(1, .5, 120); if (!revealDone){ revealDone = true; playS('strings', {vol:.9}); fxL.blackT = performance.now() + 380; fxL.redT = performance.now() + 3500; beep(46, 1.6, 'sawtooth', .2); noiseBurst(.5, .15, 1200); } } }
     if (m.st === 'alert' && m.stT <= 0){ m.st = 'chase'; m.lost = 0; }
+    if (!safe && d < 6.5 && m.st !== 'chase'){ if (m.st !== 'alert') m.alerted = true; m.st = 'chase'; m.lost = 0; }
     if (m.st === 'chase'){ if (aware || d < 26) m.lost = 0; else m.lost += dt; if (safe || m.lost > 6){ m.st = 'roam'; m.stT = 3; pickWander(m); } }
     if (m.st === 'roam' && m.stT <= 0){ if (Math.random() < .35){ m.st = 'idle'; m.stT = 2 + Math.random()*3; } else { pickWander(m); m.stT = 4 + Math.random()*4; } }
     if (m.st === 'idle' && m.stT <= 0){ m.st = 'roam'; pickWander(m); m.stT = 4 + Math.random()*4; }
@@ -2829,7 +2830,8 @@ function monstersTick(dt, hw, t){
       if (!(dl > .15 && speedK > 0)) m.vs += (0 - m.vs)*Math.min(1, dt*SM.dec);
       if (dl > .15 && speedK > 0){ dirv.divideScalar(dl); const ang = Math.atan2(dirv.x, dirv.z); let da = ang - m.g.rotation.y; da = Math.atan2(Math.sin(da), Math.cos(da));
         const tr = SM.turn*(m.st === 'chase' ? 1.4 : .6); if (m.sty === 'robot') m.g.rotation.y += Math.sign(da)*Math.min(Math.abs(da), dt*tr*.6); else m.g.rotation.y += da*Math.min(1, dt*tr);
-        const turnK = Math.max(.2, Math.cos(Math.min(Math.PI/2, Math.abs(da)))), want = m.halt > 0 ? 0 : m.T.sp*speedK*SM.sp*turnK*(m.sty === 'erratic' && m.st === 'chase' ? 1 + .35*Math.max(0, Math.sin(t*1.7 + mi)) : 1);
+        const lunge = m.st === 'chase' && d < 7 && !safe; if (lunge && !m.lunge){ m.lunge = true; screechAt(p.x, p.y + 1.6*sc, p.z, 1.2); pulse(0, .8, 200); pulse(1, .8, 200); } else if (!lunge && d > 10) m.lunge = false;
+        const turnK = Math.max(.2, Math.cos(Math.min(Math.PI/2, Math.abs(da)))), want = (lunge ? 1.6 : 1)*(m.halt > 0 && !lunge ? 0 : 1)* m.T.sp*speedK*SM.sp*turnK*(m.sty === 'erratic' && m.st === 'chase' ? 1 + .35*Math.max(0, Math.sin(t*1.7 + mi)) : 1);
         m.vs += (want - m.vs)*Math.min(1, dt*(want > m.vs ? SM.acc : SM.dec)); const step = Math.min(dl, m.vs*dt); p.x += dirv.x*step; p.z += dirv.z*step; spd = step/dt; }
       else if (m.st === 'alert'){ const ang = Math.atan2(hw.x - p.x, hw.z - p.z); let da = ang - m.g.rotation.y; da = Math.atan2(Math.sin(da), Math.cos(da)); m.g.rotation.y += da*Math.min(1, dt*6); }
       const sx = p.x, sz = p.z - 32, sd = Math.hypot(sx, sz); if (sd < 9.8){ p.x = sx/sd*9.8; p.z = 32 + sz/sd*9.8; }
@@ -3094,6 +3096,28 @@ function addShafts(gp, lights, ceil, maxN, rBot){
 /* the flashlight's beam shows faintly in the dusty air */
 const beamM = new THREE.MeshBasicMaterial({map:SHAFT_T, color:0xfff0d8, transparent:true, opacity:0, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide});
 const beam = new THREE.Mesh(new THREE.CylinderGeometry(.04, 1.5, 7, 16, 1, true), beamM); beam.rotation.x = -Math.PI/2; beam.position.set(0, .02, -3.6); beam.renderOrder = 3; camera.add(beam);
+/* ---------- danger meter: how close the nearest monster is (and your stamina in Hide and Seek / Be the Monster) ---------- */
+const mtC = cv(512, 112), mtG = mtC.getContext('2d'), mtTex = new THREE.CanvasTexture(mtC); mtTex.userData = {keep:true};
+const meter = new THREE.Mesh(new THREE.PlaneGeometry(.5, .109), new THREE.MeshBasicMaterial({map:mtTex, transparent:true, depthTest:false, depthWrite:false, fog:false})); meter.position.set(0, -.36, -1); meter.renderOrder = 996; meter.visible = false; camera.add(meter);
+let mtT = 0, mtK = '', stam = 1, stamLock = false;
+function meterTick(dt, hw){
+  const rnd = isBM() || isHS(), showD = (state === 'level' || state === 'arena') && !dead && !(round && round.mon === myId()), showS = rnd && state === 'level' && !dead;
+  /* stamina for sprinting in the round modes */
+  const moving = renderer.xr.isPresenting ? vel.length() > 1.2 || Math.hypot(...(stickVec || [0, 0])) > .2 : (keys.KeyW || keys.KeyA || keys.KeyS || keys.KeyD || keys.ArrowUp || keys.ArrowDown || keys.ArrowLeft || keys.ArrowRight || TM.mv);
+  const sprinting = rnd && (sprintOn || keys.ShiftLeft || keys.ShiftRight || TM.edge) && moving;
+  if (sprinting && !stamLock){ stam -= dt/(amMon ? 6 : 5); if (stam <= 0){ stam = 0; stamLock = true; if (sprintOn) setSprint(false); say('Out of breath.', 1.2); } }
+  else stam = Math.min(1, stam + dt/(sprinting ? 12 : 5)); if (stamLock && stam > .35) stamLock = false;
+  meter.visible = showD || showS; if (!meter.visible) return;
+  mtT -= dt; if (mtT > 0) return; mtT = .1;
+  const d = nearMonD(hw), k = showD ? Math.max(0, Math.min(1, 1 - (d - 2)/28)) : 0, key = (showD ? Math.round(d) : -1) + '|' + Math.round(stam*40) + '|' + showS + '|' + stamLock + '|' + Math.round(k*30); if (key === mtK) return; mtK = key;
+  const g = mtG; g.clearRect(0, 0, 512, 112); rrect(g, 4, 4, 504, showS ? 104 : 56, 10); g.fillStyle = 'rgba(8,9,10,.62)'; g.fill();
+  if (showD){ g.font = '600 18px ' + FM; g.fillStyle = k > .75 ? '#ff4a3a' : k > .45 ? '#e8a23a' : '#9aa3a6'; g.textBaseline = 'middle'; g.font = '700 21px ' + FM; spaced(g, d > 60 ? 'NO MONSTER NEAR' : 'MONSTER  ' + Math.round(d) + ' M', 112, 23, 1.5);
+    rrect(g, 220, 14, 274, 18, 5); g.fillStyle = 'rgba(255,255,255,.08)'; g.fill(); if (k > 0){ const gr = g.createLinearGradient(220, 0, 494, 0); gr.addColorStop(0, '#3a9a5a'); gr.addColorStop(.55, '#e8a23a'); gr.addColorStop(1, '#ff2a1a'); g.save(); rrect(g, 220, 14, 274*k, 18, 5); g.clip(); g.fillStyle = gr; g.fillRect(220, 14, 274, 18); g.restore(); }
+    if (k > .8 && (performance.now()/250|0)%2){ g.strokeStyle = '#ff2a1a'; g.lineWidth = 3; rrect(g, 5, 5, 502, showS ? 102 : 54, 10); g.stroke(); } }
+  if (showS){ const y = showD ? 72 : 22; g.font = '600 18px ' + FM; g.fillStyle = stamLock ? '#ff6a4a' : '#9aa3a6'; g.textBaseline = 'middle'; g.font = '700 21px ' + FM; spaced(g, stamLock ? 'OUT OF BREATH' : 'STAMINA', 112, y + 8, 1.5); rrect(g, 220, y, 274, 16, 5); g.fillStyle = 'rgba(255,255,255,.08)'; g.fill(); g.save(); rrect(g, 220, y, 274*stam, 16, 5); g.clip(); g.fillStyle = stamLock ? '#c0503a' : '#5ab0e0'; g.fillRect(220, y, 274, 16); g.restore(); }
+  mtTex.needsUpdate = true;
+}
+let stickVec = null;
 function finishKill(){
   const K = kill; if (!K) return; kill = null; tearFx.visible = false; if (K.cb){ camera.position.copy(K.cb); camera.rotation.z = 0; } flash.material.color.setHex(0xdadddf); flash.material.opacity = 0;
   if (K.m){ K.m.st = 'roam'; K.m.stT = 6; K.m.g.position.copy(K.from).add(fxV1.set(Math.random()*4 - 2, 0, Math.random()*4 - 2)); }
@@ -3120,7 +3144,7 @@ function fxTick(dt, t, hw){
   AU.wetT = state === 'arena' ? .45 : state === 'lobby' ? .32 : dead ? .12 : .26;
   vig.style.opacity = String(Math.min(1, .35 + tension*.65));
   if (kill) killTick(dt, t);
-  readablesTick(dt, hw); brTick(dt, t, hw); staticTick(dt, hw); beamTick();
+  readablesTick(dt, hw); brTick(dt, t, hw); staticTick(dt, hw); beamTick(); meterTick(dt, hw);
 }
 function levelIntro(){ revealDone = false; tension = 0; fxL.powerT0 = performance.now() + 700; fxL.power = 0; setTimeout(() => { if (!ac) return; beep(55, 2.2, 'sawtooth', .07); [0, 450, 900, 1500].forEach(d => setTimeout(() => { noiseBurst(.25, .12, 300); thud(.35); }, d)); }, 900); monsters.forEach(monsterInit); }
 
