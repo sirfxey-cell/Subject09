@@ -710,7 +710,7 @@ function press(r){
   else if (r.a === 'stk') stickMove = !stickMove;
   else if (r.a === 'snd') ui.s = 'snd';
   else if (r.a === 'pick'){ if (isOwner) ui.s = 'pick'; }
-  else if (r.a.indexOf('pk:') === 0){ if (isOwner){ const id = r.a.slice(3), row = pickRows().find(q => q.id === id); ownerPickId = id && ownerPickId !== id ? id : ''; say(ownerPickId && row ? 'The next monster will be ' + row.n.replace('  (YOU)', ' (you)') + '.' : 'The next monster will be random.', 3); pub({pm:ownerPickId || null}); } }
+  else if (r.a.indexOf('pk:') === 0){ if (isOwner) ownerSetPick(r.a.slice(3)); }
   else if (r.a === 'fr'){ ui.s = 'fr'; frPage = 0; }
   else if (r.a === 'frpg'){ frPage = (frPage + 1) % Math.max(1, Math.ceil(frRows().length/5)); }
   else if (r.a.indexOf('fr:') === 0) frAct(r.a.slice(3));
@@ -3009,6 +3009,7 @@ function bmEndAb(){
   [0, 1].forEach(i => pulse(i, .4, 80)); pub();
 }
 function bmPub(o){
+  if (isHS() && amMon && !dead){ const e = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ'); o.q = +e.x.toFixed(2); o.mm = bmCanAb() && BMS.mm !== 0 ? 1 : 0; o.ab = null; o.gb = null; o.tw = null; o.kv = null; opPub(o); return o; }
   if (!isBM() || !amMon){ o.op = null; o.gb = null; o.tw = null; o.km = null; o.mm = null; o.ab = null; o.gp = null; o.gr = null; o.q = null; o.kv = null; return o; }
   const e = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ'); o.q = +e.x.toFixed(2); o.ab = BMX.ab && bmCanAb() ? [BMX.ab.k, BMX.ab.seq] : null; o.mm = bmCanAb() && BMS.mm !== 0 ? 1 : 0; o.gp = null; o.gr = null;
   if (BMX.ab && BMX.ab.k === 'g' && BMX.body){ o.gp = o.p; o.gr = o.r; const B = BMX.body; o.p = B.p; o.a = B.a; o.b = B.b; o.r = B.r; o.q = B.q; }
@@ -3179,16 +3180,16 @@ function bmStart(){
   if (amMon){ bmDz(selfAv); selfCreature(); }
 }
 function bmVRButtons(dt){
-  if (!renderer.xr.isPresenting) return; const map = {left:{4:isOwner ? 'menu' : 'g', 5:'i'}, right:{4:'w', 5:'f'}}, st = BMX.hold;
+  if (!renderer.xr.isPresenting) return; const map = {left:{4:isOwner ? '' : 'g', 5:'i'}, right:{4:'w', 5:'f'}}, st = BMX.hold;
   for (let i=0;i<2;i++){ const gp = gps[i]; if (!conn[i] || !gp || !gp.buttons) continue; const m = map[hnd[i]]; if (!m) continue;
-    for (const b in m){ const k = m[b], pr = gp.buttons[b] && gp.buttons[b].pressed, s = st[k] || (st[k] = {t:0, fired:false});
+    for (const b in m){ const k = m[b]; if (!k) continue; const pr = gp.buttons[b] && gp.buttons[b].pressed, s = st[k] || (st[k] = {t:0, fired:false});
       if (pr){ s.t += dt; if ((k === 'f' || k === 'menu') && !s.fired){ s.fired = true; if (k === 'menu') opToggle(); else bmUse('f'); } else if (k !== 'f' && s.t > .3 && !s.fired){ s.fired = true; bmUse(k); } } else { s.t = 0; s.fired = false; } } }
 }
 function bmTick(dt, t, hw){
   psTick(PB, dt); psTick(PD, dt); psTick(PW, dt); decTick(dt);
   GHOSTM.uniforms.t.value = t; XRAYM.uniforms.t.value = t;
   for (let i=BODS.length-1;i>=0;i--){ const B = BODS[i]; if (B.kind === 'third') goreTick(B, dt); else if (B.kind === 'splat') bodyTick(B, dt); }
-  if (!isBM()){ mkRow.hidden = true; MK.held = null; MK.fly = null; if (BMX.rid) bmReset(); if (state === 'level' && !round && bmK) bmK = null; return; }
+  if (!isBM()){ mkRow.hidden = true; MK.held = null; MK.fly = null; if (BMX.rid) bmReset(); if (state === 'level' && !round && bmK) bmK = null; hsTick(dt, t, hw); return; }
   if (BMX.rid !== round.id) bmStart();
   const T = bmT(), el = bmEl(), now = performance.now(), ps = zonePeers(), monP = ps.find(p => p.peer === round.mon);
   /* the roar, the facility event and the release happen once per round on every machine */
@@ -3302,7 +3303,7 @@ function bmRoundTick(ps, el, T){
 }
 addEventListener('keydown', e => {
   if (BMX.bind){ if (e.code === 'Escape'){ BMX.bind = ''; } else if (!/^(KeyW|KeyA|KeyS|KeyD|Space|ShiftLeft|ShiftRight|KeyC|KeyH|KeyL|Arrow)/.test(e.code)){ Object.keys(BMS.keys).forEach(k => { if (BMS.keys[k] === e.code) BMS.keys[k] = ''; }); BMS.keys[BMX.bind] = e.code; bmSave(); uiClick(); BMX.bind = ''; } ui.msg = ''; drawTerm(); e.preventDefault(); return; }
-  if (e.repeat || !isBM() || !amMon || dead) return; if (isOwner && e.code === 'KeyX'){ opToggle(); e.preventDefault(); return; } if (kmManual()){ const m = {KeyG:'grab', Digit1:'rip', Digit2:'throw', Digit3:'snap', Digit4:'eat'}[e.code]; if (m){ mkPc(m); e.preventDefault(); return; } } for (const k in BMS.keys) if (BMS.keys[k] === e.code){ bmUse(k); e.preventDefault(); return; }
+  if (e.repeat || !isBM() || !amMon || dead) return; if (kmManual()){ const m = {KeyG:'grab', Digit1:'rip', Digit2:'throw', Digit3:'snap', Digit4:'eat'}[e.code]; if (m){ mkPc(m); e.preventDefault(); return; } } for (const k in BMS.keys) if (BMS.keys[k] === e.code){ bmUse(k); e.preventDefault(); return; }
 });
 
 function bmSpd(){ return isBM() && amMon ? (BMX.ab && BMX.ab.k === 'g' ? 1.5 : 1.12)*(isOwner && OP.spr ? 2 : 1) : 1; }
@@ -3424,16 +3425,16 @@ const POW = [
   {k:'sl', n:'SILENT STEPS', tog:1}, {k:'ce', n:'CEILING CRAWL', tog:1}, {k:'sp', n:'SPRINT', tog:1},
   {k:'g', n:'GHOST'}, {k:'i', n:'INVISIBLE'}, {k:'w', n:'WALL VISION'}];
 const OP = {menu:false, tgt:'*', seq:0, ev:[], seen:new Set(), sil:0, ceil:0, spr:0, cd:{}, boEnd:0, stEnd:0, pzEnd:0, monkeys:[], scare:null, noise:null, poke:0, hemi0:null, dirty:true};
-const opIsMe = () => isOwner && isBM() && amMon && !dead;
+const opIsMe = () => isOwner && (isBM() || (round && round.m === 'h' && state === 'level')) && amMon && !dead;
 const opDark = () => performance.now() < OP.boEnd && !amMon;
 const opPara = () => performance.now() < OP.pzEnd;
 function opTargets(){ return mkTargets ? mkTargets() : []; }
 function opTgtName(){ if (OP.tgt === '*') return 'EVERYONE'; const p = zonePeers().find(q => q.peer === OP.tgt); return p ? String(p.presence.n || 'PLAYER').toUpperCase().slice(0, 12) : 'EVERYONE'; }
-function opToggle(){ if (!opIsMe()) return; OP.menu = !OP.menu; OP.dirty = true; if (!playS(OP.menu ? 'ui_open' : 'ui_back', {vol:.6})) uiClick(); [0, 1].forEach(i => pulse(i, .3, 40)); }
+function opToggle(){ if (!isOwner || state === 'menu') return; OP.menu = !OP.menu; OP.dirty = true; if (!playS(OP.menu ? 'ui_open' : 'ui_back', {vol:.6})) uiClick(); [0, 1].forEach(i => pulse(i, .3, 40)); }
 function opUse(k){
   if (!opIsMe()) return; const now = performance.now(), P = POW.find(p => p.k === k); if (!P) return; OP.dirty = true;
   if (k === 'tg'){ const ids = ['*'].concat(opTargets().map(p => p.peer)), i = ids.indexOf(OP.tgt); OP.tgt = ids[(i + 1) % ids.length]; if (!playS('ui_conf', {vol:.5})) uiClick(); say('Target: ' + opTgtName().toLowerCase() + '.', 1.5); return; }
-  if (bmEl() < bmT().lock) return deny('Wait until you are released.');
+  if (bmEl() < monLock()) return deny('Wait until you are released.');
   if (k === 'g' || k === 'i' || k === 'w') return bmUse(k);
   if (P.tog){ if (k === 'sl') OP.sil ^= 1; if (k === 'ce') OP.ceil ^= 1; if (k === 'sp') OP.spr ^= 1; const on = k === 'sl' ? OP.sil : k === 'ce' ? OP.ceil : OP.spr; playS(on ? 'magic' : 'ui_back', {vol:.6, rate:on ? .7 : 1}); say(P.n.charAt(0) + P.n.slice(1).toLowerCase() + (on ? ' on.' : ' off.'), 1.5); pub(); return; }
   if (false && now < (OP.cd[k] || 0)) return deny(P.n.charAt(0) + P.n.slice(1).toLowerCase() + ' recharging. ' + Math.ceil((OP.cd[k] - now)/1000) + ' seconds.');
@@ -3502,33 +3503,27 @@ function drawOp(){
     g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = ready || on ? '#f4e8e6' : '#7a6a68'; g.font = '700 20px ' + FS; const w = P.n.split(' '); w.forEach((ln, j) => g.fillText(ln, x + 79, y + 38 + j*24 - (w.length - 1)*12)); g.font = '600 18px ' + FM; g.fillStyle = on ? '#ffb0a0' : P.k === 'tg' ? '#ffd27a' : '#c08078'; g.fillText(st, x + 79, y + 94); });
   OPT.needsUpdate = true;
 }
-const opCss = document.createElement('style'); opCss.textContent = '#opmenu{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);display:grid;grid-template-columns:repeat(3,132px);gap:8px;z-index:40;padding:12px;background:rgba(6,0,0,.9);border:1px solid #ff2a1a;border-radius:12px;font:600 12px "IBM Plex Mono",monospace;letter-spacing:.08em}#opmenu[hidden]{display:none}#opmenu button{height:66px;border:1px solid rgba(255,60,40,.4);border-radius:8px;background:rgba(255,255,255,.05);color:#f4e8e6;cursor:pointer;touch-action:none}#opmenu button.on{background:rgba(255,40,20,.4);border-color:#ff5030}#opmenu button i{display:block;font-style:normal;color:#c08078;font-size:11px;margin-top:4px}@media (max-width:700px){#opmenu{grid-template-columns:repeat(3,96px)}#opmenu button{height:56px;font-size:10px}}';
+const opCss = document.createElement('style'); opCss.textContent = '#opmenu{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);display:grid;grid-template-columns:repeat(3,132px);gap:8px;z-index:40;padding:12px;background:rgba(6,0,0,.9);border:1px solid #ff2a1a;border-radius:12px;font:600 12px "IBM Plex Mono",monospace;letter-spacing:.08em}#opmenu[hidden]{display:none}#opmenu h4{grid-column:1/-1;margin:2px 0 4px;color:#ff6a4a;font:600 13px "IBM Plex Mono",monospace;letter-spacing:.14em;text-align:center}#opmenu button{height:66px;border:1px solid rgba(255,60,40,.4);border-radius:8px;background:rgba(255,255,255,.05);color:#f4e8e6;cursor:pointer;touch-action:none}#opmenu button.on{background:rgba(255,40,20,.4);border-color:#ff5030}#opmenu button i{display:block;font-style:normal;color:#c08078;font-size:11px;margin-top:4px}@media (max-width:700px){#opmenu{grid-template-columns:repeat(3,96px)}#opmenu button{height:56px;font-size:10px}}';
 document.head.appendChild(opCss);
 const opMenu = document.createElement('div'); opMenu.id = 'opmenu'; opMenu.hidden = true; document.body.appendChild(opMenu); const opBtns = {};
-POW.forEach(P => { const b = document.createElement('button'); b.innerHTML = P.n + '<i></i>'; b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); initAudio(); opUse(P.k); }); opMenu.appendChild(b); opBtns[P.k] = b; });
-const opOpen = document.createElement('button'); opOpen.textContent = 'POWERS (X)'; opOpen.style.cssText = 'position:fixed;right:14px;bottom:18px;z-index:31;padding:12px 14px;border-radius:8px;border:1px solid #ff2a1a;background:rgba(30,0,0,.85);color:#ffd8cc;font:600 12px "IBM Plex Mono",monospace;letter-spacing:.1em;cursor:pointer'; opOpen.hidden = true; document.body.appendChild(opOpen);
+if (false) POW.forEach(P => { const b = document.createElement('button'); b.innerHTML = P.n + '<i></i>'; b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); initAudio(); opUse(P.k); }); opMenu.appendChild(b); opBtns[P.k] = b; });
+const opOpen = document.createElement('button'); opOpen.textContent = 'POWERS (X)'; opOpen.style.cssText = 'position:fixed;left:14px;top:14px;z-index:31;padding:12px 14px;border-radius:8px;border:1px solid #ff2a1a;background:rgba(30,0,0,.85);color:#ffd8cc;font:600 12px "IBM Plex Mono",monospace;letter-spacing:.1em;cursor:pointer'; opOpen.hidden = true; document.body.appendChild(opOpen);
 opOpen.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); initAudio(); opToggle(); });
 let opDrawT = 0;
 function opTick(dt, t, hw, monP){
-  const me = opIsMe(); if (!me) OP.menu = false;
+  const me = opIsMe();
   /* receive the owner's powers */
   if (!amMon && monP) opRecv(monP.presence);
   /* blackout and strobe for everyone but the monster */
   const now = performance.now(), dark = opDark(), strobe = now < OP.stEnd && !amMon;
   if (dark && OP.hemi0 === null){ OP.hemi0 = hemi.intensity; } if (OP.hemi0 !== null){ if (dark) hemi.intensity = OP.hemi0*.02; else { hemi.intensity = OP.hemi0; OP.hemi0 = null; } }
   if (dark || strobe) lvFlick.forEach(m => { m.visible = !dark && Math.random() < .3; });
+  if (dark || OP.wasDark){ avs.forEach(a => { a.tag.s.visible = !dark; if (dark){ a.own.visible = false; if (a.modB) a.modB.visible = false; if (a.frB) a.frB.visible = false; } }); OP.wasDark = dark; }
   if (OP.scare){ const u = (now - OP.scare.t0)/1000, h = OP.scare.h; h.position.x = (Math.random() - .5)*.02; h.position.y = -.13 + (Math.random() - .5)*.02; h.position.z = -.32 + Math.min(.08, u*.4); OP.scare.c.jaw.rotation.x = 1.1 + Math.sin(t*40)*.12; if (u > 1.15){ camera.remove(h); OP.scare = null; } }
   monkeyTick(dt, t, hw); noiseTick(hw);
   if (opPara()){ vel.set(0, 0, 0); if (Math.random() < dt*2) thud(.3); }
   /* your own toggles */
-  if (me && OP.ceil && bmEl() >= bmT().lock){ rig.position.y = CH - .3 - camera.position.y; vel.y = 0; }
-  /* the menu */
-  const vr = renderer.xr.isPresenting; opMenu.hidden = !(me && OP.menu && !vr); opOpen.hidden = !(me && !vr);
-  if (!opMenu.hidden){ opDrawT -= dt; if (opDrawT <= 0 || OP.dirty){ opDrawT = .2; POW.forEach(P => { const b = opBtns[P.k], st = opState(P); b.classList.toggle('on', st === 'ON' || st === 'ACTIVE'); b.querySelector('i').textContent = st; }); } }
-  if (me && OP.menu && vr){ let li = -1; for (let i=0;i<2;i++) if (conn[i] && hnd[i] === 'left') li = i;
-    if (li >= 0){ const grip = renderer.xr.getControllerGrip(li); if (opOn !== li){ if (opPanel.parent) opPanel.parent.remove(opPanel); grip.add(opPanel); opPanel.position.set(0, .23, .02); opPanel.rotation.set(-.9, 0, 0); opOn = li; } opPanel.visible = true; opDrawT -= dt; if (opDrawT <= 0 || OP.dirty){ opDrawT = .2; OP.dirty = false; drawOp(); }
-      OP.poke -= dt; const oh = hands[1 - li] && hands[1 - li].has ? hands[1 - li].vis : null; if (oh && OP.poke <= 0){ opPanel.updateWorldMatrix(true, false); const lp = opPanel.worldToLocal(fxV4.copy(oh)); if (Math.abs(lp.z) < .035 && Math.abs(lp.x) < .135 && Math.abs(lp.y) < .169){ const col = Math.min(2, Math.floor((lp.x + .135)/.09)), row = Math.min(4, Math.floor((.169 - lp.y)/.0675)), P = POW[row*3 + col]; if (P){ OP.poke = .7; pulse(1 - li, .6, 50); opUse(P.k); } } } } }
-  else { opPanel.visible = false; }
+  if (me && OP.ceil && bmEl() >= monLock()){ rig.position.y = CH - .3 - camera.position.y; vel.y = 0; }
 }
 function opReset(){ OP.menu = false; OP.sil = OP.ceil = OP.spr = 0; OP.ev = []; OP.boEnd = OP.stEnd = OP.pzEnd = 0; OP.noise = null; if (OP.scare){ camera.remove(OP.scare.h); OP.scare = null; } OP.monkeys.forEach(M => scene.remove(M.av.g)); OP.monkeys = []; if (OP.hemi0 !== null){ hemi.intensity = OP.hemi0; OP.hemi0 = null; } opMenu.hidden = true; opOpen.hidden = true; opPanel.visible = false; }
 
@@ -3569,6 +3564,61 @@ function chamberTick(t, dt, hw){
   if (O.st === 'slam') reachTo(fm, c.arms[0], fxV3.set(ox, 2.3, -2.05), -1); else { c.arms[0].sh.rotation.set(.1 + Math.sin(t*.8)*.05, 0, -.15); c.arms[0].el.rotation.x = -.3; }
   lvIdx = sv;
   c.fing.forEach((f, k) => { f.rotation.x = O.st === 'drag' ? .9 : .2 + Math.sin(t*2 + k)*.08; });
+}
+
+/* ======================= OWNER HAND MENU (anywhere) and MONSTERS IN HIDE AND SEEK ======================= */
+const isHS = () => !!(round && round.m === 'h' && state === 'level');
+const monLock = () => round && round.m === 'h' ? 15 : bmT().lock;
+function ownerSetPick(id){ const row = pickRows().find(q => q.id === id); ownerPickId = id && ownerPickId !== id ? id : ''; say(ownerPickId && row ? 'The next monster will be ' + row.n.replace('  (YOU)', ' (you)') + '.' : 'The next monster will be random.', 3); pub({pm:ownerPickId || null}); OP.dirty = true; if (!playS('ui_conf', {vol:.6})) uiClick(); }
+/* what the menu shows: your powers while you are the monster, otherwise who the next monster is */
+function opCells(){
+  if (opIsMe()) return POW.filter(P => !(isHS() && 'giw'.indexOf(P.k) >= 0)).map(P => { const st = opState(P), on = st === 'ON' || st === 'ACTIVE'; return {k:P.k, n:P.n, st:st, on:on, dim:!(on || st === 'READY' || P.tog || P.k === 'tg')}; });
+  return [{k:'pk:', n:'RANDOM', st:ownerPickId ? 'PICK' : 'NEXT', on:!ownerPickId}].concat(pickRows().slice(0, 14).map(r => ({k:'pk:' + r.id, n:r.n.replace('  (YOU)', ' (YOU)'), st:ownerPickId === r.id ? 'NEXT MONSTER' : 'PICK', on:ownerPickId === r.id})));
+}
+const opTitle = () => opIsMe() ? 'YOUR POWERS' : 'PICK THE NEXT MONSTER';
+function opCellUse(c){ if (!c) return; if (c.k.indexOf('pk:') === 0) ownerSetPick(c.k.slice(3)); else opUse(c.k); OP.dirty = true; }
+function drawCells(cells){
+  const g = OPG; g.clearRect(0, 0, 512, 640); rrect(g, 2, 2, 508, 636, 18); g.fillStyle = 'rgba(6,0,0,.92)'; g.fill(); g.strokeStyle = '#ff2a1a'; g.lineWidth = 3; g.stroke();
+  g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#ff6a4a'; g.font = '600 22px ' + FM; g.fillText(opTitle(), 256, 26);
+  cells.forEach((c, i) => { const x = 10 + (i%3)*166, y = 48 + ((i/3)|0)*118; rrect(g, x, y, 158, 110, 12); g.fillStyle = c.on ? 'rgba(255,40,20,.45)' : c.dim ? 'rgba(0,0,0,.4)' : 'rgba(255,255,255,.06)'; g.fill(); g.strokeStyle = c.on ? '#ff5030' : 'rgba(255,60,40,.35)'; g.lineWidth = 2; g.stroke();
+    g.fillStyle = c.dim ? '#7a6a68' : '#f4e8e6'; g.font = '700 19px ' + FS; const w = c.n.split(' ').slice(0, 3); w.forEach((ln, j) => g.fillText(ln.slice(0, 13), x + 79, y + 36 + j*22 - (w.length - 1)*11)); g.font = '600 16px ' + FM; g.fillStyle = c.on ? '#ffb0a0' : '#c08078'; g.fillText(c.st, x + 79, y + 90); });
+  OPT.needsUpdate = true;
+}
+let opSig = '';
+function domMenu(cells){
+  const sig = opTitle() + cells.map(c => c.k).join(','); if (sig !== opSig){ opSig = sig; opMenu.innerHTML = '<h4>' + opTitle() + '</h4>' + cells.map((c, i) => '<button data-i="' + i + '">' + c.n.replace(/</g, '') + '<i></i></button>').join(''); }
+  opMenu.querySelectorAll('button').forEach(b => { const c = cells[+b.dataset.i]; if (!c) return; b.classList.toggle('on', !!c.on); b.querySelector('i').textContent = c.st; });
+}
+opMenu.addEventListener('pointerdown', e => { const b = e.target.closest && e.target.closest('button'); if (!b) return; e.preventDefault(); e.stopPropagation(); initAudio(); opCellUse(opCells()[+b.dataset.i]); });
+let opXPrev = false;
+function ownerHandTick(dt){
+  const vr = renderer.xr.isPresenting;
+  if (!isOwner || state === 'menu'){ OP.menu = false; opMenu.hidden = true; opOpen.hidden = true; opPanel.visible = false; return; }
+  if (vr){ let li = -1; for (let i=0;i<2;i++) if (conn[i] && hnd[i] === 'left') li = i; const gp = li >= 0 ? gps[li] : null, x = !!(gp && gp.buttons && gp.buttons[4] && gp.buttons[4].pressed); if (x && !opXPrev) opToggle(); opXPrev = x; }
+  opOpen.hidden = vr; opOpen.textContent = (opIsMe() ? 'POWERS' : 'OWNER MENU') + (isTouch ? '' : ' (X)'); opMenu.hidden = !(OP.menu && !vr);
+  if (!OP.menu){ opPanel.visible = false; return; }
+  const cells = opCells(); opDrawT -= dt; const redraw = opDrawT <= 0 || OP.dirty; if (redraw){ opDrawT = .25; OP.dirty = false; }
+  if (!vr){ if (redraw) domMenu(cells); opPanel.visible = false; return; }
+  let li = -1; for (let i=0;i<2;i++) if (conn[i] && hnd[i] === 'left') li = i; if (li < 0){ opPanel.visible = false; return; }
+  const grip = renderer.xr.getControllerGrip(li); if (opOn !== li){ if (opPanel.parent) opPanel.parent.remove(opPanel); grip.add(opPanel); opPanel.position.set(0, .23, .02); opPanel.rotation.set(-.9, 0, 0); opOn = li; }
+  opPanel.visible = true; if (redraw) drawCells(cells);
+  OP.poke -= dt; const oh = hands[1 - li] && hands[1 - li].has ? hands[1 - li].vis : null;
+  if (oh && OP.poke <= 0){ opPanel.updateWorldMatrix(true, false); const lp = opPanel.worldToLocal(fxV4.copy(oh)); if (Math.abs(lp.z) < .035 && Math.abs(lp.x) < .135 && Math.abs(lp.y) < .169){ const px = (lp.x/.27 + .5)*512, py = (.5 - lp.y/.3375)*640, col = Math.floor((px - 10)/166), row = Math.floor((py - 48)/118); if (col >= 0 && col < 3 && row >= 0){ const c = cells[row*3 + col]; if (c){ OP.poke = .7; pulse(1 - li, .6, 50); opCellUse(c); OP.dirty = true; } } } }
+}
+addEventListener('keydown', e => { if (e.code !== 'KeyX' || e.repeat || !isOwner || state === 'menu' || (state === 'lobby' && (ui.s === 'name' || ui.s === 'code'))) return; opToggle(); });
+/* Hide and Seek: the seeker is a monster too (yours, a mod's, or the black figure), and your powers work */
+const HS = {m:new Map(), rid:''};
+function hsClear(){ HS.m.forEach((B, a) => { scene.remove(B.c.g); [a.head, a.torso].concat(...a.arms.map(m => [m.u, m.f, m.e, m.h])).forEach(o => { o.visible = true; }); }); HS.m.clear(); lvGlow = []; BMX.evT = 0; BMX.roared = false; }
+function hsTick(dt, t, hw){
+  if (!isHS()){ if (HS.rid){ HS.rid = ''; hsClear(); opReset(); } return; }
+  if (HS.rid !== round.id){ hsClear(); opReset(); HS.rid = round.id; lvGlow = []; if (lvGroup) lvGroup.traverse(o => { if (o.isMesh && o.material && o.material.isMeshBasicMaterial && o.material.vertexColors) lvGlow.push(o.material); }); }
+  const monP = zonePeers().find(p => p.peer === round.mon), a = monP && avs.get(monP.peer);
+  if (a){ const pr = monP.presence; let B = HS.m.get(a); if (!B){ B = {a:a, c:bmCreature(lvIdx, pr.mm !== 0 && (pr.o === 1 ? 'owner' : isModPr(pr)))}; HS.m.set(a, B); }
+    [a.head, a.torso].concat(...a.arms.map(m => [m.u, m.f, m.e, m.h])).forEach(o => { o.visible = false; });
+    const c = B.c, p = pr.p || [0, 1, 0], vr = pr.a && Math.hypot(pr.a[0] - p[0], pr.a[1] - p[1], pr.a[2] - p[2]) > .08; c.g.visible = true; c.dz.uD.value = 0; c.g.scale.setScalar(SC*(c.big || 1)); if (c.eyeM) c.eyeM.color.copy(c.eyeBase);
+    B.silent = !!(pr.op && pr.op.s); poseCreature(c, p[0], p[2], +pr.r || 0, +pr.q || 0, vr ? V(pr.a[0], pr.a[1], pr.a[2]) : null, vr ? V(pr.b[0], pr.b[1], pr.b[2]) : null, dt, t, B);
+    if (pr.op && pr.op.c){ c.g.position.y = CH - .02; c.g.rotation.z = Math.PI; } else { c.g.position.y = 0; c.g.rotation.z = 0; } }
+  opTick(dt, t, hw, monP);
 }
 
 /* ======================= COINS, COSMETICS, THE COSMETICS HALLWAY, THE OWNER STATUE, THE MIRROR ======================= */
@@ -3864,7 +3914,7 @@ renderer.setAnimationLoop(() => {
     if (state === 'lobby'){ prev.g.visible = true; setAv(prev, {c:myColor, n:myName, o:isOwner ? 1 : 0, cs:myCosArr(), p:[9, 1.48, 2], a:[8.55 + Math.sin(t*1.3)*.05, .98, 2.15], b:[9.45, .98 + Math.sin(t*1.7)*.06, 2.15], r:-Math.PI/2 + Math.sin(t*.6)*.6}, false); } else prev.g.visible = false;
     voiceTick(dt);
     loadTick(dt, t);
-    rosterTick(); deathTick(); fxTick(dt, t, hw); bmTick(dt, t, hw); coinTick(); cosTick(dt, t, hw); gfxTick(); exitTick(dt, hw);
+    rosterTick(); deathTick(); fxTick(dt, t, hw); bmTick(dt, t, hw); coinTick(); cosTick(dt, t, hw); gfxTick(); exitTick(dt, hw); ownerHandTick(dt);
     if (dead){ renderFeeds(t); if (renderer.xr.isPresenting) for (let i=0;i<2;i++){ const grip = renderer.xr.getControllerGrip(i), h = hands[i]; h.has = !!(grip.visible && conn[i]); h.mesh.visible = h.has; if (h.has){ tmp.set(0, 0, -.04).applyMatrix4(grip.matrix); h.vis.copy(tmp).applyQuaternion(rig.quaternion).add(rig.position); h.mesh.position.copy(h.vis); } } retBtn.getWorldPosition(retWorld); if (near3(retWorld, .3)) leaveSpectate(); }
     portalFields.forEach((m, k) => { m.opacity = .3 + .14*Math.sin(t*3 + k); });
     if (state === 'level') lvFlick.forEach((m, k) => { m.visible = Math.sin(t*(9 + k) + k*7)*Math.sin(t*2.3 + k) < .55 || Math.random() < .2; });
