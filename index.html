@@ -136,7 +136,7 @@ renderer.xr.enabled = true; try { renderer.xr.setFoveation(1); renderer.xr.setFr
 addEventListener('resize', () => { camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
 const hemi = new THREE.HemisphereLight(0x8899ff, 0x080808, .9); scene.add(hemi);
 const moonL = new THREE.DirectionalLight(0x7f95d0, 0); moonL.position.set(-30, 60, -40); scene.add(moonL);
-const lamp = new THREE.SpotLight(0xfff0d0, 2.4, 30, .6, .55, 1); lamp.target.position.set(0,0,-1); camera.add(lamp, lamp.target);
+const lamp = new THREE.SpotLight(0xfff0d8, 3.2, 38, .5, .5, .75); lamp.position.set(0, .05, .05); lamp.target.position.set(0, .07, -1); camera.add(lamp, lamp.target);
 /* soft fill so nearby players and creatures read as shapes, not silhouettes */
 const fillL = new THREE.PointLight(0xc8d2dc, .55, 7, 1.6); fillL.position.set(0, .3, .2); camera.add(fillL);
 let seed = 1; function rnd(){ seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed>>>15, 1|seed); t = t + Math.imul(t ^ t>>>7, 61|t) ^ t; return ((t ^ t>>>14)>>>0) / 4294967296; }
@@ -929,8 +929,8 @@ function makeAvatar(){
   arms.forEach((a, k) => {
     const s = k ? 1 : -1; a.e.scale.set(.08, .08, .085);
     a.h.add(ell(mat, .075, .06, .085, 0, .012, .012), ell(FACE, .068, .045, .078, 0, -.018, -.008));
-    for (let f=0;f<4;f++) a.h.add(ell(FACE, .019, .024, .04, (-.045 + f*.03)*s, -.04, -.072), ell(FACE, .016, .016, .016, (-.045 + f*.03)*s, -.058, -.05));
-    a.h.add(ell(FACE, .018, .018, .038, -s*.065, -.03, -.03));
+    a.fing = []; for (let f=0;f<4;f++){ const pv = new THREE.Group(); pv.position.set((-.045 + f*.03)*s, -.025, -.06); pv.add(ell(FACE, .019, .024, .04, 0, -.015, -.012), ell(FACE, .016, .016, .016, 0, -.033, .01)); a.h.add(pv); a.fing.push(pv); }
+    const th = new THREE.Group(); th.position.set(-s*.055, -.02, -.015); th.add(ell(FACE, .018, .018, .038, -s*.01, -.01, -.015)); a.h.add(th); a.thumb = th;
     g.add(a.u, a.f, a.e, a.h);
   });
   const tag = makeTag();
@@ -942,19 +942,23 @@ function makeAvatar(){
 }
 const tv = V(), _sA = V(), _eA = V(), _dA = V(), _bA = V();
 function segTo(m, a, b, r){ _dA.subVectors(b, a); const l = _dA.length() || .001; m.position.addVectors(a, b).multiplyScalar(.5); m.quaternion.setFromUnitVectors(UPV, _dA.divideScalar(l)); m.scale.set(r, l, r); }
+const _hQ = new THREE.Quaternion();
 function setAv(a, pr, rev){
   if (a.col !== pr.c){ a.col = pr.c; a.mat.color.set(pr.c || '#999999'); if (a.mat.userData.twin) a.mat.userData.twin.color.copy(a.mat.color); }
   a.vis.visible = pr.o === 1; const tk = pr.t === 1; if (a.name !== pr.n || a.tk !== tk){ a.name = pr.n; a.tk = tk; a.tag.draw(String(pr.n || '').slice(0, 14), tk); }
   const p = pr.p || [0, 1, 0], yaw = +pr.r || 0; tv.set(p[0], p[1], p[2]);
   if (!a.init){ a.head.position.copy(tv); a.torso.position.copy(tv); a.torso.position.y -= .45; a.hl.position.copy(tv); a.hr.position.copy(tv); a.init = true; } else a.head.position.lerp(tv, .5);
   a.head.rotation.y = yaw; tv.copy(a.head.position); tv.y -= .45; a.torso.position.lerp(tv, .35); a.torso.rotation.y += (yaw - a.torso.rotation.y)*.2;
-  const l = pr.a || p, r = pr.b || p; tv.set(l[0], l[1], l[2]); a.hl.position.lerp(tv, .5); tv.set(r[0], r[1], r[2]); a.hr.position.lerp(tv, .5);
+  const l = pr.a || p, r = pr.b || p; tv.set(l[0], l[1], l[2]); const hk = a === selfAv ? 1 : .5; a.hl.position.lerp(tv, hk); tv.set(r[0], r[1], r[2]); a.hr.position.lerp(tv, hk);
   a.arms.forEach((m, k) => {
     const s = k ? 1 : -1; _sA.set(s*.24, .17, 0).applyAxisAngle(UPV, a.torso.rotation.y).add(a.torso.position);
     const H = m.h.position; _dA.subVectors(H, _sA); let d = _dA.length(); const L = .36; if (d > 2*L - .01){ d = 2*L - .01; }
     _dA.normalize(); _bA.set(s, -.6, .5).applyAxisAngle(UPV, a.torso.rotation.y); _bA.addScaledVector(_dA, -_bA.dot(_dA)).normalize();
     _eA.copy(_sA).addScaledVector(_dA, d/2).addScaledVector(_bA, Math.sqrt(Math.max(0, L*L - d*d/4)));
-    m.e.position.copy(_eA); segTo(m.u, _sA, _eA, .085); segTo(m.f, _eA, H, .072); m.h.rotation.y = yaw;
+    m.e.position.copy(_eA); segTo(m.u, _sA, _eA, .085); segTo(m.f, _eA, H, .072);
+    const hq = Array.isArray(pr.hq) && pr.hq.length === 8 ? pr.hq : null; if (hq){ _hQ.set(hq[k*4], hq[k*4 + 1], hq[k*4 + 2], hq[k*4 + 3]).normalize(); if (m.h.userData.q) m.h.quaternion.slerp(_hQ, hk); else m.h.quaternion.copy(_hQ); m.h.userData.q = 1; } else { m.h.rotation.set(0, yaw, 0); m.h.userData.q = 0; }
+    if (m.fing){ const hf = Array.isArray(pr.hf) && pr.hf.length === 6 ? pr.hf : null, gr = hf ? +hf[k*3] || 0 : .25, tr = hf ? +hf[k*3 + 1] || 0 : .25, tb = hf ? +hf[k*3 + 2] || 0 : .3;
+      m.fing.forEach((pv, j) => { const want = -.95 + (j === 0 ? tr : gr)*2.2; pv.rotation.x += (want - pv.rotation.x)*Math.min(1, hk*1.6); }); const tw = tb; m.thumb.rotation.x += (tw*.9 - .2 - m.thumb.rotation.x)*Math.min(1, hk*1.6); m.thumb.rotation.y += (s*(tw*1.2 - .35) - m.thumb.rotation.y)*Math.min(1, hk*1.6); }
   });
   const isMod = pr.o !== 1 && isModPr(pr); if (isMod && !a.crown){ a.crown = makeCrown(); a.head.add(a.crown); a.modB = new THREE.Sprite(new THREE.SpriteMaterial({map:modTex(), transparent:true, depthTest:false, fog:false})); a.modB.scale.set(.5, .125, 1); a.modB.renderOrder = 5; a.g.add(a.modB); }
   if (a.crown){ a.crown.visible = isMod; a.modB.visible = isMod && a.tag.s.visible !== false && a.head.visible; if (isMod) a.modB.position.set(a.head.position.x, a.head.position.y + .55, a.head.position.z); }
@@ -1269,7 +1273,7 @@ function myId(){ const m = R && R.peers().find(p => p.isMe); return m ? m.peer :
 const zonePeers = () => R ? R.peers().filter(p => !p.isMe && p.presence && p.presence.z === zone) : [];
 function pub(extra){
   if (!R) return; const h = headW(), f = a => [+a.x.toFixed(2), +a.y.toFixed(2), +a.z.toFixed(2)], e = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
-  R.presence(bmPub(Object.assign({n:myName, c:myColor, z:zone, v:myVote, o:isOwner ? 1 : 0, m:isOwner || amMod() ? modLog.slice() : null, md:isOwner ? ownerMods.slice() : null, tr:isOwner ? {n:trust.n.slice(), p:trust.p.slice()} : null, pm:isOwner && ownerPickId ? ownerPickId : null, mp:isOwner ? ownerModPids.slice() : null, cs:myCosArr(), id:myPid, fq:[...frWant], d:dead ? 1 : 0, t:talking, r:+(e.y + rig.rotation.y).toFixed(2), p:f(h), a:f(hands[HL()].has ? hands[HL()].vis : keys.KeyH ? h.clone().setY(h.y + .4) : h), b:f(hands[1 - HL()].has ? hands[1 - HL()].vis : keys.KeyH ? h.clone().setY(h.y + .4) : h), dp:dpIsHost() ? dpSnap() : null, di:state === 'arena' ? DI : null}, extra || {}))).catch(() => {});
+  R.presence(bmPub(Object.assign({n:myName, c:myColor, z:zone, v:myVote, o:isOwner ? 1 : 0, m:isOwner || amMod() ? modLog.slice() : null, md:isOwner ? ownerMods.slice() : null, hq:myHq, hf:myHf, tr:isOwner ? {n:trust.n.slice(), p:trust.p.slice()} : null, pm:isOwner && ownerPickId ? ownerPickId : null, mp:isOwner ? ownerModPids.slice() : null, cs:myCosArr(), id:myPid, fq:[...frWant], d:dead ? 1 : 0, t:talking, r:+(e.y + rig.rotation.y).toFixed(2), p:f(h), a:f(hands[HL()].has ? hands[HL()].vis : keys.KeyH ? h.clone().setY(h.y + .4) : h), b:f(hands[1 - HL()].has ? hands[1 - HL()].vis : keys.KeyH ? h.clone().setY(h.y + .4) : h), dp:dpIsHost() ? dpSnap() : null, di:state === 'arena' ? DI : null}, extra || {}))).catch(() => {});
 }
 let unsub = null;
 async function joinRoom(name, label){
@@ -3687,6 +3691,15 @@ function tagRule(){
   const apply = a => { if (hide){ a.tag.s.visible = false; a.own.visible = false; if (a.modB) a.modB.visible = false; if (a.frB) a.frB.visible = false; } else if (!opDark()) a.tag.s.visible = true; };
   avs.forEach(apply); if (typeof botAv !== 'undefined') botAv.forEach(apply);
 }
+/* ======================= VR HANDS: controller rotation and finger poses ======================= */
+let myHq = null, myHf = null; const HOFF = new THREE.Quaternion().setFromEuler(new THREE.Euler(-.35, 0, 0)), _hq2 = new THREE.Quaternion();
+function vrHandPose(){
+  if (!renderer.xr.isPresenting){ myHq = null; myHf = null; return; } const q = [0, 0, 0, 1, 0, 0, 0, 1], fv = [.25, .25, .3, .25, .25, .3];
+  for (let i=0;i<2;i++){ if (!conn[i]) continue; const k = hnd[i] === 'left' ? 0 : 1, grip = renderer.xr.getControllerGrip(i); _hq2.copy(rig.quaternion).multiply(grip.quaternion).multiply(HOFF); q[k*4] = +_hq2.x.toFixed(3); q[k*4 + 1] = +_hq2.y.toFixed(3); q[k*4 + 2] = +_hq2.z.toFixed(3); q[k*4 + 3] = +_hq2.w.toFixed(3);
+    const bt = gps[i] && gps[i].buttons || [], v = n => bt[n] ? (bt[n].value || (bt[n].pressed ? 1 : 0)) : 0, tch = n => bt[n] && (bt[n].touched || bt[n].pressed);
+    fv[k*3] = +v(1).toFixed(2); fv[k*3 + 1] = +Math.max(v(0), tch(0) ? .15 : 0).toFixed(2); fv[k*3 + 2] = [3, 4, 5].some(n => bt[n] && bt[n].pressed) ? 1 : [3, 4, 5].some(tch) ? .65 : 0; }
+  myHq = q; myHf = fv;
+}
 /* ======================= COINS, COSMETICS, THE COSMETICS HALLWAY, THE OWNER STATUE, THE MIRROR ======================= */
 let coins = 0, ownedCos = new Set(), myCos = {hat:'', face:'', neck:'', hand:''};
 try { coins = Math.max(0, +localStorage.getItem('s09Coins') || 0); ownedCos = new Set(JSON.parse(localStorage.getItem('s09Own') || '[]') || []); Object.assign(myCos, JSON.parse(localStorage.getItem('s09Cos') || '{}') || {}); } catch(e){}
@@ -3866,22 +3879,22 @@ function cosTick(dt, t, hw){
   mirNear = !!mirror && mirror.visible;
   if (mirNear){ const e = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ'), yw = e.y + rig.rotation.y, vr = renderer.xr.isPresenting, side = (s, up) => fxV1.set(s*.3, up ? .35 : -.72, -.12).applyAxisAngle(UPV, yw).add(hw).toArray();
     const a = vr && hands[HL()].has ? hands[HL()].vis.toArray() : side(-1, keys.KeyH), b = vr && hands[1 - HL()].has ? hands[1 - HL()].vis.toArray() : side(1, keys.KeyH);
-    setAv(selfAv, {c:myColor, n:myName, o:isOwner ? 1 : 0, p:[hw.x, hw.y, hw.z], a:a, b:b, r:yw, cs:myCosArr()}, false); selfAv.tag.s.visible = false; selfAv.own.visible = false; if (selfAv.modB) selfAv.modB.visible = false; selfAv.head.visible = false;
+    setAv(selfAv, {c:myColor, n:myName, o:isOwner ? 1 : 0, p:[hw.x, hw.y, hw.z], a:a, b:b, r:yw, cs:myCosArr(), hq:vr ? myHq : null, hf:vr ? myHf : null}, false); selfAv.tag.s.visible = false; selfAv.own.visible = false; if (selfAv.modB) selfAv.modB.visible = false; selfAv.head.visible = false;
     if (!(vr && (hands[0].has || hands[1].has))) selfAv.g.visible = false; }
 }
 /* ---------- wall of fame, beside the monster chamber window ---------- */
 (function(){
-  const g = new THREE.Group(); g.position.set(11.98, 0, 2.4); g.rotation.y = -Math.PI/2; lobbyG.add(g); const FAME = ['MATT', 'PENGUINGT'];
+  const g = new THREE.Group(); g.position.set(11.98, 0, 2.4); g.rotation.y = -Math.PI/2; lobbyG.add(g); const FAME = ['MATT', 'PENGUINGT', 'OSTRA'];
   const panel = new THREE.Mesh(new THREE.BoxGeometry(5.2, 3.3, .06), new THREE.MeshStandardMaterial({color:0x141416, roughness:.5})); panel.position.set(0, 2.75, -.03); g.add(panel);
   [[0, 4.42, 5.36, .08], [0, 1.08, 5.36, .08], [-2.64, 2.75, .08, 3.42], [2.64, 2.75, .08, 3.42]].forEach(q => { const b = new THREE.Mesh(new THREE.BoxGeometry(q[2], q[3], .1), CM.gold); b.position.set(q[0], q[1], 0); g.add(b); });
   const tt = new THREE.Mesh(new THREE.PlaneGeometry(3.6, .5), new THREE.MeshBasicMaterial({map:labelTex('WALL OF FAME', '#f0c040', 1024, 140, 100), transparent:true, fog:false})); tt.position.set(0, 4.02, .01); g.add(tt);
   const BR = new THREE.MeshStandardMaterial({color:0x8a6a3c, roughness:.35, metalness:.6, emissive:0x1c1206});
-  FAME.forEach((n, k) => { const x = (k - (FAME.length - 1)/2)*2.3;
+  FAME.forEach((n, k) => { const x = (k - (FAME.length - 1)/2)*1.66;
     const sh = new THREE.Mesh(new THREE.BoxGeometry(1, .08, .45), CM.gold); sh.position.set(x, 2.05, .22); g.add(sh);
     const b = new THREE.Group(); b.position.set(x, 2.42, .24); b.rotation.y = Math.PI; g.add(b); b.add(new THREE.Mesh(GOR_HEAD, BR)); const tr = new THREE.Mesh(GOR_TORSO, BR); tr.position.y = -.36; tr.scale.set(.8, .45, .8); b.add(tr); b.add(makeCrown()); b.scale.setScalar(1.35);
     if (n === 'PENGUINGT' || n === 'MATT'){ const pg = cosMesh(n === 'MATT' ? 'raccoon' : 'penguin'); pg.position.set(.22, -.28, -.05); b.add(pg); }
-    const pc = cv(512, 160), pg2 = pc.getContext('2d'); pg2.fillStyle = '#0c0c0d'; pg2.fillRect(0, 0, 512, 160); pg2.strokeStyle = '#e0ad3a'; pg2.lineWidth = 6; pg2.strokeRect(6, 6, 500, 148); pg2.textAlign = 'center'; pg2.textBaseline = 'middle'; pg2.fillStyle = '#f6f1e0'; pg2.font = '700 58px ' + FS; spaced(pg2, n, 256, 66, 5); pg2.fillStyle = '#e0ad3a'; pg2.font = '500 26px ' + FM; spaced(pg2, 'MODERATOR', 256, 122, 8);
-    const pl = new THREE.Mesh(new THREE.PlaneGeometry(1.4, .44), new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(pc), fog:false})); pl.position.set(x, 1.55, .01); g.add(pl); });
+    const pc = cv(512, 160), pg2 = pc.getContext('2d'); pg2.fillStyle = '#0c0c0d'; pg2.fillRect(0, 0, 512, 160); pg2.strokeStyle = '#e0ad3a'; pg2.lineWidth = 6; pg2.strokeRect(6, 6, 500, 148); pg2.textAlign = 'center'; pg2.textBaseline = 'middle'; pg2.fillStyle = '#f6f1e0'; pg2.font = '700 58px ' + FS; spaced(pg2, n, 256, 66, 5); pg2.fillStyle = '#e0ad3a'; pg2.font = '500 26px ' + FM; spaced(pg2, n === 'OSTRA' ? 'HALL OF FAME' : 'MODERATOR', 256, 122, 8);
+    const pl = new THREE.Mesh(new THREE.PlaneGeometry(1.4, .44), new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(pc), fog:false})); pl.scale.setScalar(1.1); pl.position.set(x, 1.55, .01); g.add(pl); });
 })();
 /* click or tap a display button on screen */
 function cosClick(){ const hit = prc.intersectObjects(disp.map(d => d.btn).concat(disp.map(d => d.bust.children[0])))[0]; if (!hit || hit.distance > 4) return false; const dd = disp.find(d => d.btn === hit.object || d.bust.children[0] === hit.object); if (dd){ buyOrWear(dd.c.id); return true; } return false; }
@@ -3976,16 +3989,16 @@ renderer.setAnimationLoop(() => {
     avs.forEach((a, k) => { if (!seenIds.has(k)){ scene.remove(a.g); avs.delete(k); } });
     const showSelf = renderer.xr.isPresenting && !dead && (hands[0].has || hands[1].has);
     selfAv.g.visible = showSelf;
-    if (showSelf){ const hh = headW(), yy = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ').y + rig.rotation.y; setAv(selfAv, {c:myColor, n:'', o:0, cs:myCosArr(), p:[hh.x, hh.y, hh.z], a:(hands[HL()].has ? hands[HL()].vis : hh).toArray(), b:(hands[1 - HL()].has ? hands[1 - HL()].vis : hh).toArray(), r:yy}, false); selfAv.head.visible = false; selfAv.tag.s.visible = false; selfAv.own.visible = false; hands.forEach(h => { h.mesh.visible = false; }); }
+    if (showSelf){ const hh = headW(), yy = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ').y + rig.rotation.y; vrHandPose(); setAv(selfAv, {c:myColor, n:'', o:0, cs:myCosArr(), hq:myHq, hf:myHf, p:[hh.x, hh.y, hh.z], a:(hands[HL()].has ? hands[HL()].vis : hh).toArray(), b:(hands[1 - HL()].has ? hands[1 - HL()].vis : hh).toArray(), r:yy}, false); selfAv.head.visible = false; selfAv.tag.s.visible = false; selfAv.own.visible = false; hands.forEach(h => { h.mesh.visible = false; }); }
     if (state === 'lobby'){ prev.g.visible = true; setAv(prev, {c:myColor, n:myName, o:isOwner ? 1 : 0, cs:myCosArr(), p:[9, 1.48, 2], a:[8.55 + Math.sin(t*1.3)*.05, .98, 2.15], b:[9.45, .98 + Math.sin(t*1.7)*.06, 2.15], r:-Math.PI/2 + Math.sin(t*.6)*.6}, false); } else prev.g.visible = false;
     voiceTick(dt);
     loadTick(dt, t);
-    rosterTick(); deathTick(); fxTick(dt, t, hw); bmTick(dt, t, hw); coinTick(); cosTick(dt, t, hw); gfxTick(); exitTick(dt, hw); ownerHandTick(dt); laserTick();
+    rosterTick(); deathTick(); fxTick(dt, t, hw); bmTick(dt, t, hw); coinTick(); cosTick(dt, t, hw); gfxTick(); exitTick(dt, hw); ownerHandTick(dt); laserTick(); vrHandPose();
     if (dead){ renderFeeds(t); if (renderer.xr.isPresenting) for (let i=0;i<2;i++){ const grip = renderer.xr.getControllerGrip(i), h = hands[i]; h.has = !!(grip.visible && conn[i]); h.mesh.visible = h.has; if (h.has){ tmp.set(0, 0, -.04).applyMatrix4(grip.matrix); h.vis.copy(tmp).applyQuaternion(rig.quaternion).add(rig.position); h.mesh.position.copy(h.vis); } } retBtn.getWorldPosition(retWorld); if (near3(retWorld, .3)) leaveSpectate(); }
     portalFields.forEach((m, k) => { m.opacity = .3 + .14*Math.sin(t*3 + k); });
     if (state === 'level') lvFlick.forEach((m, k) => { m.visible = Math.sin(t*(9 + k) + k*7)*Math.sin(t*2.3 + k) < .55 || Math.random() < .2; });
   }
-  tagRule(); lobbyMusicTick(); touchUiTick(); lamp.intensity = lampOn && !opDark() ? 2.4 : 0; fillL.intensity = (state === 'lobby' ? .7 : lampOn ? .25 : .12)*(opDark() ? 0 : 1); renderer.render(scene, camera);
+  tagRule(); lobbyMusicTick(); touchUiTick(); lamp.intensity = lampOn && !opDark() ? 3.2 : 0; fillL.intensity = (state === 'lobby' ? .7 : lampOn ? .25 : .12)*(opDark() ? 0 : 1); renderer.render(scene, camera);
 });
 })();
 </script>
