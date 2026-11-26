@@ -9,7 +9,7 @@
 <link rel="icon" href="icon-192.png">
 <script src="config.js"></script>
 <script src="net-ws.js"></script>
-<script src="net-p2p.js?v=5"></script>
+<script src="net-p2p.js?v=6"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@400;500;600&family=Permanent+Marker&family=Special+Elite&display=swap" rel="stylesheet">
@@ -110,8 +110,8 @@ small{display:block;margin-top:18px;font:400 .74rem/1.6 var(--mono);color:var(--
   <ul id="bootLog"></ul>
   <button id="bootGo" class="go">Tap to begin</button>
 </div></div>
-<div id="touch" hidden><div id="joy"><i></i></div><div id="tbtns"><button data-k="back" hidden>LOBBY</button><button data-k="lamp" hidden>LAMP</button><button data-k="hands">HANDS</button><button data-k="low">LOW</button><button data-k="jump">JUMP</button></div></div>
-<div id="help" hidden>WASD / arrows move &middot; drag to look &middot; Space jump, hold at a wall to climb &middot; Shift run &middot; click to use &middot; H hands up &middot; C low &middot; L lamp &middot; R lobby when out &middot; Monster: G grab, then 1 rip, 2 throw, 3 snap, 4 eat &middot; mods: Q ghost, E invisible, R wall vision &middot; ? help</div>
+<div id="touch" hidden><div id="joy"><i></i></div><div id="tbtns"><button data-k="back" hidden>LOBBY</button><button data-k="lamp" hidden>LAMP</button><button data-k="hands">HANDS</button><button data-k="low">LOW</button><button data-k="run">RUN</button><button data-k="jump">JUMP</button></div></div>
+<div id="help" hidden>WASD / arrows move &middot; drag to look &middot; Space jump, hold at a wall to climb &middot; Shift sprint &middot; click to use &middot; H hands up &middot; C low &middot; L lamp &middot; R lobby when out &middot; Monster: G grab, then 1 rip, 2 throw, 3 snap, 4 eat &middot; mods: Q ghost, E invisible, R wall vision &middot; ? help</div>
 <div id="overlay" class="ts"><div class="title">
   <div class="kick">A VR horror game</div>
   <h1>Subject 09</h1>
@@ -533,7 +533,7 @@ function rects(){
   else if (ui.s === 'mod' && !isOwner){ modPeers().slice(0, 5).forEach((p, i) => { const y = 120 + i*58, id = p.peer, mu = muted.has(id); if (protectedPr(p.presence)) return; B(412, y, 92, 46, 'KICK', 'kick:' + id); B(512, y, 220, 46, mu ? 'UNMUTE' : 'SILENCE', 'mute:' + id, {pri:mu}); }); B(36, 420, 696, 52, 'BACK', 'back', {n:'<'}); }
   else if (ui.s === 'mod'){ modPeers().slice(0, 5).forEach((p, i) => { const y = 120 + i*58, id = p.peer, mu = muted.has(id); const md = isModPr(p.presence); B(300, y, 104, 46, md ? 'UNMOD' : 'MOD', 'mod:' + id, {pri:md}); B(412, y, 92, 46, 'KICK', 'kick:' + id); B(512, y, 92, 46, 'BAN', 'ban:' + id); B(612, y, 120, 46, mu ? 'UNMUTE' : 'SILENCE', 'mute:' + id, {pri:mu}); }); B(36, 420, 330, 52, 'BACK', 'back', {n:'<'}); B(378, 420, 354, 52, 'PICK MONSTER', 'pick', {pri:true}); }
   else if (ui.s === 'pick'){ pickRows().slice(0, 6).forEach((r, i) => { const on = ownerPickId === r.id; B(520, 104 + i*50, 212, 42, on ? 'PICKED' : 'PICK', 'pk:' + r.id, {pri:on}); }); B(36, 420, 330, 52, 'BACK', 'back', {n:'<'}); B(378, 420, 354, 52, ownerPickId ? 'RANDOM INSTEAD' : 'RANDOM (NOW)', 'pk:', {pri:!ownerPickId}); }
-  else if (ui.s === 'snd'){ [['m', 'MUSIC'], ['e', 'EFFECTS'], ['v', 'VOICE']].forEach((q, i) => { const y = 122 + i*92; B(372, y, 80, 64, '-', 'vol-' + q[0]); B(652, y, 80, 64, '+', 'vol+' + q[0]); }); B(36, 376, 696, 38, 'GRAPHICS', 'gfx', {n:'04', v:GQ ? 'HIGH  (QUEST 3 / GOOD PC)' : 'NORMAL'}); B(36, 422, 696, 50, 'BACK', 'back', {n:'<'}); }
+  else if (ui.s === 'snd'){ [['m', 'MUSIC'], ['e', 'EFFECTS'], ['v', 'VOICE']].forEach((q, i) => { const y = 122 + i*92; B(372, y, 80, 64, '-', 'vol-' + q[0]); B(652, y, 80, 64, '+', 'vol+' + q[0]); }); B(36, 376, 340, 38, 'MIC', 'micdev', {n:'04', v:micName()}); B(388, 376, 344, 38, 'GRAPHICS', 'gfx', {n:'05', v:GQ ? 'HIGH' : 'NORMAL'}); B(36, 422, 696, 50, 'BACK', 'back', {n:'<'}); }
   else if (ui.s === 'bm'){ B(36, 348, 330, 52, 'KILL MODE', 'bs:km', {n:'00', v:BMS.km === 'a' ? 'AUTO' : 'MANUAL'}); [['g', 'GHOST'], ['i', 'INVISIBLE'], ['w', 'WALL SEE'], ['f', 'FINISHER']].filter(q => q[0] === 'f' || isOwner || amMod()).forEach((q, i) => B(36, 100 + i*62, 330, 52, q[1], 'bk:' + q[0], {n:'0' + (i + 1), v:BMX.bind === q[0] ? '...' : keyName(BMS.keys[q[0]])}));
     [['esc', 'HEAD START', BMS.esc + 'S'], ['cdk', 'COOLDOWNS', BM_CDN[BMS.cdk]], ['ad', 'ABILITY TIME', BMS.ad + 'S'], ['rv', 'ROAR VOLUME', Math.round(BMS.rv*100) + '%'], ['rd', 'ROAR LENGTH', BMS.rd + 'S'], ['gore', 'GORE', BMS.gore ? 'ON' : 'OFF']].concat(isOwner || amMod() ? [['mm', 'MY MONSTER', BMS.mm !== 0 ? (isOwner ? 'OWNER' : 'MOD') : 'DEFAULT']] : []).forEach((q, i) => B(392, 96 + i*46, 340, 40, q[1], 'bs:' + q[0], {n:'0' + (i + 5), v:q[2]})); B(36, 420, 696, 52, 'BACK', 'back', {n:'<'}); }
   else if (ui.s === 'color'){ COLORS.forEach((c, i) => B(36 + (i%6)*116, 112 + (i/6|0)*72, 108, 62, '', 'col' + i, {f:c})); B(36, 412, 696, 50, 'BACK', 'back', {n:'<'}); }
@@ -714,13 +714,14 @@ function press(r){
   else if (r.a === 'fr'){ ui.s = 'fr'; frPage = 0; }
   else if (r.a === 'frpg'){ frPage = (frPage + 1) % Math.max(1, Math.ceil(frRows().length/5)); }
   else if (r.a.indexOf('fr:') === 0) frAct(r.a.slice(3));
+  else if (r.a === 'micdev'){ micNext(); }
   else if (r.a === 'gfx'){ GQ = GQ ? 0 : 1; try { localStorage.setItem('s09Gfx', String(GQ)); } catch(e){} gfxApply(); ui.msg = GQ ? 'High graphics. In VR it starts next time you enter.' : 'Normal graphics.'; }
   else if (r.a === 'bm'){ ui.s = 'bm'; BMX.bind = ''; }
   else if (r.a.indexOf('bk:') === 0) BMX.bind = r.a.slice(3);
   else if (r.a.indexOf('bs:') === 0){ const k = r.a.slice(3), cyc = (L, v) => L[(L.indexOf(v) + 1) % L.length];
     if (k === 'esc') BMS.esc = cyc([15, 20, 30, 45, 60], BMS.esc); else if (k === 'cdk') BMS.cdk = cyc(['s', 'n', 'l'], BMS.cdk); else if (k === 'ad') BMS.ad = cyc([3, 4, 5], BMS.ad); else if (k === 'rv') BMS.rv = cyc([.5, .75, 1, 1.25], BMS.rv); else if (k === 'rd') BMS.rd = cyc([3, 4, 5, 6, 7], BMS.rd); else if (k === 'gore') BMS.gore = BMS.gore ? 0 : 1; else if (k === 'mm') BMS.mm = BMS.mm !== 0 ? 0 : 1; else if (k === 'km') BMS.km = BMS.km === 'a' ? 'm' : 'a'; bmSave(); }
   else if (r.a.slice(0, 3) === 'vol'){ const k = r.a[4], d = r.a[3] === '+' ? .1 : -.1; SV[k] = Math.round(Math.max(0, Math.min(1, SV[k] + d))*10)/10; saveVol(); if (k === 'e') beep(660, .08, 'sine', .12); }
-  else if (r.a === 'mic'){ if (!mic){ micOn = true; askMic(); ui.msg = 'Allow the microphone in the browser prompt.'; } else { micOn = !micOn; micApply(); ui.msg = micOn ? 'Microphone on.' : 'Microphone off.'; } }
+  else if (r.a === 'mic'){ if (!mic){ micOn = true; micFail = false; askMic(true); ui.msg = renderer.xr.isPresenting ? 'If nothing happens, allow the microphone on your PC or browser screen.' : 'Allow the microphone in the browser prompt.'; } else { micOn = !micOn; micApply(); ui.msg = micOn ? 'Microphone on.' : 'Microphone off.'; } }
   else if (r.a === 'mod'){ if (isOwner || amMod()) ui.s = 'mod'; }
   else if (r.a.indexOf('mod:') === 0){ if (isOwner) toggleMod(r.a.slice(4)); }
   else if (/^(kick|ban|mute):/.test(r.a)){ const k = r.a.split(':')[0], id = r.a.slice(r.a.indexOf(':') + 1), tp = modPeers().find(q => q.peer === id); if (isOwner) modAction(k, id); else if (amMod() && k !== 'ban' && tp && !protectedPr(tp.presence)) modAction(k, id); }
@@ -1274,12 +1275,29 @@ async function initNet(){
 /* ---------- Voice: proximity chat between players in the same area ---------- */
 let mic = null, micOn = true, micPending = false, micFail = false, micAn = null, micBuf = null, talking = 0, talkHold = 0; const voices = new Map();
 const micLabel = () => !(R && R.voice) ? 'UNAVAILABLE' : mutedMe ? 'SILENCED' : !mic ? (micFail ? 'TAP TO ALLOW' : 'WAITING') : micOn ? (talking ? 'TALKING' : 'MIC ON') : 'MIC OFF';
-function askMic(){
-  if (mic || micPending || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return; micPending = true;
-  navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true}})
-    .then(s => { micPending = false; micFail = false; mic = s; micApply(); if (R && R.voice) R.voice.send(mic); drawTerm(); })
-    .catch(() => { micPending = false; micFail = true; drawTerm(); });
+let micDevId = '', micDevs = [], micPicked = false; try { micDevId = localStorage.getItem('s09MicDev') || ''; micPicked = !!micDevId; } catch(e){}
+const HEADSET_MIC = /rift|oculus|quest|meta|headset|vive|index|valve|pico|reverb|wmr|mixed reality/i;
+async function micList(){ try { micDevs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audioinput' && d.deviceId); } catch(e){ micDevs = []; } return micDevs; }
+function micName(){ if (!mic) return micFail ? 'BLOCKED' : micPending ? 'ASKING' : 'NONE'; const t = mic.getAudioTracks()[0]; return ((t && t.label) || 'DEFAULT').replace(/\(.*?\)/g, '').replace(/^default\s*-\s*/i, '').trim().toUpperCase().slice(0, 18) || 'DEFAULT'; }
+function askMic(force){
+  if ((mic && !force) || micPending || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return; micPending = true;
+  const a = {echoCancellation:true, noiseSuppression:true, autoGainControl:true}; if (micDevId) a.deviceId = {ideal:micDevId};
+  navigator.mediaDevices.getUserMedia({audio:a})
+    .then(async st => { micPending = false; micFail = false; const old = mic; mic = st; micAn = null; if (old && old !== st) old.getTracks().forEach(t => { try { t.stop(); } catch(e){} });
+      micApply(); if (R && R.voice) R.voice.send(mic); drawTerm();
+      const tr = st.getAudioTracks()[0]; if (tr) tr.onended = () => { if (mic === st){ mic = null; micAn = null; setTimeout(() => askMic(), 600); } };
+      /* PC VR (Rift, Link, SteamVR): the browser grabs the PC's default mic; if a headset mic exists and nobody chose one, use it */
+      if (!micPicked){ await micList(); const cur = tr && tr.label || '', hs = micDevs.find(d => HEADSET_MIC.test(d.label)); if (hs && !HEADSET_MIC.test(cur)){ micPicked = true; micDevId = hs.deviceId; askMic(true); } }
+    })
+    .catch(() => { micPending = false; micFail = true; drawTerm(); if (renderer.xr.isPresenting) say('The browser blocked your microphone. Take off the headset, allow the microphone on your PC screen, then pick VOICE CHAT on the lobby computer again.', 8); });
 }
+/* cycle through every microphone this computer has */
+async function micNext(){
+  await micList(); if (!micDevs.length){ ui.msg = mic ? 'Only one microphone found.' : 'No microphone found. Allow it in the browser first.'; askMic(); drawTerm(); return; }
+  const cur = mic && mic.getAudioTracks()[0] && mic.getAudioTracks()[0].getSettings ? mic.getAudioTracks()[0].getSettings().deviceId : micDevId; const i = micDevs.findIndex(d => d.deviceId === cur), n = micDevs[(i + 1) % micDevs.length];
+  micDevId = n.deviceId; micPicked = true; try { localStorage.setItem('s09MicDev', micDevId); } catch(e){} ui.msg = 'Microphone: ' + (n.label || 'device ' + ((i + 2) % micDevs.length || micDevs.length)); micOn = true; askMic(true); drawTerm();
+}
+if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) navigator.mediaDevices.addEventListener('devicechange', () => { if (!mic || !mic.getAudioTracks().some(t => t.readyState === 'live')){ mic = null; askMic(); } });
 function micApply(){ if (mic) mic.getAudioTracks().forEach(t => { t.enabled = micOn && !mutedMe; }); }
 /* Remote voices play through plain audio elements: the browser's echo cancellation only covers media elements, and some headsets output nothing for remote streams routed only through Web Audio. */
 function addVoice(stream, id){
@@ -1427,7 +1445,7 @@ function locomote(dt){
     if (floor) slide = 0; else { slide = Math.min(slide + G*dt, 2.2); rig.position.y -= slide*dt; }
     vel.set(0,0,0); hist.forEach(v => vel.add(v)); vel.divideScalar(hist.length);
     if (amMon && round && round.m === 'b') vel.multiplyScalar((BMX.ab && BMX.ab.k === 'g' ? 1.5 : 1.3)*(isOwner && OP.spr ? 1.7 : 1));
-    const sp = vel.length(); if (sp > 11) vel.multiplyScalar(11/sp);
+    if (sprintOn) vel.multiplyScalar(1.25); const sp = vel.length(), cap = sprintOn ? 13 : 11; if (sp > cap) vel.multiplyScalar(cap/sp);
   } else {
     hist.length = 0; slide = 0; vel.y -= G*dt; vel.multiplyScalar(1 - .2*dt);
     const steps = Math.max(1, Math.ceil(vel.length()*dt/.1));
@@ -1451,14 +1469,16 @@ function useAt(e){
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 const isHeadset = /OculusBrowser|Quest|Pico|Wolvic/i.test(navigator.userAgent);
 const isPhone = isTouch && !isHeadset;
-const TM = {x:0, y:0, jump:0, low:0, id:null};
+const TM = {x:0, y:0, jump:0, low:0, id:null, run:0, edge:0};
+let sprintOn = false, lsPrev = false;
+function setSprint(on){ if (on === sprintOn) return; sprintOn = on; say(on ? 'Sprinting.' : 'Walking.', 1); [0, 1].forEach(i => pulse(i, .3, 40)); const b = document.querySelector('#tbtns [data-k=run]'); if (b) b.classList.toggle('on', on); }
 let dvy = 0, wallPush = false;
 function desktop(dt){
   const typing = state === 'lobby' && (ui.s === 'name' || ui.s === 'code');
   let f = typing ? 0 : ((keys.KeyW || keys.ArrowUp) ? 1 : 0) - ((keys.KeyS || keys.ArrowDown) ? 1 : 0) + TM.y, r = typing ? 0 : (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0) + TM.x;
   const mm = Math.hypot(f, r); if (mm > 1){ f /= mm; r /= mm; }
   const turn = typing ? 0 : (keys.ArrowLeft ? 1 : 0) - (keys.ArrowRight ? 1 : 0); if (turn){ yaw += turn*2.4*dt; camera.rotation.set(pitch, yaw, 0); }
-  const sp = ((keys.ShiftLeft || keys.ShiftRight) ? 5.6 : 3.6)*bmSpd(), s = Math.sin(yaw), c = Math.cos(yaw);
+  const sp = ((keys.ShiftLeft || keys.ShiftRight || sprintOn || TM.edge) ? 6.2 : 3.6)*bmSpd(), s = Math.sin(yaw), c = Math.cos(yaw);
   rig.position.x += (-s*f + c*r)*sp*dt; rig.position.z += (-c*f - s*r)*sp*dt;
   const low = keys.KeyC || TM.low; camera.position.y = low ? .55 : 1;
   if (terrain) rig.position.y = terrain(rig.position.x, rig.position.z);
@@ -1484,15 +1504,15 @@ renderer.domElement.addEventListener('pointerup', endLook); renderer.domElement.
 /* thumbstick */
 (function(){
   const joy = $('joy'), knob = joy.querySelector('i');
-  const set = e => { const r = joy.getBoundingClientRect(), dx = e.clientX - (r.left + r.width/2), dy = e.clientY - (r.top + r.height/2), l = Math.hypot(dx, dy), m = Math.min(1, l/52), ux = l ? dx/l : 0, uy = l ? dy/l : 0; TM.x = ux*m; TM.y = -uy*m; knob.style.transform = 'translate(' + ux*m*42 + 'px,' + uy*m*42 + 'px)'; };
+  const set = e => { const r = joy.getBoundingClientRect(), dx = e.clientX - (r.left + r.width/2), dy = e.clientY - (r.top + r.height/2), l = Math.hypot(dx, dy), m = Math.min(1, l/52), ux = l ? dx/l : 0, uy = l ? dy/l : 0; TM.x = ux*m; TM.y = -uy*m; knob.style.transform = 'translate(' + ux*m*42 + 'px,' + uy*m*42 + 'px)'; TM.edge = m > .97 ? 1 : 0; };
   joy.addEventListener('pointerdown', e => { TM.id = e.pointerId; joy.setPointerCapture(e.pointerId); set(e); e.preventDefault(); });
   joy.addEventListener('pointermove', e => { if (e.pointerId === TM.id) set(e); });
-  const up = e => { if (e.pointerId !== TM.id) return; TM.id = null; TM.x = TM.y = 0; knob.style.transform = ''; };
+  const up = e => { if (e.pointerId !== TM.id) return; TM.id = null; TM.x = TM.y = 0; TM.edge = 0; knob.style.transform = ''; };
   joy.addEventListener('pointerup', up); joy.addEventListener('pointercancel', up);
   document.querySelectorAll('#tbtns button').forEach(b => {
     const k = b.dataset.k;
     b.addEventListener('pointerdown', e => { e.preventDefault(); initAudio(); wakeVoices();
-      if (k === 'jump') TM.jump = 1; else if (k === 'hands') keys.KeyH = 1; else if (k === 'low'){ TM.low = TM.low ? 0 : 1; b.classList.toggle('on', !!TM.low); }
+      if (k === 'run'){ setSprint(!sprintOn); return; } if (k === 'jump') TM.jump = 1; else if (k === 'hands') keys.KeyH = 1; else if (k === 'low'){ TM.low = TM.low ? 0 : 1; b.classList.toggle('on', !!TM.low); }
       else if (k === 'lamp'){ if (state === 'level' && !dead) lampOn = !lampOn; } else if (k === 'back'){ if (dead) leaveSpectate(); else if (state === 'arena') enterLobby('Back in the lobby.'); }
       if (k === 'jump' || k === 'hands') b.classList.add('on'); });
     const rel = () => { if (k === 'jump') TM.jump = 0; if (k === 'hands') keys.KeyH = 0; if (k === 'jump' || k === 'hands') b.classList.remove('on'); };
@@ -1523,7 +1543,7 @@ const vrBtn = $('vrBtn');
 if (navigator.xr && navigator.xr.isSessionSupported){
   navigator.xr.isSessionSupported('immersive-vr').then(ok => {
     if (!ok || isPhone) throw 0; vrBtn.disabled = false; vrBtn.textContent = 'Play';
-    vrBtn.onclick = async () => { try { initAudio(); musicOut(); unlockLobbyMusic(); renderer.xr.setReferenceSpaceType('local-floor'); const sp = navigator.xr.requestSession('immersive-vr', {optionalFeatures:['local-floor']}); askMic(); const s = await sp; await renderer.xr.setSession(s); $('overlay').hidden = true; enterLobby(); s.addEventListener('end', () => { $('overlay').hidden = false; state = 'menu'; musicIn(); }); } catch(e){ $('note').textContent = 'Could not start VR here. Open this link directly in your headset’s browser.'; } };
+    vrBtn.onclick = async () => { try { initAudio(); if (micFail){ micFail = false; }  musicOut(); unlockLobbyMusic(); renderer.xr.setReferenceSpaceType('local-floor'); const sp = navigator.xr.requestSession('immersive-vr', {optionalFeatures:['local-floor']}); askMic(); const s = await sp; await renderer.xr.setSession(s); $('overlay').hidden = true; enterLobby(); s.addEventListener('end', () => { $('overlay').hidden = false; state = 'menu'; musicIn(); }); } catch(e){ $('note').textContent = 'Could not start VR here. Open this link directly in your headset’s browser.'; } };
   if (/[?&]pwa=1/.test(location.search)) setTimeout(() => vrBtn.onclick(), 300);
   }).catch(() => { noVR(); });
 } else { noVR(); }
@@ -1534,8 +1554,9 @@ let stickMove = false, turned = false;
 function stick(side){ for (let i=0;i<2;i++) if (conn[i] && hnd[i] === side && gps[i] && gps[i].axes) return gps[i].axes; return null; }
 function sticks(dt){
   const rs = stick('right'), ls = stick('left');
+  let lp = false; for (let i=0;i<2;i++) if (conn[i] && hnd[i] === 'left' && gps[i] && gps[i].buttons && gps[i].buttons[3] && gps[i].buttons[3].pressed) lp = true; if (lp && !lsPrev) setSprint(!sprintOn); lsPrev = lp;
   if (rs){ const x = rs[2] || 0; if (Math.abs(x) > .7 && !turned){ turned = true; const before = headW(); rig.rotation.y -= Math.sign(x)*Math.PI/6; rig.position.add(before.sub(headW())); } else if (Math.abs(x) < .3) turned = false; }
-  if (stickMove && ls){ const sx = ls[2] || 0, sy = ls[3] || 0; if (Math.hypot(sx, sy) > .2){ fwd.set(0,0,-1).applyQuaternion(camera.quaternion).applyQuaternion(rig.quaternion); fwd.y = 0; fwd.normalize(); tmp.set(-fwd.z, 0, fwd.x); rig.position.addScaledVector(fwd, -sy*2.6*dt).addScaledVector(tmp, sx*2.6*dt); } }
+  if (stickMove && ls){ const sx = ls[2] || 0, sy = ls[3] || 0; if (Math.hypot(sx, sy) > .2){ fwd.set(0,0,-1).applyQuaternion(camera.quaternion).applyQuaternion(rig.quaternion); fwd.y = 0; fwd.normalize(); tmp.set(-fwd.z, 0, fwd.x); const ws = 2.6*(sprintOn ? 2 : 1); rig.position.addScaledVector(fwd, -sy*ws*dt).addScaledVector(tmp, sx*ws*dt); } }
 }
 
 /* ---------- Normal-mode monsters ---------- */

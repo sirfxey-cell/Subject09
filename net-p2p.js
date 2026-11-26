@@ -86,7 +86,7 @@
             return Promise.resolve();
           },
           voice: {
-            send: function (stream) { if (voice === stream) return; voice = stream; sendVoice(null); },
+            send: function (stream) { if (voice === stream) return; if (voice && typeof room.removeStream === 'function') { try { room.removeStream(voice); } catch (e) {} } voice = stream; sendVoice(null); },
             onStream: function (h) { onStream = h; },
             onGone: function (h) { onGone = h; }
           },
