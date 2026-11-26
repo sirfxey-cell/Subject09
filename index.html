@@ -469,7 +469,7 @@ const LH = 7, lobbyFx = {cams:[], ring:null, flick:null, crea:null, slamT:6, sla
   box(K.metal, 0, 1.7, 13.95, 3.2, 3.6, .12); box(K.dark, 0, 1.65, 13.9, .03, 3.3, .02); box(K.haz, 0, 3.62, 13.92, 3.4, .2, .1); box(K.haz, -1.65, 1.8, 13.92, .2, 3.6, .1); box(K.haz, 1.65, 1.8, 13.92, .2, 3.6, .1);
   glowCol(K.glow, 0xcfd3d6, 1); box(K.glow, 0, 4, 13.9, .5, .2, .02);
   /* vote console */
-  box(K.dark, 0, .5, -7.85, 10.6, 1, .7); box(K.metal, 0, 1.03, -7.75, 10.8, .06, .95); box(K.dark, 0, 2.05, -7.98, 10.6, 2.1, .1); W(0, .55, -7.85, 10.8, 1.1, .8, K.dark);
+  box(K.dark, 0, .5, -7.85, 10.6, 1, .7); box(K.metal, 0, 1.03, -7.75, 10.8, .06, .95); box(K.dark, 0, 2.05, -7.98, 10.6, 2.1, .1); W(0, .55, -7.85, 10.8, 1.1, .8, K.dark); lobbyBoxes.push({min:V(-5.4, 0, -8.1), max:V(5.4, 3.15, -7.86)});
   for (let k=0;k<22;k++){ glowCol(K.glow, LEDC[RR()*4|0], .9); box(K.glow, -5 + RR()*10, 1.07, -7.45, .04, .02, .04); }
   /* personnel terminal kiosk (left wall) */
   box(K.metal, -11.9, 1.5, 2, .2, 2, 2.8); box(K.dark, -11.8, .3, 2, .4, .6, 1.6); box(K.metal, -11.62, .62, 2, .45, .04, 1.8); CB.push({min:V(-12, 0, .6), max:V(-11.4, .64, 3.4)});
