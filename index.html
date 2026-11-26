@@ -9,7 +9,7 @@
 <link rel="icon" href="icon-192.png">
 <script src="config.js"></script>
 <script src="net-ws.js"></script>
-<script src="net-p2p.js?v=6"></script>
+<script src="net-p2p.js?v=7"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@400;500;600&family=Permanent+Marker&family=Special+Elite&display=swap" rel="stylesheet">
@@ -2888,6 +2888,28 @@ function brTick(dt, t, hw){
   if (brBehindT > 0){ const b4 = brBehindT; brBehindT -= dt; if (Math.floor(b4/.55) !== Math.floor(brBehindT/.55)) carpetStep(hw.x - fwd.x*3.2, hw.z - fwd.z*3.2, .9); }
 }
 function carpetStep(x, z, v){ const dst = sfxAt(x, .05, z); if (!dst) return; playS('step', {at:[x, .05, z], vol:.42*v, rate:.7, rv:.14}); playS('squish', {at:[x, .05, z], vol:.07*v, rate:1.7, rv:.2}); noiseAt(dst, .09, .12*v, 520, 1); }
+/* ---------- static on your screen when a monster is close: stronger the nearer it is ---------- */
+const stC = cv(128, 128), stG = stC.getContext('2d'), stImg = stG.createImageData(128, 128), stTex = new THREE.CanvasTexture(stC); stTex.userData = {keep:true}; stTex.minFilter = stTex.magFilter = THREE.NearestFilter; stTex.generateMipmaps = false; stTex.wrapS = stTex.wrapT = THREE.RepeatWrapping; stTex.repeat.set(4, 4);
+const stQuad = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.4), new THREE.MeshBasicMaterial({map:stTex, transparent:true, opacity:0, depthTest:false, depthWrite:false, fog:false})); stQuad.position.z = -.25; stQuad.renderOrder = 997; stQuad.visible = false; camera.add(stQuad);
+let stK = 0, stAu = null, stT = 0;
+function nearMonD(hw){
+  let d = 99;
+  if (state === 'level' && !round) monsters.forEach(m => { if (m.g && m.g.visible !== false) d = Math.min(d, Math.hypot(m.g.position.x - hw.x, m.g.position.z - hw.z)); });
+  if (round && round.mon && round.mon !== myId()){ const mp = zonePeers().find(p => p.peer === round.mon); if (mp && Array.isArray(mp.presence.p)) d = Math.min(d, Math.hypot(mp.presence.p[0] - hw.x, mp.presence.p[2] - hw.z)); }
+  return d;
+}
+function staticTick(dt, hw){
+  const on = (state === 'level' || state === 'arena') && !dead && !(round && round.mon === myId());
+  const want = on ? Math.max(0, Math.min(1, (14 - nearMonD(hw))/11)) : 0; stK += (want - stK)*Math.min(1, dt*(want > stK ? 3 : 1.5));
+  stQuad.visible = stK > .02;
+  if (stQuad.visible){ stT -= dt; if (stT <= 0){ stT = 1/30; const d = stImg.data; for (let i=0;i<d.length;i+=4){ const v = Math.random()*255|0; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; }
+      const bands = 1 + (stK*4|0); for (let b=0;b<bands;b++){ const y = Math.random()*128|0, h = 1 + (Math.random()*3|0); for (let yy=y;yy<Math.min(128, y + h);yy++) for (let x=0;x<128;x++){ const i = (yy*128 + x)*4; d[i] = d[i + 1] = d[i + 2] = 230; } }
+      stG.putImageData(stImg, 0, 0); stTex.needsUpdate = true; }
+    stQuad.material.opacity = stK*(.24 + Math.random()*.06); stTex.offset.set(Math.random(), Math.random()); }
+  /* matching radio hiss */
+  if (ac){ if (!stAu){ const n = ac.sampleRate*2, b = ac.createBuffer(1, n, ac.sampleRate), ch = b.getChannelData(0); for (let i=0;i<n;i++) ch[i] = Math.random()*2 - 1; const s = ac.createBufferSource(); s.buffer = b; s.loop = true; const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2600; f.Q.value = .6; const g = ac.createGain(); g.gain.value = 0; s.connect(f); f.connect(g); g.connect(sfxBus()); s.start(); stAu = g; }
+    stAu.gain.setTargetAtTime(stK*.07*SV.e, ac.currentTime, .08); }
+}
 function finishKill(){
   const K = kill; if (!K) return; kill = null; tearFx.visible = false; flash.material.color.setHex(0xdadddf); flash.material.opacity = 0;
   if (K.m){ K.m.st = 'roam'; K.m.stT = 6; K.m.g.position.copy(K.from).add(fxV1.set(Math.random()*4 - 2, 0, Math.random()*4 - 2)); }
@@ -2914,7 +2936,7 @@ function fxTick(dt, t, hw){
   AU.wetT = state === 'arena' ? .45 : state === 'lobby' ? .32 : dead ? .12 : .26;
   vig.style.opacity = String(Math.min(1, .35 + tension*.65));
   if (kill) killTick(dt, t);
-  readablesTick(dt, hw); brTick(dt, t, hw);
+  readablesTick(dt, hw); brTick(dt, t, hw); staticTick(dt, hw);
 }
 function levelIntro(){ revealDone = false; tension = 0; fxL.powerT0 = performance.now() + 700; fxL.power = 0; setTimeout(() => { if (!ac) return; beep(55, 2.2, 'sawtooth', .07); [0, 450, 900, 1500].forEach(d => setTimeout(() => { noiseBurst(.25, .12, 300); thud(.35); }, d)); }, 900); monsters.forEach(monsterInit); }
 

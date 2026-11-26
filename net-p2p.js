@@ -4,6 +4,11 @@
   if (window.S09Net || window.claude) return;
   var LIB = 'https://cdn.jsdelivr.net/npm/trystero@0.25.4/+esm';
   var APP = 'subject09-sirfxey';
+  var RELAYS = [
+    'wss://relay.primal.net', 'wss://relay.snort.social', 'wss://relay.nostr.net', 'wss://nostr-pub.wellorder.net',
+    'wss://relay.ditto.pub', 'wss://yabu.me', 'wss://relay.nostr.com', 'wss://nostr.data.haus',
+    'wss://relay.angor.io', 'wss://relay.mostro.network', 'wss://nos.lol', 'wss://relay.damus.io'
+  ];
   var lib = null;
 
   function load() {
@@ -14,7 +19,8 @@
   window.S09Net = {
     join: function (name) {
       return load().then(function (T) {
-        var room = T.joinRoom({ appId: APP }, String(name));
+        // Every player uses the same fixed list, so everyone always shares relays even if some go down.
+        var room = T.joinRoom({ appId: APP, relayConfig: { urls: RELAYS } }, String(name));
         var act = room.makeAction('pres');
         var send, get;
         if (Array.isArray(act)) {
