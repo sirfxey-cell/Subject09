@@ -3273,7 +3273,7 @@ function bmTick(dt, t, hw){
     st.push({k:'f', on:false, cd:0, txt:FIN[BMX.fin].n, p:0, lbl:'FINISHER', vr:'B', hold:0});
     const screen = !renderer.xr.isPresenting; bmHud.hidden = !screen; AB.forEach(a => { if (bmBtn[a.k]) bmBtn[a.k].hidden = !bmCanAb(); }); if (!bmCanAb()) st.splice(0, 3);
     if (screen) st.forEach(s => { const b = bmBtn[s.k]; if (!b) return; b.classList.toggle('on', !!s.on); b.classList.toggle('cd', s.cd > 0 && !s.on); b.querySelector('i').style.setProperty('--p', s.on ? 0 : Math.min(1, s.p)); b.querySelector('b').textContent = keyName(BMS.keys[s.k]); b.querySelector('em').textContent = s.on ? s.txt : s.cd > 0 && s.txt !== 'LOCKED' ? s.txt : ''; if (s.k === 'f') b.querySelector('span').textContent = FIN[BMX.fin].n; });
-    if (renderer.xr.isPresenting){ let li = -1; for (let i=0;i<2;i++) if (conn[i] && hnd[i] === 'left') li = i; if (li >= 0){ const grip = renderer.xr.getControllerGrip(li); if (wristOn !== li){ if (wrist.parent) wrist.parent.remove(wrist); grip.add(wrist); wrist.position.set(0, .07, .06); wrist.rotation.set(-1.0, 0, 0); wristOn = li; } wrist.visible = true; wpT -= dt; if (wpT <= 0){ wpT = .1; drawWrist(st.map(s => Object.assign({}, s, {lbl:s.vr + '  ' + (s.k === 'f' ? 'KILL' : s.lbl.split(' ')[0]), txt:s.k === 'f' ? FIN[BMX.fin].n.split(' ')[0] : s.txt}))); } } }
+    if (renderer.xr.isPresenting){ let li = -1; for (let i=0;i<2;i++) if (conn[i] && hnd[i] === 'left') li = i; if (li >= 0){ holdTo(renderer.xr.getControllerGrip(li)); if (wrist.parent !== leftHold){ if (wrist.parent) wrist.parent.remove(wrist); leftHold.add(wrist); wrist.position.set(0, .07, .06); wrist.rotation.set(-1.0, 0, 0); wristOn = li; } wrist.visible = true; wpT -= dt; if (wpT <= 0){ wpT = .1; drawWrist(st.map(s => Object.assign({}, s, {lbl:s.vr + '  ' + (s.k === 'f' ? 'KILL' : s.lbl.split(' ')[0]), txt:s.k === 'f' ? FIN[BMX.fin].n.split(' ')[0] : s.txt}))); } } }
     else wrist.visible = false;
   } else { bmHud.hidden = true; wrist.visible = false; if (!(amMon && !dead)) tint(0, 0); }
   /* finishers: everybody sees caught players taken apart */
@@ -3566,6 +3566,8 @@ function chamberTick(t, dt, hw){
   c.fing.forEach((f, k) => { f.rotation.x = O.st === 'drag' ? .9 : .2 + Math.sin(t*2 + k)*.08; });
 }
 
+const leftHold = new THREE.Group(); leftHold.matrixAutoUpdate = false; rig.add(leftHold);
+function holdTo(grip){ leftHold.matrix.copy(grip.matrix); leftHold.matrixWorldNeedsUpdate = true; leftHold.updateMatrixWorld(true); }
 /* ======================= OWNER HAND MENU (anywhere) and MONSTERS IN HIDE AND SEEK ======================= */
 const isHS = () => !!(round && round.m === 'h' && state === 'level');
 const monLock = () => round && round.m === 'h' ? 15 : bmT().lock;
@@ -3600,7 +3602,7 @@ function ownerHandTick(dt){
   const cells = opCells(); opDrawT -= dt; const redraw = opDrawT <= 0 || OP.dirty; if (redraw){ opDrawT = .25; OP.dirty = false; }
   if (!vr){ if (redraw) domMenu(cells); opPanel.visible = false; return; }
   let li = -1; for (let i=0;i<2;i++) if (conn[i] && hnd[i] === 'left') li = i; if (li < 0){ opPanel.visible = false; return; }
-  const grip = renderer.xr.getControllerGrip(li); if (opOn !== li){ if (opPanel.parent) opPanel.parent.remove(opPanel); grip.add(opPanel); opPanel.position.set(0, .23, .02); opPanel.rotation.set(-.9, 0, 0); opOn = li; }
+  holdTo(renderer.xr.getControllerGrip(li)); if (opPanel.parent !== leftHold){ if (opPanel.parent) opPanel.parent.remove(opPanel); leftHold.add(opPanel); opPanel.position.set(0, .23, .02); opPanel.rotation.set(-.9, 0, 0); opOn = li; }
   opPanel.visible = true; if (redraw) drawCells(cells);
   OP.poke -= dt; const oh = hands[1 - li] && hands[1 - li].has ? hands[1 - li].vis : null;
   if (oh && OP.poke <= 0){ opPanel.updateWorldMatrix(true, false); const lp = opPanel.worldToLocal(fxV4.copy(oh)); if (Math.abs(lp.z) < .035 && Math.abs(lp.x) < .135 && Math.abs(lp.y) < .169){ const px = (lp.x/.27 + .5)*512, py = (.5 - lp.y/.3375)*640, col = Math.floor((px - 10)/166), row = Math.floor((py - 48)/118); if (col >= 0 && col < 3 && row >= 0){ const c = cells[row*3 + col]; if (c){ OP.poke = .7; pulse(1 - li, .6, 50); opCellUse(c); OP.dirty = true; } } } }
