@@ -2091,17 +2091,21 @@ function drawFace(dt, t){
   faceTex.needsUpdate = true;
 }
 /* ---------- music: the waiting song loops; the opening speech plays once when the lights come on ---------- */
-const dpMus = {wait:new Audio('music/dp_wait.mp3'), intro:new Audio('music/dp_intro.mp3'), an:null, td:null, want:'', len:42.4};
-dpMus.wait.loop = true; dpMus.wait.preload = 'auto'; dpMus.intro.preload = 'auto'; dpMus.intro.addEventListener('loadedmetadata', () => { if (isFinite(dpMus.intro.duration)) dpMus.len = dpMus.intro.duration; });
+/* waiting room + background: the theme (loops). After the cells open: the intro (once). After every game, before the next spin: the between clip (once). */
+const dpMus = {wait:new Audio('music/dp_wait.mp3'), intro:new Audio('music/dp_intro.mp3'), betw:new Audio('music/dp_between.mp3'), an:{}, td:new Uint8Array(512), want:'', len:42.4, blen:14.34};
+dpMus.wait.loop = true; [dpMus.wait, dpMus.intro, dpMus.betw].forEach(a => { a.preload = 'auto'; });
+dpMus.intro.addEventListener('loadedmetadata', () => { if (isFinite(dpMus.intro.duration)) dpMus.len = dpMus.intro.duration; });
+dpMus.betw.addEventListener('loadedmetadata', () => { if (isFinite(dpMus.betw.duration)) dpMus.blen = dpMus.betw.duration; });
+function dpMusTap(k){ if (dpMus.an[k] || !ac) return; try { const src = ac.createMediaElementSource(dpMus[k]), an = ac.createAnalyser(); an.fftSize = 512; src.connect(an); an.connect(ac.destination); dpMus.an[k] = an; } catch(e){ dpMus.an[k] = null; } }
 function dpMusic(w, at){
-  const vol = Math.min(1, .9*SV.m); dpMus.wait.volume = vol; dpMus.intro.volume = Math.min(1, SV.m*1.1);
-  if (w === 'intro' && !dpMus.an && ac){ try { const src = ac.createMediaElementSource(dpMus.intro); dpMus.an = ac.createAnalyser(); dpMus.an.fftSize = 512; dpMus.td = new Uint8Array(512); src.connect(dpMus.an); dpMus.an.connect(ac.destination); } catch(e){ dpMus.an = null; } }
+  dpMus.wait.volume = Math.min(1, .9*SV.m); dpMus.intro.volume = dpMus.betw.volume = Math.min(1, SV.m*1.1);
+  if (w === 'intro' || w === 'betw') dpMusTap(w);
   if (w !== dpMus.want){ dpMus.want = w;
-    if (w === 'wait'){ dpMus.intro.pause(); dpMus.wait.play().catch(() => {}); }
-    else if (w === 'intro'){ dpMus.wait.pause(); try { dpMus.intro.currentTime = Math.max(0, at || 0); } catch(e){} dpMus.intro.play().catch(() => {}); }
-    else { dpMus.wait.pause(); dpMus.intro.pause(); } }
+    ['wait', 'intro', 'betw'].forEach(k => { if (k !== w) dpMus[k].pause(); });
+    if (w === 'wait') dpMus.wait.play().catch(() => {});
+    else if (w === 'intro' || w === 'betw'){ const a = dpMus[w]; try { a.currentTime = Math.max(0, at || 0); } catch(e){} a.play().catch(() => {}); } }
 }
-function dpVoiceEnv(){ if (dpMus.want !== 'intro' || !dpMus.an || dpMus.intro.paused) return 0; dpMus.an.getByteTimeDomainData(dpMus.td); let s = 0; for (let k=0;k<dpMus.td.length;k+=2){ const v = (dpMus.td[k] - 128)/128; s += v*v; } return Math.min(1, Math.sqrt(s/(dpMus.td.length/2))*5); }
+function dpVoiceEnv(){ const k = dpMus.want, an = dpMus.an[k]; if ((k !== 'intro' && k !== 'betw') || !an || dpMus[k].paused) return 0; an.getByteTimeDomainData(dpMus.td); let s = 0; for (let i=0;i<dpMus.td.length;i+=2){ const v = (dpMus.td[i] - 128)/128; s += v*v; } return Math.min(1, Math.sqrt(s/(dpMus.td.length/2))*5); }
 /* a huge echoing click, like breakers being thrown in an empty hall */
 function bigClick(v){ if (!ac) return; const d = auMaster(); const t0 = ac.currentTime, n = Math.floor(ac.sampleRate*.05), b = ac.createBuffer(1, n, ac.sampleRate), ch = b.getChannelData(0); for (let i=0;i<n;i++) ch[i] = (Math.random()*2 - 1)*Math.exp(-i/(n*.08));
   const s = ac.createBufferSource(); s.buffer = b; const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1800; f.Q.value = .8; const g = ac.createGain(); g.gain.value = 1.6*v*SV.e; s.connect(f); f.connect(g); g.connect(d); if (AU.rev) { const w = ac.createGain(); w.gain.value = 1.4*v*SV.e; g.connect(w); w.connect(AU.rev); } s.start(t0);
@@ -2235,7 +2239,7 @@ function prisonTick(D, dt, t, hw){
   FC.talk += ((D && D.ph === 'intro2' ? dpVoiceEnv() : 0) - FC.talk)*Math.min(1, dt*20); FC.mood = !D ? 'idle' : D.ph === 'exec' ? (el > 8.5 ? 'happy' : 'exec') : D.ph === 'res' ? 'happy' : D.ph === 'play' ? 'stern' : 'idle';
   FC.fT = (FC.fT || 0) - dt; if (FC.fT <= 0){ FC.fT = 1/24; drawFace(1/24, t); }
   /* music */
-  if (!D || D.ph === 'wait' || D.ph === 'cd') dpMusic('wait'); else if (D.ph === 'cells' || D.ph === 'lights') dpMusic(''); else if (D.ph === 'intro2') dpMusic('intro', el); else dpMusic('wait');
+  if (!D || D.ph === 'wait' || D.ph === 'cd') dpMusic('wait'); else if (D.ph === 'cells' || D.ph === 'lights') dpMusic(''); else if (D.ph === 'intro2') dpMusic('intro', el); else if (D.ph === 'res' && D.al.length > 1 && el < dpMus.blen) dpMusic('betw', el); else dpMusic('wait');
   if (!D || !D.ct) return;
   /* doors: the chosen ones' cells open */
   dpDoors.forEach((dr, k) => { const num = k + 1, open = (dpChosen(D, num) && ((D.ph === 'pick' && el > 8.2) || D.ph === 'xform')) || (D.ph === 'win' && D.ws === num) || D.ph === 'wait'; dr.tgt.z = dr.home.z + (open ? 1.05 : 0); });
@@ -2509,7 +2513,7 @@ function dpHostTick(){
       out = out.filter(n => { const s = H.sh.indexOf(n); if (s >= 0 && gone.indexOf(n) < 0){ H.sh.splice(s, 1); saved.push(n); return false; } return true; });
       if (out.length >= keep.length) out = out.slice(0, keep.length - 1); H.al = keep.filter(n => out.indexOf(n) < 0); H.x.res = {e:out, s:saved}; hSet('res'); }
     else H.al = keep; }
-  else if (H.ph === 'res'){ if (el >= (H.exp === 'exec' ? 5 : DPC.res)){ if (H.al.length <= 1){ H.ws = H.al[0] || 0; H.pl = null; hSet('win'); } else dpPick(); } }
+  else if (H.ph === 'res'){ if (el >= Math.max(H.exp === 'exec' ? 5 : DPC.res, H.al.length > 1 ? dpMus.blen + .6 : 0)){ if (H.al.length <= 1){ H.ws = H.al[0] || 0; H.pl = null; hSet('win'); } else dpPick(); } }
   else if (H.ph === 'win'){ if (el >= DPC.win){ H.id = Math.random().toString(36).slice(2, 8); H.ct = {}; H.al = []; H.sh = []; H.x = {}; H.pl = null; dpBots = 0; hSet(humans.length >= DPC.min ? 'cd' : 'wait'); } }
 }
 function dpPick(){
