@@ -3,7 +3,7 @@
   "main": "src/index.js",
   "compatibility_date": "2025-06-01",
   "durable_objects": { "bindings": [{ "name": "ROOMS", "class_name": "Room" }] },
-  "vars": { "TURN_KEY_ID": "b0097fc12e334b5108fa55f8142e63ad" },
+  "vars": { "TURN_KEY_ID": "f1f5643986377b8c9ccbc77b41c5ed35" },
   "routes": [{ "pattern": "relay.subject09.app", "custom_domain": true }],
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }]
 }
