@@ -23,7 +23,7 @@ async function ice(env, origin) {
   if (!env.TURN_KEY_ID || !env.TURN_TOKEN) return new Response('{"iceServers":[]}', { status: 503, headers: h });
   const r = await fetch('https://rtc.live.cloudflare.com/v1/turn/keys/' + String(env.TURN_KEY_ID).trim() + '/credentials/generate-ice-servers', {
     method: 'POST', headers: { Authorization: 'Bearer ' + String(env.TURN_TOKEN).trim(), 'Content-Type': 'application/json' }, body: JSON.stringify({ ttl: 21600 }) });
-  if (!r.ok) return new Response(JSON.stringify({ iceServers: [], upstream: r.status, key: String(env.TURN_KEY_ID).slice(0, 4), tokenLen: String(env.TURN_TOKEN).trim().length }), { status: 502, headers: h });
+  if (!r.ok) return new Response(JSON.stringify({ iceServers: [], upstream: r.status, key: String(env.TURN_KEY_ID).slice(0, 4), tokenLen: String(env.TURN_TOKEN).trim().length, body: (await r.text()).slice(0, 200) }), { status: 502, headers: h });
   const d = await r.json();
   // keep only relay (turn/turns) entries: no STUN, so a player's real address is never discovered or shared
   let servers = d.iceServers; if (!Array.isArray(servers)) servers = [servers];
