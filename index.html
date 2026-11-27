@@ -2109,20 +2109,25 @@ function drawFace(dt, t){
 }
 /* ---------- music: the waiting song loops; the opening speech plays once when the lights come on ---------- */
 /* waiting room + background: the theme (loops). After the cells open: the intro (once). After every game, before the next spin: the between clip (once). */
-const dpMus = {wait:new Audio('music/dp_wait.mp3'), intro:new Audio('music/dp_intro.mp3'), betw:new Audio('music/dp_between.mp3'), an:{}, td:new Uint8Array(512), want:'', len:42.4, blen:14.34};
-dpMus.wait.loop = true; [dpMus.wait, dpMus.intro, dpMus.betw].forEach(a => { a.preload = 'auto'; });
-dpMus.intro.addEventListener('loadedmetadata', () => { if (isFinite(dpMus.intro.duration)) dpMus.len = dpMus.intro.duration; });
-dpMus.betw.addEventListener('loadedmetadata', () => { if (isFinite(dpMus.betw.duration)) dpMus.blen = dpMus.betw.duration; });
-function dpMusTap(k){ if (dpMus.an[k] || !ac) return; try { const src = ac.createMediaElementSource(dpMus[k]), an = ac.createAnalyser(); an.fftSize = 512; src.connect(an); an.connect(ac.destination); dpMus.an[k] = an; } catch(e){ dpMus.an[k] = null; } }
+/* Played through the same Web Audio graph as the sound effects, so it plays wherever they do (Quest included). */
+const dpMus = {buf:{}, loading:{}, src:null, an:null, gain:null, td:new Uint8Array(512), want:'', len:42.4, blen:14.34, t0:0, off:0, retry:0};
+const DPM_URL = {wait:'music/dp_wait.mp3', intro:'music/dp_intro.mp3', betw:'music/dp_between.mp3'};
+function dpMusLoad(k){ if (!ac || dpMus.buf[k] || dpMus.loading[k]) return; dpMus.loading[k] = true;
+  fetch(DPM_URL[k]).then(r => r.arrayBuffer()).then(ab => new Promise((res, rej) => ac.decodeAudioData(ab, res, rej))).then(bf => { dpMus.buf[k] = bf; if (k === 'intro') dpMus.len = bf.duration; if (k === 'betw') dpMus.blen = bf.duration; }).catch(() => {}).finally(() => { dpMus.loading[k] = false; }); }
+function dpMusStop(){ if (dpMus.src){ try { dpMus.src.onended = null; dpMus.src.stop(); } catch(e){} dpMus.src = null; } dpMus.cur = ''; }
 function dpMusic(w, at){
-  dpMus.wait.volume = Math.min(1, .9*SV.m); dpMus.intro.volume = dpMus.betw.volume = Math.min(1, SV.m*1.1);
-  if (w === 'intro' || w === 'betw') dpMusTap(w);
-  if (w !== dpMus.want){ dpMus.want = w;
-    ['wait', 'intro', 'betw'].forEach(k => { if (k !== w) dpMus[k].pause(); });
-    if (w === 'wait') dpMus.wait.play().catch(() => {});
-    else if (w === 'intro' || w === 'betw'){ const a = dpMus[w]; try { a.currentTime = Math.max(0, at || 0); } catch(e){} a.play().catch(() => {}); } }
+  if (!ac) return; if (ac.state === 'suspended') ac.resume().catch(() => {});
+  ['wait', 'intro', 'betw'].forEach(dpMusLoad);
+  if (!dpMus.gain){ dpMus.gain = ac.createGain(); dpMus.an = ac.createAnalyser(); dpMus.an.fftSize = 512; dpMus.gain.connect(dpMus.an); dpMus.an.connect(ac.destination); }
+  dpMus.gain.gain.value = Math.min(1.2, (w === 'wait' ? .85 : 1.1)*SV.m);
+  if (w !== dpMus.want){ dpMus.want = w; dpMusStop(); }
+  if (!w || dpMus.cur === w) return;
+  const bf = dpMus.buf[w]; if (!bf) return;                       /* still loading: start as soon as it is ready */
+  const off = w === 'wait' ? 0 : Math.max(0, at || 0); if (w !== 'wait' && off >= bf.duration - .2) return;
+  const s = ac.createBufferSource(); s.buffer = bf; s.loop = w === 'wait'; s.connect(dpMus.gain); s.start(0, off); dpMus.src = s; dpMus.cur = w;
+  s.onended = () => { if (dpMus.src === s){ dpMus.src = null; dpMus.cur = 'done:' + w; } };
 }
-function dpVoiceEnv(){ const k = dpMus.want, an = dpMus.an[k]; if ((k !== 'intro' && k !== 'betw') || !an || dpMus[k].paused) return 0; an.getByteTimeDomainData(dpMus.td); let s = 0; for (let i=0;i<dpMus.td.length;i+=2){ const v = (dpMus.td[i] - 128)/128; s += v*v; } return Math.min(1, Math.sqrt(s/(dpMus.td.length/2))*5); }
+function dpVoiceEnv(){ const k = dpMus.cur; if ((k !== 'intro' && k !== 'betw') || !dpMus.an) return 0; dpMus.an.getByteTimeDomainData(dpMus.td); let s = 0; for (let i=0;i<dpMus.td.length;i+=2){ const v = (dpMus.td[i] - 128)/128; s += v*v; } return Math.min(1, Math.sqrt(s/(dpMus.td.length/2))*5); }
 /* a huge echoing click, like breakers being thrown in an empty hall */
 function bigClick(v){ if (!ac) return; const d = auMaster(); const t0 = ac.currentTime, n = Math.floor(ac.sampleRate*.05), b = ac.createBuffer(1, n, ac.sampleRate), ch = b.getChannelData(0); for (let i=0;i<n;i++) ch[i] = (Math.random()*2 - 1)*Math.exp(-i/(n*.08));
   const s = ac.createBufferSource(); s.buffer = b; const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1800; f.Q.value = .8; const g = ac.createGain(); g.gain.value = 1.6*v*SV.e; s.connect(f); f.connect(g); g.connect(d); if (AU.rev) { const w = ac.createGain(); w.gain.value = 1.4*v*SV.e; g.connect(w); w.connect(AU.rev); } s.start(t0);
@@ -2263,7 +2268,7 @@ function prisonTick(D, dt, t, hw){
   if (!D || D.ph === 'wait' || D.ph === 'cd') dpMusic('wait'); else if (D.ph === 'cells' || D.ph === 'lights') dpMusic(''); else if (D.ph === 'intro2') dpMusic('intro', el); else if (D.ph === 'res' && D.al.length > 1 && el < dpMus.blen) dpMusic('betw', el); else dpMusic('wait');
   if (!D || !D.ct) return;
   /* doors: the chosen ones' cells open */
-  dpDoors.forEach((dr, k) => { const num = k + 1, open = (dpChosen(D, num) && ((D.ph === 'pick' && el > 8.2) || D.ph === 'xform')) || (D.ph === 'win' && D.ws === num) || D.ph === 'wait'; dr.tgt.z = dr.home.z + (open ? 1.05 : 0); });
+  dpDoors.forEach((dr, k) => { const num = k + 1, open = ['cells', 'lights', 'intro2'].indexOf(D.ph) < 0; dr.tgt.z = dr.home.z + (open ? 1.05 : 0); });
   dpStageOK = (dpChosen(D, myNum) && ['xform', 'count', 'play', 'res'].indexOf(D.ph) >= 0) || (D.ph === 'win' && D.ws === myNum);
   /* spinner */
   if (D.ph === 'exec'){ const names = D.x.names || D.al, i = names.indexOf(D.x.v), n = names.length, u = Math.min(1, Math.max(0, (el - .5)/8)), e = 1 - Math.pow(1 - u, 3);
@@ -2689,8 +2694,8 @@ function dpEnter(D, myNum, alive){
   if (ph === 'cells'){ resetStage(); FC.cap = ''; if (myNum){ STATS.mp++; dpLocal.streak = 0; saveStats(); dpToCell(myNum); } else dpToBooth(); playS('doorclose', {vol:1.6}); return; }
   if (ph === 'lights'){ [600, 1000, 1400].forEach((ms, i) => setTimeout(() => bigClick(i === 2 ? 1.3 : 1), ms)); setTimeout(() => botSay('lights', .5), 1800); return; }
   if (ph === 'intro2') return;
-  if (ph === 'exec'){ FC.cap = 'RANDOM EXECUTION'; if (alive && !dpInCell(myNum, headW())) dpToCell(myNum); botSay('exec', .45); say('Random execution. The wheel picks one of you.', 5); return; }
-  if (ph === 'pick'){ resetStage(); FC.cap = ''; if (alive && !dpInCell(myNum, headW())) dpToCell(myNum); say('Experiment ' + D.n + '. The wheel picks the game, then who plays.', 5); return; }
+  if (ph === 'exec'){ FC.cap = 'RANDOM EXECUTION'; playS('dooropen', {vol:1.6}); say('The cells are open. You can walk the prison, but the stage is only for the chosen.', 6); botSay('exec', .45); say('Random execution. The wheel picks one of you.', 5); return; }
+  if (ph === 'pick'){ resetStage(); FC.cap = ''; say('Experiment ' + D.n + '. The wheel picks the game, then who plays.', 5); return; }
   if (ph === 'wait'){ resetStage(); FC.cap = 'WAITING FOR PLAYERS'; if (Math.abs(headW().z - WR.z) > 9) dpToWait(); }
   else if (ph === 'cd'){ resetStage(); FC.cap = 'STARTING SOON'; beep(440, .3, 'sine', .1); if (Math.abs(headW().z - WR.z) > 9) dpToWait(); }
   else if (ph === 'intro'){
