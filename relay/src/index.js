@@ -6,13 +6,30 @@ const ORIGINS = ['https://subject09.app', 'https://www.subject09.app', 'https://
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
-    if (req.headers.get('Upgrade') !== 'websocket') return new Response('Subject 09 relay', { status: 200 });
     const origin = req.headers.get('Origin') || '';
+    if (url.pathname === '/ice') return ice(env, origin);
+    if (req.headers.get('Upgrade') !== 'websocket') return new Response('Subject 09 relay', { status: 200 });
     if (origin && !ORIGINS.includes(origin) && !origin.startsWith('https://appassets.androidplatform.net')) return new Response('forbidden', { status: 403 });
     const room = (url.searchParams.get('room') || 'lobby').slice(0, 64);
     return env.ROOMS.get(env.ROOMS.idFromName(room)).fetch(req);
   }
 };
+
+// Short-lived TURN credentials for voice chat. Voice only ever flows through Cloudflare's TURN relay.
+async function ice(env, origin) {
+  const ok = !origin || ORIGINS.includes(origin) || origin.startsWith('https://appassets.androidplatform.net');
+  const h = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': ok && origin ? origin : 'https://subject09.app', 'Vary': 'Origin' };
+  if (!ok) return new Response('{}', { status: 403, headers: h });
+  if (!env.TURN_KEY_ID || !env.TURN_TOKEN) return new Response('{"iceServers":[]}', { status: 503, headers: h });
+  const r = await fetch('https://rtc.live.cloudflare.com/v1/turn/keys/' + env.TURN_KEY_ID + '/credentials/generate-ice-servers', {
+    method: 'POST', headers: { Authorization: 'Bearer ' + env.TURN_TOKEN, 'Content-Type': 'application/json' }, body: JSON.stringify({ ttl: 21600 }) });
+  if (!r.ok) return new Response('{"iceServers":[]}', { status: 502, headers: h });
+  const d = await r.json();
+  // keep only relay (turn/turns) entries: no STUN, so a player's real address is never discovered or shared
+  let servers = d.iceServers; if (!Array.isArray(servers)) servers = [servers];
+  servers = servers.map(s => ({ ...s, urls: [].concat(s.urls || []).filter(u => /^turns?:/.test(u)) })).filter(s => s.urls.length);
+  return new Response(JSON.stringify({ iceServers: servers }), { headers: h });
+}
 
 export class Room {
   constructor(state) { this.state = state; }
@@ -42,6 +59,8 @@ export class Room {
       for (const k of Object.keys(d.patch)) { if (d.patch[k] === null) delete me.presence[k]; else me.presence[k] = d.patch[k]; }
       ws.serializeAttachment(me);
       this.broadcast({ t: 'p', peer: me.id, patch: d.patch }, ws);
+    } else if (d.t === 'sig' && me.joined && typeof d.to === 'string' && d.d) {
+      for (const o of this.peers()) { if (this.info(o).id === d.to) { this.send(o, { t: 'sig', from: me.id, d: d.d }); break; } }
     } else if (d.t === 'ping') this.send(ws, { t: 'pong' });
   }
   async webSocketClose(ws) { const me = this.info(ws); if (me.joined) this.broadcast({ t: 'left', peer: me.id }, ws); try { ws.close(); } catch (e) {} }
