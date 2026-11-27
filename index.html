@@ -79,6 +79,7 @@ small{display:block;margin-top:18px;font:400 .74rem/1.6 var(--mono);color:var(--
 .ts .play{display:block;width:min(100%,19rem);margin:0 auto;padding:22px 18px;font:600 1.25rem/1 var(--cond);letter-spacing:.5em;text-indent:.5em;background:#e6e9ea;color:#0b0c0d;border:0;border-radius:2px;box-shadow:0 0 0 1px rgba(255,255,255,.08),0 0 40px rgba(200,215,225,.16);transition:transform .15s ease,box-shadow .2s ease}
 .ts .play:hover{transform:translateY(-1px);box-shadow:0 0 0 1px rgba(255,255,255,.2),0 0 54px rgba(200,215,225,.28)}
 .ts .play:disabled{opacity:.5}
+#savePanel{max-width:420px;margin:10px auto 0;color:#b8bec1;font:400 .8rem/1.5 var(--mono)}#savePanel p{margin:0 0 6px}#saveIn{display:block;width:100%;box-sizing:border-box;margin:10px 0 0;background:#0c0e0f;color:#dfe3e5;border:1px solid #3a4044;padding:8px;font:400 .72rem/1.4 var(--mono);word-break:break-all}#saveMsg{display:block;min-height:1.2em;color:#e0b25a;margin-top:6px}
 .ts .sec{display:block;width:auto;margin:16px auto 0;padding:10px 16px;background:transparent;border:0;color:#8e969a;font:400 .74rem/1 var(--mono);letter-spacing:.24em;text-decoration:underline;text-underline-offset:4px}
 .ts .sec[hidden],.ts .play[hidden]{display:none}
 .ts .cred{display:block;margin-top:40px;font:400 .6rem/1.5 var(--mono);color:#4f5559;max-width:30rem;margin-left:auto;margin-right:auto}
@@ -120,6 +121,10 @@ small{display:block;margin-top:18px;font:400 .74rem/1.6 var(--mono);color:var(--
   <div class="rule"></div>
   <button id="vrBtn" class="play" disabled>Play</button>
   <button id="flatBtn" class="sec">Play on screen</button>
+  <button id="saveBtn" class="sec">Transfer save</button>
+  <div id="savePanel" hidden><p>Moving to a new device or a new web address? Copy your save code here, then paste it into the game on the other one.</p>
+    <button id="saveCopy" class="sec">Copy my save code</button><button id="saveMove" class="sec" hidden></button>
+    <textarea id="saveIn" rows="3" placeholder="Paste a save code here"></textarea><button id="saveLoad" class="sec">Load this save</button><small id="saveMsg"></small></div>
   <small class="cred">Sound effects: "Oculus Audio Pack 01" by Oculus VR, LLC (CC BY 4.0) and rubberduck (CC0). Full list in CREDITS.md.</small>
   <small id="note">Push floors and walls with your hands to move. Right stick turns.</small>
 </div></div>
@@ -128,6 +133,18 @@ small{display:block;margin-top:18px;font:400 .74rem/1.6 var(--mono);color:var(--
 <script>
 (function(){
 const $ = id => document.getElementById(id), V = (x,y,z) => new THREE.Vector3(x||0, y||0, z||0);
+/* save transfer: everything the game keeps in this browser, as one code. Works between devices and when the site moves to a new address. */
+const MOVE_TO = '';   /* set to the new address (e.g. 'https://subject09.net') once it is live: the old site then offers a one-tap move */
+const SAVE_SKIP = ['s09OwnerKey', 's09MicDev'];
+function saveExport(){ const o = {}; try { for (let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if (k && k.indexOf('s09') === 0 && SAVE_SKIP.indexOf(k) < 0) o[k] = localStorage.getItem(k); } } catch(e){} return 'S09-' + btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function saveImport(code){ try { code = String(code || '').trim().replace(/^S09-/, '').replace(/-/g, '+').replace(/_/g, '/'); const o = JSON.parse(decodeURIComponent(escape(atob(code)))); if (!o || typeof o !== 'object') return false; let n = 0; for (const k in o){ if (k.indexOf('s09') === 0 && SAVE_SKIP.indexOf(k) < 0 && typeof o[k] === 'string'){ localStorage.setItem(k, o[k]); n++; } } return n > 0; } catch(e){ return false; } }
+(function(){ const m = /[#&]save=([^&]+)/.exec(location.hash); if (!m) return; const ok = saveImport(decodeURIComponent(m[1])); try { history.replaceState(null, '', location.pathname + location.search); } catch(e){} if (ok){ try { sessionStorage.setItem('s09Moved', '1'); } catch(e){} } })();
+(function(){ const b = $('saveBtn'), p = $('savePanel'), msg = t => { $('saveMsg').textContent = t; }; if (!b || !p) return;
+  b.onclick = () => { p.hidden = !p.hidden; };
+  $('saveCopy').onclick = () => { const c = saveExport(); $('saveIn').value = c; $('saveIn').select(); (navigator.clipboard ? navigator.clipboard.writeText(c) : Promise.reject()).then(() => msg('Copied. Paste it into the game on the other device or address.'), () => msg('Select the code above and copy it.')); };
+  $('saveLoad').onclick = () => { const c = $('saveIn').value; if (!c.trim()) return msg('Paste a save code first.'); if (!confirm('Replace the save on this device with the pasted one?')) return; if (saveImport(c)){ msg('Save loaded. Restarting...'); setTimeout(() => location.reload(), 700); } else msg('That code did not work. Copy the whole thing and try again.'); };
+  if (MOVE_TO && location.origin !== new URL(MOVE_TO).origin){ const mv = $('saveMove'); mv.hidden = false; mv.textContent = 'Move my save to ' + new URL(MOVE_TO).host; mv.onclick = () => { location.href = MOVE_TO.replace(/\/$/, '') + '/#save=' + encodeURIComponent(saveExport()); }; }
+  try { if (sessionStorage.getItem('s09Moved')){ sessionStorage.removeItem('s09Moved'); p.hidden = false; msg('Your save came with you. Welcome to the new address.'); } } catch(e){} })();
 const G = 9, HR = .1, HEAD_R = .22, HEAD_MIN = .75;
 const scene = new THREE.Scene(); scene.background = new THREE.Color(0x020306); scene.fog = new THREE.FogExp2(0x05060a, .02);
 const camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, .05, 260); camera.rotation.order = 'YXZ'; camera.position.set(0,1,0);
