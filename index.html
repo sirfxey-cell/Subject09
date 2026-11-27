@@ -1875,7 +1875,7 @@ function loadTick(dt, t){
 /* Match logic runs on one host (the contestant with the lowest id in the arena). The host publishes the
    match snapshot in its presence; everyone else renders from that snapshot and sends back only their inputs.
    If the host leaves, the next lowest id picks up from the last snapshot. */
-const DPC = {max:30, min:2, cd:15, intro:6.5, xform:6, count:5, res:6.5, win:12};
+const DPC = {max:30, min:1, cd:60, intro:6.5, xform:6, count:5, res:6.5, win:12};
 const AH = 16, ST = 1.0, AW = 22;
 /* ---------- Death Penalty prison layout (used by the arena build below) ---------- */
 const DPP = {w:26, front:22.4, depth:3.6, cellH:3.4};
@@ -2155,8 +2155,11 @@ let wrStart = null;
   const tl = wsprite('THE DEAD WATCH', '#ff5a4a'); tl.position.set(TVR.x, 4.55, TVR.z - 6.2); arenaG.add(tl);
   /* owner-only start button in the waiting room (for testing with fewer than two people) */
   const pg = new THREE.Group(); pg.position.set(WR.x + 6.6, 0, WR.z - 6.4); arenaG.add(pg); { const pm = new THREE.Mesh(new THREE.BoxGeometry(.5, 1.1, .5), arMat.dark); pm.position.y = .55; pg.add(pm); }
-  const sb2 = new THREE.Mesh(new THREE.CylinderGeometry(.16, .16, .08, 20), arMat.red); sb2.position.y = 1.14; pg.add(sb2); ibtn(sb2, 'wr:start', .22); wrStart = pg; arenaBoxes.push({min:V(WR.x + 6.35, 0, WR.z - 6.65), max:V(WR.x + 6.85, 1.1, WR.z - 6.15)});
-  const sl = wsprite('OWNER START', '#ff6a5a'); sl.position.set(WR.x + 6.6, 1.6, WR.z - 6.4); sl.scale.set(2.4, .3, 1); pg.add(sl); sl.position.set(0, 1.6, 0);
+  const sb2 = new THREE.Mesh(new THREE.CylinderGeometry(.16, .16, .08, 20), new THREE.MeshStandardMaterial({color:0x2fd06a, emissive:0x0d4a22, roughness:.4})); sb2.position.y = 1.14; pg.add(sb2); ibtn(sb2, 'wr:start', .22); wrStart = pg; arenaBoxes.push({min:V(WR.x + 6.35, 0, WR.z - 6.65), max:V(WR.x + 6.85, 1.1, WR.z - 6.15)});
+  const sl = wsprite('SKIP TIMER', '#5ee08a'); sl.scale.set(2.4, .3, 1); pg.add(sl); sl.position.set(0, 1.6, 0);
+  const pg2 = new THREE.Group(); pg2.position.set(WR.x + 6.6, 0, WR.z - 4.6); arenaG.add(pg2); { const pm = new THREE.Mesh(new THREE.BoxGeometry(.5, 1.1, .5), arMat.dark); pm.position.y = .55; pg2.add(pm); }
+  const sb3 = new THREE.Mesh(new THREE.CylinderGeometry(.16, .16, .08, 20), new THREE.MeshStandardMaterial({color:0xf0c030, emissive:0x4a3a08, roughness:.4})); sb3.position.y = 1.14; pg2.add(sb3); ibtn(sb3, 'wr:pause', .22); arenaBoxes.push({min:V(WR.x + 6.35, 0, WR.z - 4.85), max:V(WR.x + 6.85, 1.1, WR.z - 4.35)});
+  const sl2 = wsprite('PAUSE TIMER', '#f0c84a'); sl2.scale.set(2.4, .3, 1); pg2.add(sl2); sl2.position.set(0, 1.6, 0);
   /* thirty TVs, each showing one of four live cameras */
   const TVF = new THREE.MeshStandardMaterial({color:0x141516, roughness:.5, metalness:.4}); let k = 0;
   const tv = (x, y, z, ry, s) => { const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry; arenaG.add(g); const fr = new THREE.Mesh(new THREE.BoxGeometry(1.9*s, 1.12*s, .12), TVF); g.add(fr); const sc = new THREE.Mesh(new THREE.PlaneGeometry(1.76*s, .99*s), new THREE.MeshBasicMaterial({map:tvRT[k%4].texture, fog:false})); sc.position.z = .065; g.add(sc); const lb = new THREE.Mesh(new THREE.PlaneGeometry(.5*s, .12*s), new THREE.MeshBasicMaterial({map:labelTex('CAM ' + ('0' + (k%4 + 1)).slice(-2), '#ff4a3a', 256, 64, 40), transparent:true, fog:false})); lb.position.set(-.6*s, .38*s, .07); g.add(lb); k++; };
@@ -2253,7 +2256,8 @@ function prisonTick(D, dt, t, hw){
   let L = 1; if (D){ if (D.ph === 'cells') L = .015; else if (D.ph === 'lights') L = el < .6 ? .015 : el < 1.0 ? .35 : el < 1.4 ? .7 : 1; }
   dpLight += (L - dpLight)*Math.min(1, dt*(L > dpLight ? 40 : 6)); FC.on = D && (D.ph === 'cells' || (D.ph === 'lights' && el < 1.4)) ? 0 : 1;
   /* face */
-  FC.talk += ((D && D.ph === 'intro2' ? dpVoiceEnv() : 0) - FC.talk)*Math.min(1, dt*20); FC.mood = !D ? 'idle' : D.ph === 'exec' ? (el > 8.5 ? 'happy' : 'exec') : D.ph === 'res' ? 'happy' : D.ph === 'play' ? 'stern' : 'idle';
+  if (D && D.ph === 'cd'){ const left = Math.max(0, Math.ceil(DPC.cd - (D.pz != null ? D.pz : el))); FC.cap = (D.pz != null ? 'PAUSED  ' : 'STARTING IN ') + Math.floor(left/60) + ':' + String(left%60).padStart(2, '0'); }
+  FC.talk += (dpVoiceEnv() - FC.talk)*Math.min(1, dt*20); FC.mood = !D ? 'idle' : D.ph === 'exec' ? (el > 8.5 ? 'happy' : 'exec') : D.ph === 'res' ? 'happy' : D.ph === 'play' ? 'stern' : 'idle';
   FC.fT = (FC.fT || 0) - dt; if (FC.fT <= 0){ FC.fT = 1/24; drawFace(1/24, t); }
   /* music */
   if (!D || D.ph === 'wait' || D.ph === 'cd') dpMusic('wait'); else if (D.ph === 'cells' || D.ph === 'lights') dpMusic(''); else if (D.ph === 'intro2') dpMusic('intro', el); else if (D.ph === 'res' && D.al.length > 1 && el < dpMus.blen) dpMusic('betw', el); else dpMusic('wait');
@@ -2276,7 +2280,7 @@ function prisonTick(D, dt, t, hw){
       /* the stage comes alive for the chosen */
       tiles.forEach((tl, i) => { tl.mat.emissive.setHex(0xff2a2a); tl.mat.emissiveIntensity = .5 + .5*Math.sin(t*8 - i*.7); }); }
     ring.rotation.z += dt*4; arLights.spot.intensity = 2.4; arLights.spot.target.position.set(Math.sin(t*2.2)*6, 0, Math.cos(t*2.2)*6); }
-  else { arLights.spot.target.position.set(0, 0, 0); if (D.ph !== 'play' && D.ph !== 'count') FC.cap = D.ph === 'win' ? 'WINNER ' + (D.ws ? pad4n(D.ws) : '') : ''; }
+  else { arLights.spot.target.position.set(0, 0, 0); if (D.ph !== 'play' && D.ph !== 'count' && D.ph !== 'cd') FC.cap = D.ph === 'win' ? 'WINNER ' + (D.ws ? pad4n(D.ws) : '') : ''; }
   FC.sub = D.ph === 'intro2' || D.ph === 'exec' || D.ph === 'pick' ? D.al.length + ' REMAIN' : '';
   /* the dead watch the TVs */
   if (myNum && !alive && D.ph !== 'win' && Math.abs(hw.z - TVR.z) < 9) tvTick(t);
@@ -2511,12 +2515,17 @@ function botPr(id){ const b = bots[id] || (bots[id] = {di:{v:-1, m:-1, c:0, k:[]
 const bots = {};
 function hSet(ph){ H.k++; H.ph = ph; H.t = performance.now(); }
 function hEl(){ return (performance.now() - H.t)/1000; }
+const dpReq = {skip:0, pause:0}, dpSeen = {};
+function dpHostReq(k){ if (!H || (H.ph !== 'cd' && H.ph !== 'wait')) return; if (k === 'skip'){ H.pz = null; if (H.ph === 'wait') hSet('cd'); H.t = performance.now() - DPC.cd*1000; }
+  else { if (H.pz == null){ H.pz = hEl(); } else { H.t = performance.now() - H.pz*1000; H.pz = null; } } }
 function dpHostTick(){
   if (!H){ if (lastDp && lastDp.id){ H = JSON.parse(JSON.stringify(lastDp)); H.t = performance.now() - (lastDp.el || 0)*1000; } else { H = {id:Math.random().toString(36).slice(2, 8), k:0, ph:'wait', t:performance.now(), exp:'', n:0, ct:{}, al:[], sh:[], x:{}, ws:0, rv:0, pl:null}; } }
-  const el = hEl(), ids = dpIds(), humans = ids.filter(id => id.indexOf('~bot') !== 0), force = dpForce || zonePeers().some(p => p.presence.dpf);
+  zonePeers().forEach(p => { const q = p.presence.dpq; if (!q) return; const [a, b] = String(q).split('.').map(Number), o = dpSeen[p.id] || (dpSeen[p.id] = {skip:a, pause:b}); if (a > o.skip) dpHostReq('skip'); if (b > o.pause) dpHostReq('pause'); o.skip = a; o.pause = b; });
+  if (H.ph === 'cd' && H.pz != null) H.t = performance.now() - H.pz*1000;
+  const el = hEl(), ids = dpIds(), humans = ids.filter(id => id.indexOf('~bot') !== 0), force = dpForce;
   if (H.ph === 'wait'){ if (humans.length >= DPC.min || force) hSet('cd'); }
   else if (H.ph === 'cd'){ if (humans.length < DPC.min && !force) hSet('wait');
-    else if (el >= DPC.cd){ dpBots = Math.max(0, DPC.max - humans.length); const order = humans.slice().sort().concat(dpIds().filter(id => id.indexOf('~bot') === 0)); H.ct = {}; order.slice(0, DPC.max).forEach((id, i) => { H.ct[id] = i + 1; }); H.al = Object.values(H.ct); H.sh = []; H.n = 0; H.ws = 0; H.rv = 0; H.pl = null; H.exp = ''; H.x = {}; dpForce = false; hSet('cells'); } }
+    else if (el >= DPC.cd){ dpBots = Math.max(0, DPC.max - humans.length); const order = humans.slice().sort().concat(dpIds().filter(id => id.indexOf('~bot') === 0)); H.ct = {}; order.slice(0, DPC.max).forEach((id, i) => { H.ct[id] = i + 1; }); H.al = Object.values(H.ct); H.sh = []; H.n = 0; H.ws = 0; H.rv = 0; H.pl = null; H.exp = ''; H.x = {}; dpForce = false; H.pz = null; hSet('cells'); } }
   else if (H.ph === 'cells'){ if (el >= 3) hSet('lights'); }
   else if (H.ph === 'lights'){ if (el >= 3) hSet('intro2'); }
   else if (H.ph === 'intro2'){ if (el >= dpMus.len + .5){ H.n++; H.exp = 'exec'; H.pl = null; H.x = {v:H.al[Math.random()*H.al.length|0], names:H.al.slice()}; hSet('exec'); } }
@@ -2539,7 +2548,7 @@ function dpPick(){
   H.pl = H.al.slice().sort(() => Math.random() - .5).slice(0, Math.max(EXP[H.exp].min, n)).sort((a, b) => a - b);
   const keep = H.al; H.al = H.pl; H.x = EXP[H.exp].setup(H) || {}; H.al = keep; H.x.names = keep.slice(); hSet('pick');
 }
-function dpSnap(){ if (!H) return null; return {id:H.id, k:H.k, ph:H.ph, el:+hEl().toFixed(2), exp:H.exp, n:H.n, ct:H.ct, al:H.al, sh:H.sh, x:H.x, ws:H.ws, rv:H.rv, pl:H.pl}; }
+function dpSnap(){ if (!H) return null; return {id:H.id, k:H.k, ph:H.ph, el:+hEl().toFixed(2), exp:H.exp, n:H.n, ct:H.ct, al:H.al, sh:H.sh, x:H.x, ws:H.ws, rv:H.rv, pl:H.pl, pz:H.pz == null ? null : +H.pz.toFixed(1)}; }
 /* the snapshot everyone renders from */
 function dpView(){
   if (dpIsHost()) return dpSnap();
@@ -2595,7 +2604,7 @@ function enterArenaNow(){
   lobbyG.visible = false; if (lvGroup) lvGroup.visible = false; arenaG.visible = true; state = 'arena'; zone = 'dp'; lampOn = false; setBoxes(arenaBoxes); terrain = null;
   scene.fog.color.set(0x050607); scene.fog.density = .012; hemi.color.set(0xb0c0d0); hemi.intensity = .35;
   rig.position.set(WR.x, 0, WR.z + 3); rig.rotation.y = 0; vel.set(0, 0, 0); hist.length = 0; H = null; lastDp = null; dpLocal.key = ''; dpLocal.amIn = false;
-  Object.assign(DI, {v:-1, m:-1, c:0, k:[], w:-1, f:0}); dpLocal.statsDirty = true; pub({g:null, k:null}); say('Welcome to the Death Penalty program. Wait here. When two players are in, everyone goes to their cell.', 7);
+  Object.assign(DI, {v:-1, m:-1, c:0, k:[], w:-1, f:0}); dpLocal.statsDirty = true; pub({g:null, k:null}); say('Welcome to the Death Penalty program. The match starts in one minute. Green button skips the timer, yellow pauses it.', 7);
 }
 function dpToBooth(){ const hw = headW(); rig.position.x += TVR.x - hw.x; rig.position.z += TVR.z + 3 - hw.z; rig.position.y = 0; rig.rotation.y = 0; if (!renderer.xr.isPresenting){ yaw = 0; camera.rotation.set(0, yaw, 0); } vel.set(0, 0, 0); hist.length = 0; }
 function dpToWait(){ const hw = headW(); rig.position.x += WR.x + (Math.random() - .5)*6 - hw.x; rig.position.z += WR.z + 2 - hw.z; rig.position.y = 0; rig.rotation.y = 0; vel.set(0, 0, 0); hist.length = 0; }
@@ -2606,7 +2615,7 @@ let pressLock = 0;
 function dpPress(id){
   if (performance.now() < pressLock) return; pressLock = performance.now() + 120;
   const D = dpView(), el = dpEl();
-  if (id === 'wr:start'){ if (!isOwner){ say('Only the owner can start early. Waiting for 2 players.', 3); return; } dpForce = true; pub({dpf:1}); setTimeout(() => pub({dpf:null}), 20000); say('Starting. Empty cells get bots.', 3); return; }
+  if (id === 'wr:start' || id === 'wr:pause'){ const k = id === 'wr:start' ? 'skip' : 'pause'; dpReq[k]++; pub({dpq:dpReq.skip + '.' + dpReq.pause}); if (dpIsHost()) dpHostReq(k); beep(k === 'skip' ? 880 : 520, .15, 'sine', .1); return; }
   if (id.indexOf('spec:') === 0){ if (id === 'spec:exit') return enterLobby('Back in the lobby.'); dpLocal.specI += +id.slice(5); beep(700, .06, 'sine', .08); return; }
   if (!D || D.ph !== 'play' || !dpAmAlive()) return;
   const my = dpMyNum();
@@ -2633,7 +2642,7 @@ function arenaTick(dt, t, hw){
   if (!D){ prisonTick(null, dt, t, hw); face.tActive = .3; drawScreenThrottled(dt, () => { drawScreen(0, 'Death Penalty', 'Waiting for the host'); drawScreen(1, 'Holding area', '', waitN + '/30'); }); return; }
   const key = D.id + ':' + D.k; const myNum = D.ct ? D.ct[myId()] : 0, alive = !!(myNum && D.al.indexOf(myNum) >= 0);
   if (key !== dpLocal.key){ dpLocal.key = key; dpLocal.t0 = performance.now() - (D.el || 0)*1000; dpEnter(D, myNum, alive); }
-  else { const est = performance.now() - (D.el || 0)*1000; if (est < dpLocal.t0) dpLocal.t0 = est; }
+  else { const est = performance.now() - (D.el || 0)*1000; if (est < dpLocal.t0 || D.ph === 'cd') dpLocal.t0 = est; }
   const el = dpEl(), E = EXP[D.exp];
   prisonTick(D, dt, t, hw); if (D.exp !== 'potato' || D.ph !== 'play') potatoOrb.visible = false;
   if (alive && ['intro', 'xform', 'count', 'play', 'res'].indexOf(D.ph) >= 0) STATS.st += dt;
@@ -2708,7 +2717,7 @@ function dpEnter(D, myNum, alive){
   else if (ph === 'win'){
     resetStage(); speak(line('final', sd) + ' ' + (D.ws ? line('win', sd, {w:pad4n(D.ws)}) : line('nowin', sd)));
     if (D.ws && D.ws === myNum){ STATS.mw++; saveStats(); const s = [0, 0, Math.PI]; setTimeout(() => { judgeP.tgt.y = ST + 1.2; dpTeleport(0, -3, 0); }, 300); }
-    if (!playS('win', {vol:.8, rv:0})){ [523, 659, 784, 1046].forEach((f, k) => beep(f, 1.2, 'sine', .1, k*.18)); }
+    playS('win', {vol:.8, rv:0});
   }
 }
 function dpOut(){ playS('lose', {vol:.6, rv:0, delay:.4}); flash.material.opacity = .8; bScr.material.opacity = Math.min(bScr.material.opacity, .3); dpToBooth(); say('You are dead. Watch the rest from the TV room. Walk out the back to leave.', 7); }
