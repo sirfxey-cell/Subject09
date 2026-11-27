@@ -1504,8 +1504,7 @@ async function joinRoom(name, label){
   roomLabel = label; unsub = R.onPeers(onPeers); if (R.voice){ R.voice.onStream(addVoice); R.voice.onGone(dropVoice); if (mic) R.voice.send(mic); } pub(); ui.msg = 'Joined ' + label + '.'; drawTerm();
 }
 async function initNet(){
-  try { roomCap = (window.claude && await window.claude.use('room')) || window.S09Net || null; } catch(e){ roomCap = null; }
-  try { const u = window.claude && await window.claude.use('user'); if (u) isOwner = !!(await u.isOwner()); } catch(e){}
+  try { roomCap = window.S09Net || null; } catch(e){ roomCap = null; }
   try { localStorage.removeItem('s09Owner'); const k = localStorage.getItem('s09OwnerKey'); if (k && await ownerCheck(k)) isOwner = true; } catch(e){}
   if (roomCap) joinRoom('pub-1', 'Public Server'); drawTerm();
 }
@@ -2229,8 +2228,15 @@ function botAvTick(D, t, dt){
     let a = b.av; if (!a){ a = b.av = makeAvatar(); a.g.visible = true; }
     const c = dpCell(num - 1); let x, z, r;
     if ((onStagePh && dpChosen(D, num)) || (D.ph === 'win' && D.ws === num)){ const order = dpStageOrder(D), i = order.indexOf(num); if (E && D.ph !== 'xform' && D.ph !== 'win'){ const s = E.spot(i, order.length, D.x || {}, num); x = s[0]; z = s[1]; r = s[2]; } else { const ang = (i + .5)/Math.max(1, order.length)*Math.PI*2; x = Math.sin(ang)*3; z = Math.cos(ang)*3; r = ang + Math.PI; } b.p = null; }
+    else if (['cells', 'lights', 'intro2', 'wait', 'cd'].indexOf(D.ph) < 0){ /* cells are open: wander the hall in front of the cells, sometimes go home */
+      if (!b.p) b.p = V(c.x - c.s*.6, 0, c.z); if (!b.route) b.route = [];
+      if (!b.route.length){ b.wait -= dt; if (b.wait <= 0){ const inCell = Math.abs(b.p.x) > 22.2, home = Math.random() < .15, door = zz => V(c.s*21.6, 0, zz);
+        const T = home ? V(c.x - c.s*.4, 0, c.z + (Math.random() - .5)*1.4) : V(c.s*(8 + Math.random()*13.2), 0, -21 + Math.random()*42);
+        b.route = inCell !== home ? [door(inCell ? c.z : c.z), T] : [T]; if (inCell && !home) b.route = [door(c.z), T]; b.wait = .8 + Math.random()*3.5; } }
+      if (b.route.length){ const tg = b.route[0], d = tg.clone().sub(b.p), l = d.length(); if (l < .1) b.route.shift(); else { b.p.addScaledVector(d, Math.min(1, dt*(1.05 + (num % 5)*.09)/l)); b.face = Math.atan2(-d.x, -d.z); } }
+      x = b.p.x; z = b.p.z; r = (D.ph === 'exec' || D.ph === 'pick') && !b.route.length ? Math.atan2(-(0 - x), -(-20 - z)) : (b.face !== undefined ? b.face : 0); }
     else { /* pacing the cell */
-      if (!b.p) b.p = V(c.x - c.s*.6, 0, c.z); if (!b.tgt || b.p.distanceTo(b.tgt) < .08){ b.wait -= dt; if (b.wait <= 0){ b.tgt = V(c.x + (Math.random() - .6)*c.s*1.6, 0, c.z + (Math.random() - .5)*1.8); b.wait = .6 + Math.random()*2.8; } }
+      if (!b.p || Math.abs(b.p.x) < 22.2) { b.p = V(c.x - c.s*.6, 0, c.z); b.route = []; } if (!b.tgt || b.p.distanceTo(b.tgt) < .08){ b.wait -= dt; if (b.wait <= 0){ b.tgt = V(c.x + (Math.random() - .6)*c.s*1.6, 0, c.z + (Math.random() - .5)*1.8); b.wait = .6 + Math.random()*2.8; } }
       if (b.tgt){ const d = b.tgt.clone().sub(b.p), l = d.length(); if (l > .01) b.p.addScaledVector(d, Math.min(1, dt*.7/l)); }
       x = b.p.x; z = b.p.z; const look = D.ph === 'exec' || D.ph === 'pick' || D.ph === 'intro2' ? Math.atan2(-(0 - x), -(-20 - z)) : Math.atan2(-(b.tgt ? b.tgt.x - x : 0), -(b.tgt ? b.tgt.z - z : 1)); r = look; }
     const gy = arenaGround(x, z, 2.6), bob = Math.sin(t*2 + num)*.03, sc2 = b.sayAt && now > b.sayAt && now < b.sayAt + 3000;

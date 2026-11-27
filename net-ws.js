@@ -2,7 +2,7 @@
 // so nobody can see another player's IP address. Voice chat is off in this mode.
 (function(){
   var url = window.S09_RELAY_URL;
-  if (!url || window.claude) return;
+  if (!url) return;
   window.S09Net = { join: function(name){ return new Promise(function(resolve, reject){
     var ws = new WebSocket(url + (url.indexOf('?') < 0 ? '?' : '&') + 'room=' + encodeURIComponent(name));
     var peers = new Map(), hs = new Set(), me = null, mine = {}, pend = null, timer = null, ping = null, done = false;
